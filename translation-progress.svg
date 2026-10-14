@@ -80,11 +80,11 @@
   <rect x="142" y="420" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="420" width="111" height="6" rx="3" class="bar-low" />
   <text x="440" y="428" text-anchor="end" class="pct-label">45%</text>
-  <text x="20" y="453" class="lang-label">🇯🇵  Japanese</text>
+  <text x="20" y="453" class="lang-label">🇷🇺  Russian</text>
   <rect x="142" y="445" width="246" height="6" rx="3" class="bar-bg" />
-  <rect x="142" y="445" width="108" height="6" rx="3" class="bar-low" />
-  <text x="440" y="453" text-anchor="end" class="pct-label">44%</text>
-  <text x="20" y="478" class="lang-label">🇷🇺  Russian</text>
+  <rect x="142" y="445" width="111" height="6" rx="3" class="bar-low" />
+  <text x="440" y="453" text-anchor="end" class="pct-label">45%</text>
+  <text x="20" y="478" class="lang-label">🇯🇵  Japanese</text>
   <rect x="142" y="470" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="470" width="108" height="6" rx="3" class="bar-low" />
   <text x="440" y="478" text-anchor="end" class="pct-label">44%</text>
