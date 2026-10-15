@@ -30,8 +30,8 @@
   <text x="440" y="103" text-anchor="end" class="pct-label">100%</text>
   <text x="20" y="128" class="lang-label">🇪🇸  Spanish</text>
   <rect x="142" y="120" width="246" height="6" rx="3" class="bar-bg" />
-  <rect x="142" y="120" width="239" height="6" rx="3" class="bar-progress" />
-  <text x="440" y="128" text-anchor="end" class="pct-label">97%</text>
+  <rect x="142" y="120" width="246" height="6" rx="3" class="bar-done" />
+  <text x="440" y="128" text-anchor="end" class="pct-label">100%</text>
   <text x="20" y="153" class="lang-label">🇨🇳  Chinese (S)</text>
   <rect x="142" y="145" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="145" width="229" height="6" rx="3" class="bar-progress" />
