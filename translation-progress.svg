@@ -48,39 +48,39 @@
   <rect x="142" y="220" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="220" width="246" height="6" rx="3" class="bar-done" />
   <text x="440" y="228" text-anchor="end" class="pct-label">100%</text>
-  <text x="20" y="253" class="lang-label">🇯🇵  Japanese</text>
+  <text x="20" y="253" class="lang-label">🇮🇹  Italian</text>
   <rect x="142" y="245" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="245" width="246" height="6" rx="3" class="bar-done" />
   <text x="440" y="253" text-anchor="end" class="pct-label">100%</text>
-  <text x="20" y="278" class="lang-label">🇧🇷  Portuguese</text>
+  <text x="20" y="278" class="lang-label">🇯🇵  Japanese</text>
   <rect x="142" y="270" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="270" width="246" height="6" rx="3" class="bar-done" />
   <text x="440" y="278" text-anchor="end" class="pct-label">100%</text>
-  <text x="20" y="303" class="lang-label">🇷🇴  Romanian</text>
+  <text x="20" y="303" class="lang-label">🇧🇷  Portuguese</text>
   <rect x="142" y="295" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="295" width="246" height="6" rx="3" class="bar-done" />
   <text x="440" y="303" text-anchor="end" class="pct-label">100%</text>
-  <text x="20" y="328" class="lang-label">🇷🇺  Russian</text>
+  <text x="20" y="328" class="lang-label">🇷🇴  Romanian</text>
   <rect x="142" y="320" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="320" width="246" height="6" rx="3" class="bar-done" />
   <text x="440" y="328" text-anchor="end" class="pct-label">100%</text>
-  <text x="20" y="353" class="lang-label">🇸🇮  Slovenian</text>
+  <text x="20" y="353" class="lang-label">🇷🇺  Russian</text>
   <rect x="142" y="345" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="345" width="246" height="6" rx="3" class="bar-done" />
   <text x="440" y="353" text-anchor="end" class="pct-label">100%</text>
-  <text x="20" y="378" class="lang-label">🇺🇦  Ukrainian</text>
+  <text x="20" y="378" class="lang-label">🇸🇮  Slovenian</text>
   <rect x="142" y="370" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="370" width="246" height="6" rx="3" class="bar-done" />
   <text x="440" y="378" text-anchor="end" class="pct-label">100%</text>
-  <text x="20" y="403" class="lang-label">🇫🇷  French</text>
+  <text x="20" y="403" class="lang-label">🇺🇦  Ukrainian</text>
   <rect x="142" y="395" width="246" height="6" rx="3" class="bar-bg" />
-  <rect x="142" y="395" width="244" height="6" rx="3" class="bar-progress" />
-  <text x="440" y="403" text-anchor="end" class="pct-label">99%</text>
-  <text x="20" y="428" class="lang-label">🇩🇪  German</text>
+  <rect x="142" y="395" width="246" height="6" rx="3" class="bar-done" />
+  <text x="440" y="403" text-anchor="end" class="pct-label">100%</text>
+  <text x="20" y="428" class="lang-label">🇫🇷  French</text>
   <rect x="142" y="420" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="420" width="244" height="6" rx="3" class="bar-progress" />
   <text x="440" y="428" text-anchor="end" class="pct-label">99%</text>
-  <text x="20" y="453" class="lang-label">🇮🇹  Italian</text>
+  <text x="20" y="453" class="lang-label">🇩🇪  German</text>
   <rect x="142" y="445" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="445" width="244" height="6" rx="3" class="bar-progress" />
   <text x="440" y="453" text-anchor="end" class="pct-label">99%</text>
@@ -98,8 +98,8 @@
   <text x="440" y="528" text-anchor="end" class="pct-label">41%</text>
   <text x="20" y="553" class="lang-label">🇨🇿  Czech</text>
   <rect x="142" y="545" width="246" height="6" rx="3" class="bar-bg" />
-  <rect x="142" y="545" width="96" height="6" rx="3" class="bar-low" />
-  <text x="440" y="553" text-anchor="end" class="pct-label">39%</text>
+  <rect x="142" y="545" width="98" height="6" rx="3" class="bar-low" />
+  <text x="440" y="553" text-anchor="end" class="pct-label">40%</text>
   <text x="20" y="578" class="lang-label">🇩🇰  Danish</text>
   <rect x="142" y="570" width="246" height="6" rx="3" class="bar-bg" />
   <rect x="142" y="570" width="96" height="6" rx="3" class="bar-low" />
