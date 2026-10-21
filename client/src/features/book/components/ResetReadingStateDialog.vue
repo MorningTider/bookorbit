@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { AlertTriangle, RotateCcw } from '@lucide/vue'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   open: boolean
@@ -38,10 +41,9 @@ function handleConfirm() {
             <AlertTriangle class="size-4" />
           </div>
           <div class="min-w-0">
-            <DialogTitle class="text-base font-semibold text-foreground">Reset reading state?</DialogTitle>
+            <DialogTitle class="text-base font-semibold text-foreground">{{ t('book.detail.readingLog.resetReadingState') }}?</DialogTitle>
             <p class="mt-1.5 text-sm leading-6 text-muted-foreground">
-              This clears BookOrbit and synced Kobo/KOReader progress, reading sessions, and reading dates for this book. Highlights, notes, and book
-              files are kept.
+              {{ t('book.detail.readingLog.resetReadingStateDescription') }}
             </p>
           </div>
         </div>
@@ -56,7 +58,7 @@ function handleConfirm() {
             :disabled="props.resetting"
             @click="handleClose"
           >
-            Cancel
+            {{ t('common.cancel') }}
           </button>
           <button
             class="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-destructive px-3 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
@@ -64,7 +66,7 @@ function handleConfirm() {
             @click="handleConfirm"
           >
             <RotateCcw class="size-3.5" />
-            {{ props.resetting ? 'Resetting...' : 'Reset reading state' }}
+            {{ props.resetting ? t('common.loading') : t('book.detail.readingLog.resetReadingState') }}
           </button>
         </div>
       </DialogContent>

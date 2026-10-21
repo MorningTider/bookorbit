@@ -6,6 +6,8 @@ import {
 } from '@bookorbit/types'
 
 const PROVIDER_LABELS: Record<MetadataProviderKeyType, string> = {
+  [MetadataProviderKey.FANQIE]: '番茄小说',
+  [MetadataProviderKey.DOUBAN]: '豆瓣读书',
   [MetadataProviderKey.GOOGLE]: 'Google Books',
   [MetadataProviderKey.GOODREADS]: 'Goodreads',
   [MetadataProviderKey.AMAZON]: 'Amazon',

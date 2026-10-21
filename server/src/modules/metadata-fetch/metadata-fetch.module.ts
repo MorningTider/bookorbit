@@ -1,3 +1,5 @@
+import { FanqieProvider } from './providers/fanqie/fanqie.provider';
+import { DoubanProvider } from './providers/douban/douban.provider';
 import { Module } from '@nestjs/common';
 
 import { MetadataCacheModule } from '../metadata-cache/metadata-cache.module';
@@ -30,6 +32,8 @@ import { LubimyczytacProvider } from './providers/lubimyczytac/lubimyczytac.prov
 import { AladinProvider } from './providers/aladin/aladin.provider';
 
 const PROVIDER_CLASSES = [
+  DoubanProvider,
+  FanqieProvider,
   GoogleProvider,
   GoodreadsProvider,
   AmazonProvider,

@@ -155,6 +155,8 @@ export function useProviderRows(): ComputedRef<ProviderRowDef[]> {
         blockedMessage: t('settings.metadata.providers.blocked.comicvine'),
       },
     },
+    { key: 'fanqie', label: '番茄小说', group: 'regional', hint: t('settings.metadata.providers.hints.fanqie'), fields: [] },
+    { key: 'douban', label: '豆瓣读书', group: 'regional', hint: t('settings.metadata.providers.hints.douban'), fields: [] },
     { key: 'ranobedb', label: 'RanobeDB', group: 'comics', hint: t('settings.metadata.providers.hints.ranobedb'), fields: [] },
     { key: 'lubimyczytac', label: 'LubimyCzytac', group: 'regional', hint: t('settings.metadata.providers.hints.lubimyczytac'), fields: [] },
     {

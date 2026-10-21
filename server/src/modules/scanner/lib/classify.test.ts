@@ -63,7 +63,7 @@ describe('classifyFile — metadata files', () => {
 
 describe('classifyFile — supplementary', () => {
   it('classifies unknown extensions as supplementary', () => {
-    expect(classifyFile('/books/Book/readme.txt').role).toBe('supplement');
+    expect(classifyFile('/books/Book/notes.md').role).toBe('supplement');
     expect(classifyFile('/books/Book/notes.md').role).toBe('supplement');
     expect(classifyFile('/books/Book/data.xml').role).toBe('supplement');
   });
@@ -93,7 +93,7 @@ describe('isPrimaryFormat', () => {
   it('returns false for non-primary files', () => {
     expect(isPrimaryFormat('/path/cover.jpg')).toBe(false);
     expect(isPrimaryFormat('/path/book.opf')).toBe(false);
-    expect(isPrimaryFormat('/path/readme.txt')).toBe(false);
+    expect(isPrimaryFormat('/path/notes.md')).toBe(false);
   });
 
   it('is case-insensitive', () => {

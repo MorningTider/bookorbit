@@ -11,6 +11,7 @@ import type { FormatExtractor, ParsedBookData } from './extractors/format-extrac
 import { MobiFormatExtractor } from './extractors/mobi-format.extractor';
 import { OpfFormatExtractor } from './extractors/opf-format.extractor';
 import { PdfFormatExtractor } from './extractors/pdf-format.extractor';
+import { TxtFormatExtractor } from './extractors/txt-format.extractor';
 import { extractCover } from './lib/cover';
 import { extractEpubFixedLayout } from './lib/epub';
 import { parseBookFilename } from './lib/filename-parser';
@@ -44,6 +45,7 @@ export class MetadataExtractionService {
       ['cbr', new ComicFormatExtractor('cbr')],
       ['cb7', new ComicFormatExtractor('cb7')],
       ['fb2', new Fb2FormatExtractor()],
+      ['txt', new TxtFormatExtractor()],
     ]);
 
     for (const format of METADATA_AUDIO_FORMATS) {

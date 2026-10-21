@@ -19,6 +19,7 @@ export * from "./book-move";
 export * from "./book-selection";
 export * from "./audiobook";
 export * from "./upload";
+export * from "./txt-conversion";
 export * from "./media";
 export * from "./collection";
 export * from "./smart-scope";

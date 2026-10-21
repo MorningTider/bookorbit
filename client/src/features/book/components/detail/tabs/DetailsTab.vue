@@ -19,10 +19,12 @@ import {
   Star,
   StickyNote,
   FolderInput,
+  FileOutput,
   Trash2,
   TriangleAlert,
   X,
 } from '@lucide/vue'
+import TxtConversionDialog from '@/features/book/components/TxtConversionDialog.vue'
 import BookFormatChip from '@/features/book/components/BookFormatChip.vue'
 import { bookFormatEntries, fileFormatKey, formatKeyName } from '@/features/book/lib/book-formats'
 import { providerIconPathSafe } from '@/features/book/lib/provider-icons'
@@ -278,7 +280,7 @@ const {
   openDialog: openResetReadingStateDialog,
   closeDialog: closeResetReadingStateDialog,
   resetReadingState,
-} = useResetReadingState(resetReadingStateBookId)
+} = useResetReadingState(resetReadingStateBookId, t('book.detail.readingLog.resetReadingStateFailed'))
 
 const coverSeed = computed(() => props.book.title ?? props.book.folderPath.split('/').pop() ?? String(props.book.id))
 const coverPlaceholderTitle = computed(() => props.book.title ?? props.book.folderPath.split('/').pop() ?? null)
@@ -369,6 +371,7 @@ const isFaceAudio = computed(() => {
 const isPrimaryComic = computed(() => primaryFile.value?.format != null && isComicFormat(primaryFile.value.format))
 const formatEntries = computed(() => bookFormatEntries(props.book.files, props.book.formatPriority))
 const isMultiTrackAudio = computed(() => formatEntries.value.some((entry) => entry.audio && entry.files.length > 1))
+const canConvertTxtToEpub = computed(() => props.book.files.some((file) => file.format?.toLowerCase() === 'txt') && !props.book.files.some((file) => file.format?.toLowerCase() === 'epub'))
 // A multi-file audiobook opens from its first track, so it is one entry in the menu.
 const openableFiles = computed(() =>
   formatEntries.value
@@ -990,6 +993,19 @@ function handleMoveFromMenu() {
   moveToLibraryOpen.value = true
 }
 
+const conversionOpen = ref(false)
+function handleConvertTxtToEpub() {
+  moreMenuOpen.value = false
+  mobileMoreMenuOpen.value = false
+  conversionOpen.value = true
+}
+function handleConversionOpen(open: boolean) { conversionOpen.value = open }
+async function handleConversionComplete() {
+  conversionOpen.value = false
+  const response = await api(`/api/v1/books/${props.book.id}`)
+  if (response.ok) emit('saved', await response.json())
+}
+
 function handleMoveOpenChange(open: boolean) {
   moveToLibraryOpen.value = open
 }
@@ -1472,7 +1488,7 @@ watch(
                   @click="handleOpenResetReadingState"
                 >
                   <RotateCcw class="size-3.5" />
-                  Reset reading state
+                  {{ t('book.detail.readingLog.resetReadingState') }}
                 </button>
                 <button
                   v-if="canEditMetadata"
@@ -1483,12 +1499,20 @@ watch(
                   {{ t('book.move.action') }}
                 </button>
                 <button
+                  v-if="canConvertTxtToEpub && hasPermission('library_upload')"
+                  class="flex w-full items-center gap-2 px-2 py-1.5 rounded-xs text-sm hover:bg-muted transition-colors"
+                  @click="handleConvertTxtToEpub"
+                >
+                  <FileOutput class="size-3.5" />
+                  {{ t('txtConversion.action') }}
+                </button>
+                <button
                   v-if="hasPermission('library_delete_books')"
                   class="flex w-full items-center gap-2 px-2 py-1.5 rounded-xs text-sm text-destructive hover:bg-destructive/10 transition-colors"
                   @click="handleDeleteFromMenu"
                 >
                   <Trash2 class="size-3.5" />
-                  Delete book
+                  删除书籍
                 </button>
               </PopoverContent>
             </Popover>
@@ -2243,6 +2267,8 @@ watch(
     @close="closeResetReadingStateDialog"
     @confirm="handleResetReadingState"
   />
+
+  <TxtConversionDialog :book-id="book.id" :open="conversionOpen" @update:open="handleConversionOpen" @completed="handleConversionComplete" />
 
   <BookCoverLightbox :open="coverLightboxOpen" :book="book" @update:open="handleCoverLightboxOpenChange" />
 </template>

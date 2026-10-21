@@ -9,6 +9,7 @@ import { compareAudioTracks } from '../../common/utils/book-media.utils';
 import { pathsReferToSameEntry } from '../../common/utils/path-identity.utils';
 import { selectPrimaryFile } from '../../common/utils/primary-file-selection.utils';
 import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
+import { groupAttachedFormats } from './lib/group-attached-formats';
 
 import type {
   AddedAtSource,
@@ -1607,6 +1608,7 @@ export class ScannerService implements OnApplicationBootstrap {
         this.scannerRepo.findBookFilesByLibraryFolder(libraryFolderId),
       ]);
 
+      candidates = groupAttachedFormats(candidates, knownBooks, knownFiles);
       const isFirstScan = knownBooks.length === 0 && knownFiles.length === 0;
       const maps = ScannerService.buildLookupMaps(knownBooks, knownFiles);
 

@@ -2016,7 +2016,9 @@
           "comicvine": "来自ComicVine的漫画书元数据。需要免费的 API 密钥从 comicvine.gamespot.com。",
           "ranobedb": "来自RanobeDB的日光新元数据。无需设置。",
           "lubimyczytac": "Polish book catalog (lubimyczytac.pl). Scrapes public book pages. 无需设置。",
-          "aladin": "来自Aladin的韩文书元数据(从二分之一到二分之一)。需要从 aladin.co.kr 的TTB 密钥。"
+          "aladin": "来自Aladin的韩文书元数据(从二分之一到二分之一)。需要从 aladin.co.kr 的TTB 密钥。",
+          "douban": "搜索豆瓣公开书目，获取中文书名、作者、年份与封面。访问受限时会显示错误。",
+          "fanqie": "搜索番茄公开书目，获取书名、作者、简介、分类与封面。"
         },
         "blocked": {
           "google": "Google Books 需要一个 API 密钥才能启用",
@@ -3134,6 +3136,7 @@
         "fullSizeCovers": "全尺寸盖子",
         "fullSizeCoversHint": "在您的 Kobo 屏幕分辨率上发送每张封面，所以睡眠屏幕和全屏幕封面保持锐化。 关闭此功能以便更快地发送较小的封面。只有当书封面变化时，Kobo上的封面才会改变。",
         "convertKepub": "转换为 KEPUB",
+        "convertTxtToEpub": "转换为 EPUB",
         "convertKepubHint": "以 KEPUB 发送合格的 EPUB。当进度同步或 BookOrbit到 Kobo 划线启用时，此操作将保持不变。 在下一个 Kobo 同步时，受影响的书籍将再次以 KEPUB 下载的形式提供；如果Kobo 继续打开，则删除任何旧的 EPUB 副本。",
         "forceHyphenation": "强制连线",
         "forceHyphenationHint": "确保文本说明一致。这将重新生成缓存的 KEPUBs。",
@@ -7315,6 +7318,8 @@
       },
       "readingLog": {
         "resetReadingState": "重置阅读状态",
+        "resetReadingStateDescription": "这会清除本书在 BookOrbit、Kobo 和 KOReader 中同步的进度、阅读会话和阅读日期，但会保留划线、笔记和书籍文件。",
+        "resetReadingStateFailed": "重置阅读状态失败",
         "vitals": {
           "aria": "阅读摘要",
           "notSet": "未设置",
@@ -12941,6 +12946,20 @@
       "loadMoreFailed": "无法加载更多节目。",
       "retry": "重试"
     }
+  },
+  "txtConversion": {
+    "action": "转换为 EPUB",
+    "title": "TXT 转换为 EPUB",
+    "encoding": "文字编码",
+    "auto": "自动识别",
+    "chapters": "目录识别",
+    "chapterAuto": "识别“第…章 / 卷 / 回”和 Chapter 标题",
+    "single": "不识别章节，作为单章",
+    "note": "保留原 TXT，将 EPUB 添加为同一本书的另一种格式，共享书籍元数据。",
+    "start": "开始转换",
+    "busy": "正在转换…",
+    "cancel": "取消",
+    "failed": "转换失败，请重试。"
   },
   "whatsNew": {
     "title": "新功能",

@@ -12,6 +12,7 @@ export const UPLOAD_SUPPORTED_FORMATS = [
   "cbr",
   "cb7",
   "fb2",
+  "txt",
   "m4b",
   "m4a",
   "mp3",

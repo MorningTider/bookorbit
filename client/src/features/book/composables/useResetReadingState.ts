@@ -13,7 +13,7 @@ async function getErrorMessage(response: Response): Promise<string> {
   return 'Failed to reset reading state'
 }
 
-export function useResetReadingState(bookId: Ref<number>) {
+export function useResetReadingState(bookId: Ref<number>, fallbackError = 'Failed to reset reading state') {
   const open = ref(false)
   const resetting = ref(false)
   const error = ref<string | null>(null)
@@ -37,7 +37,7 @@ export function useResetReadingState(bookId: Ref<number>) {
     try {
       const response = await api(`/api/v1/books/${bookId.value}/reset-reading-state`, { method: 'POST' })
       if (!response.ok) {
-        error.value = await getErrorMessage(response)
+        error.value = (await getErrorMessage(response)) || fallbackError
         return null
       }
 
@@ -45,7 +45,7 @@ export function useResetReadingState(bookId: Ref<number>) {
       open.value = false
       return result
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : 'Failed to reset reading state'
+      error.value = caught instanceof Error ? caught.message : fallbackError
       return null
     } finally {
       resetting.value = false

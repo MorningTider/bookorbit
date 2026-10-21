@@ -100,6 +100,8 @@ function matchesFormatSignature(bytes: Buffer, format: string): boolean {
       return ascii.includes('BOOKMOBI');
     case 'fb2':
       return /<\??(?:xml[^>]*>\s*)?(?:[\w-]+:)?FictionBook\b/i.test(bytes.toString('utf8'));
+    case 'txt':
+      return bytes.length > 0;
     case 'flac':
       return ascii.startsWith('fLaC');
     case 'ogg':

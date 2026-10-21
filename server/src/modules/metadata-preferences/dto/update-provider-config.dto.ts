@@ -59,6 +59,8 @@ export class UpdateProviderConfigDto {
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) audnexus?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) librofm?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => ComicVineProviderConfigDto) comicvine?: ComicVineProviderConfigDto;
+  @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) douban?: SimpleProviderConfigDto;
+  @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) fanqie?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) ranobedb?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => KoboProviderConfigDto) kobo?: KoboProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) lubimyczytac?: SimpleProviderConfigDto;

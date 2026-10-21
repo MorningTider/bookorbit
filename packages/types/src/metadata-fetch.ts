@@ -4,6 +4,8 @@ import type { MetadataCacheServedProvider, MetadataCandidateCacheInfo } from "./
 import type { SeriesIndex } from "./series-index";
 
 export const MetadataProviderKey = {
+  FANQIE: "fanqie",
+  DOUBAN: "douban",
   GOOGLE: "google",
   GOODREADS: "goodreads",
   AMAZON: "amazon",

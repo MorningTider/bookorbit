@@ -2016,7 +2016,9 @@
           "comicvine": "Comic book metadata from ComicVine. A free API key is required from comicvine.gamespot.com.",
           "ranobedb": "Japanese light novel metadata from RanobeDB. No setup required.",
           "lubimyczytac": "Polish book catalog (lubimyczytac.pl). Scrapes public book pages. No setup required.",
-          "aladin": "Korean book metadata from Aladin (알라딘). A TTB Key from aladin.co.kr is required."
+          "aladin": "Korean book metadata from Aladin (알라딘). A TTB Key from aladin.co.kr is required.",
+          "douban": "Search the public Douban book catalog for title, author, year and cover.",
+          "fanqie": "Search the public Fanqie catalog for title, author, description, genre and cover."
         },
         "blocked": {
           "google": "Google Books requires an API key before it can be enabled",
@@ -3134,6 +3136,7 @@
         "fullSizeCovers": "Full-size covers",
         "fullSizeCoversHint": "Send each cover at your Kobo's screen resolution, so sleep screens and full-screen covers stay sharp. Turn this off to send smaller covers that sync faster. A cover already on a Kobo changes only when the book's cover changes.",
         "convertKepub": "Convert to KEPUB",
+        "convertTxtToEpub": "Convert to EPUB",
         "convertKepubHint": "Send eligible EPUBs as KEPUB. This stays on when progress sync or BookOrbit-to-Kobo highlights are enabled. On the next Kobo sync, affected books are offered again as KEPUB downloads; remove any old EPUB copy if Kobo keeps opening it.",
         "forceHyphenation": "Force hyphenation",
         "forceHyphenationHint": "Ensures consistent text justification. This will regenerate cached KEPUBs.",
@@ -7404,6 +7407,8 @@
       },
       "readingLog": {
         "resetReadingState": "Reset reading state",
+        "resetReadingStateDescription": "This clears synchronized progress, reading sessions, and reading dates in BookOrbit, Kobo, and KOReader while keeping highlights, notes, and book files.",
+        "resetReadingStateFailed": "Failed to reset reading state",
         "vitals": {
           "aria": "Reading summary",
           "notSet": "Not set",
@@ -13933,6 +13938,20 @@
       "removed": "Removed from {name}",
       "removeFailed": "Could not remove the show from that collection."
     }
+  },
+  "txtConversion": {
+    "action": "Convert to EPUB",
+    "title": "Convert TXT to EPUB",
+    "encoding": "Text encoding",
+    "auto": "Detect automatically",
+    "chapters": "Chapter detection",
+    "chapterAuto": "Detect Chinese chapter headings and Chapter headings",
+    "single": "Single chapter",
+    "note": "Keep the TXT and attach EPUB to the same book, sharing book metadata.",
+    "start": "Convert",
+    "busy": "Converting…",
+    "cancel": "Cancel",
+    "failed": "Conversion failed. Please retry."
   },
   "titles": {
     "dashboard": "Dashboard",

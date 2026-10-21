@@ -1,4 +1,5 @@
-import { BadRequestException, Controller, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
+import { ConvertTxtDto } from './dto/convert-txt.dto';
+import { BadRequestException, Body, Controller, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
 import { Permission } from '@bookorbit/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -22,6 +23,13 @@ export class BookFileUploadController {
     const data = await req.file({ limits: { fileSize: limitMb * 1024 * 1024 } });
     if (!data) throw new BadRequestException('No file provided');
     return this.uploadService.addFileToBook(bookId, data.filename, data.file, user);
+  }
+
+  @Post(':id/convert-txt-to-epub')
+  @HttpCode(HttpStatus.CREATED)
+  @RequirePermission(Permission.LibraryUpload)
+  convertTxtToEpub(@Param('id', ParseIntPipe) bookId: number, @CurrentUser() user: RequestUser, @Body() options: ConvertTxtDto) {
+    return this.uploadService.convertTxtToEpub(bookId, user, options);
   }
 
   @Post(':id/rename-files')

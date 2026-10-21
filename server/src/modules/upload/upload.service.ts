@@ -1,8 +1,11 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { access as fsAccess, stat } from 'fs/promises';
+import { access as fsAccess, readFile, stat, mkdtemp, rm } from 'fs/promises';
 import { basename, dirname, extname, join, relative } from 'path';
 import { Readable } from 'stream';
+import { createReadStream } from 'fs';
+import { tmpdir } from 'os';
+import type { ConvertTxtDto } from './dto/convert-txt.dto';
 import { and, asc, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
@@ -23,6 +26,7 @@ import { UploadProcessorService } from './upload-processor.service';
 import { FileRenameService } from '../file-write/file-rename.service';
 import { isAudioFormat, resolveUploadPath } from '@bookorbit/types';
 import type { AddBookFileResult, UploadResult } from '@bookorbit/types';
+import { BookCoverStore } from '../book-cover-store/book-cover-store.service';
 import { extractEpubMetadata } from '../metadata/lib/epub';
 import { extractCbzMetadata, extractCbrMetadata, extractCb7Metadata } from '../metadata/lib/cbz-metadata';
 import { parseMobiFile } from '../metadata/lib/mobi-parser';
@@ -36,6 +40,7 @@ import { PathPolicyService } from '../path/path-policy.service';
 import { FORMATS_WITH_UNBOUNDED_METADATA_READS, MAX_BUFFERED_METADATA_BYTES } from '../../common/constants/upload.constants';
 import { UploadDestinationExistsError } from './upload-storage.service';
 import { uploadError } from './upload-errors';
+import { convertTxtToEpub } from '../metadata/lib/txt-to-epub';
 
 type Db = NodePgDatabase<typeof schema>;
 type StoredUploadResult = UploadResult & { absolutePath: string; created: boolean; libraryId: number };
@@ -53,6 +58,7 @@ export class UploadService {
     private readonly processor: UploadProcessorService,
     private readonly moduleRef: ModuleRef,
     private readonly pathPolicy: PathPolicyService,
+    @Optional() private readonly coverStore?: BookCoverStore,
   ) {}
 
   private resolveFileRenameService(): FileRenameService | null {
@@ -80,6 +86,78 @@ export class UploadService {
       this.processor.extractMetadataAsync(stored.bookId, stored.absolutePath, stored.format);
     }
     return { bookId: stored.bookId, filename: stored.filename, format: stored.format, sizeBytes: stored.sizeBytes };
+  }
+
+  private readonly convertingBooks = new Set<number>();
+
+  async convertTxtToEpub(bookId: number, user: RequestUser, options: ConvertTxtDto = {}) {
+    const [owner] = await this.db.select({ libraryId: books.libraryId }).from(books).where(eq(books.id, bookId)).limit(1);
+    if (!owner) throw new NotFoundException('Book not found');
+    await this.libraryService.verifyUserAccess(user.id, owner.libraryId, user.isSuperuser);
+    if (this.convertingBooks.has(bookId)) throw new BadRequestException('This book is already being converted');
+    if (this.convertingBooks.size >= 2) throw new ServiceUnavailableException('Conversion queue is busy; retry shortly');
+    this.convertingBooks.add(bookId);
+    const startedAt = Date.now();
+    let temporary: string | undefined;
+    this.logger.log(`[book.convert_txt] [start] bookId=${bookId} userId=${user.id} - TXT conversion started`);
+    try {
+      const [txt] = await this.db.select({ path: bookFiles.absolutePath }).from(bookFiles)
+        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.format, 'txt'))).limit(1);
+      if (!txt) throw new NotFoundException('No TXT file is attached to this book');
+      const [existing] = await this.db.select({ id: bookFiles.id }).from(bookFiles)
+        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.format, 'epub'))).limit(1);
+      if (existing) throw new BadRequestException('An EPUB file is already attached to this book');
+      const [metadata] = await this.db.select({
+        title: schema.bookMetadata.title,
+        language: schema.bookMetadata.language,
+        description: schema.bookMetadata.description,
+        publisher: schema.bookMetadata.publisher,
+        publishedDate: schema.bookMetadata.publishedDate,
+        isbn10: schema.bookMetadata.isbn10,
+        isbn13: schema.bookMetadata.isbn13,
+      })
+        .from(schema.bookMetadata).where(eq(schema.bookMetadata.bookId, bookId)).limit(1);
+      const authorRows = await this.db.select({ name: schema.authors.name })
+        .from(schema.bookAuthors)
+        .innerJoin(schema.authors, eq(schema.bookAuthors.authorId, schema.authors.id))
+        .where(eq(schema.bookAuthors.bookId, bookId))
+        .orderBy(asc(schema.bookAuthors.displayOrder));
+      const title = metadata?.title || basename(txt.path, extname(txt.path));
+      const filename = this.validator.sanitizeFilename(`${basename(txt.path, extname(txt.path))}.epub`);
+      temporary = await mkdtemp(join(tmpdir(), 'bookorbit-convert-'));
+      const output = join(temporary, filename);
+      let cover: { bytes: Buffer; mediaType: 'image/jpeg' | 'image/png' } | undefined;
+      try {
+        const coverPath = await this.coverStore?.resolve(bookId, { medium: 'ebook', variant: 'cover' });
+        if (coverPath && (await stat(coverPath)).size <= 10 * 1024 * 1024) {
+          cover = {
+            bytes: await readFile(coverPath),
+            mediaType: extname(coverPath).toLowerCase() === '.png' ? 'image/png' : 'image/jpeg',
+          };
+        }
+      } catch {
+        this.logger.warn(`[book.convert_txt] [end] bookId=${bookId} coverEmbedded=false - cover unavailable during TXT conversion`);
+      }
+      await convertTxtToEpub(txt.path, output, title, {
+        ...options,
+        language: metadata?.language || 'zh',
+        authors: authorRows.map((row) => row.name),
+        description: metadata?.description,
+        publisher: metadata?.publisher,
+        publishedDate: metadata?.publishedDate,
+        isbn: metadata?.isbn13 || metadata?.isbn10,
+        cover,
+      });
+      const result = await this.addFileToBook(bookId, filename, createReadStream(output), user);
+      this.logger.log(`[book.convert_txt] [end] bookId=${bookId} durationMs=${Date.now() - startedAt} fileId=${result.id} - TXT conversion completed`);
+      return result;
+    } catch (error) {
+      this.logger.warn(`[book.convert_txt] [fail] bookId=${bookId} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(error instanceof Error ? error.message : String(error))}" - TXT conversion failed`);
+      throw error;
+    } finally {
+      this.convertingBooks.delete(bookId);
+      if (temporary) await rm(temporary, { recursive: true, force: true });
+    }
   }
 
   uploadForSession(
@@ -213,9 +291,7 @@ export class UploadService {
 
     await this.libraryService.verifyUserAccess(user.id, bookRow.libraryId, user.isSuperuser);
 
-    if (bookRow.organizationMode === 'book_per_file') {
-      throw new BadRequestException('Cannot add files to a book in a single-file library. Upload a new book instead.');
-    }
+    const destinationFolder = bookRow.organizationMode === 'book_per_file' ? dirname(bookRow.folderPath) : bookRow.folderPath;
 
     const filename = this.validator.sanitizeFilename(rawFilename);
     const format = this.validator.validateFormat(filename, bookRow.allowedFormats);
@@ -244,8 +320,8 @@ export class UploadService {
         throw uploadError.duplicate('This file is already attached to this book');
       }
 
-      destination = join(bookRow.folderPath, filename);
-      await this.pathPolicy.assertWithinRoot(destination, bookRow.folderPath);
+      destination = join(destinationFolder, filename);
+      await this.pathPolicy.assertWithinRoot(destination, destinationFolder);
 
       if (await this.destinationExists(destination)) {
         throw uploadError.destinationConflict(`A file named "${filename}" already exists in this book's folder`);

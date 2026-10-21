@@ -114,10 +114,11 @@ describe('root-level primary files', () => {
     await file('orphan.txt');
 
     const { candidates } = await findBookCandidates(root);
-    expect(candidates).toHaveLength(2);
+    expect(candidates).toHaveLength(3);
     const byPrimary = new Map(candidates.map((c) => [c.folderPath, c.files.map((f) => f.absolutePath).sort()]));
     expect(byPrimary.get(join(root, 'A.epub'))).toEqual([join(root, 'A.epub'), join(root, 'A.opf')]);
     expect(byPrimary.get(join(root, 'B.epub'))).toEqual([join(root, 'B.epub'), join(root, 'B.jpg')]);
+    expect(byPrimary.get(join(root, 'orphan.txt'))).toEqual([join(root, 'orphan.txt')]);
   });
 });
 
@@ -821,11 +822,11 @@ describe('FileStat cached classification', () => {
 
   it('sets format to extension and role to supplement for unrecognized files', async () => {
     await file('Author/Book/book.epub');
-    await file('Author/Book/readme.txt');
+    await file('Author/Book/notes.md');
     const { candidates } = await findBookCandidates(root);
-    const txt = candidates[0].files.find((f) => f.absolutePath.endsWith('readme.txt'));
+    const txt = candidates[0].files.find((f) => f.absolutePath.endsWith('notes.md'));
     expect(txt).toBeDefined();
-    expect(txt!.format).toBe('txt');
+    expect(txt!.format).toBe('md');
     expect(txt!.role).toBe('supplement');
   });
 });

@@ -22,6 +22,8 @@ const HARDCOVER_TEST_QUERY = 'query { me { username } }';
 const AMAZON_TEST_QUERY = 'books';
 const PROVIDER_TEST_TIMEOUT_MS = 10_000;
 const DEFAULT_CONFIG: ProviderConfigurations = {
+  fanqie: { enabled: true },
+  douban: { enabled: true },
   google: { enabled: false, apiKey: '' },
   amazon: { enabled: true, domain: 'amazon.com', cookie: '' },
   goodreads: { enabled: true },
@@ -126,6 +128,8 @@ function mergeAladinConfig(base: ProviderConfigurations['aladin'], value: unknow
 }
 
 const PROVIDER_LABELS: Record<MetadataProviderKey, string> = {
+  [MetadataProviderKey.FANQIE]: '番茄小说',
+  [MetadataProviderKey.DOUBAN]: '豆瓣读书',
   [MetadataProviderKey.GOOGLE]: 'Google Books',
   [MetadataProviderKey.AMAZON]: 'Amazon',
   [MetadataProviderKey.GOODREADS]: 'Goodreads',
@@ -189,6 +193,8 @@ export class ProviderConfigService {
       audnexus: { ...DEFAULT_CONFIG.audnexus },
       librofm: { ...DEFAULT_CONFIG.librofm },
       comicvine: { ...DEFAULT_CONFIG.comicvine },
+      fanqie: { ...DEFAULT_CONFIG.fanqie },
+      douban: { ...DEFAULT_CONFIG.douban },
       ranobedb: { ...DEFAULT_CONFIG.ranobedb },
       kobo: { ...DEFAULT_CONFIG.kobo },
       lubimyczytac: { ...DEFAULT_CONFIG.lubimyczytac },
@@ -209,6 +215,8 @@ export class ProviderConfigService {
       audnexus: mergeSimpleConfig(base.audnexus, next.audnexus),
       librofm: mergeSimpleConfig(base.librofm, next.librofm),
       comicvine: mergeComicVineConfig(base.comicvine, next.comicvine),
+      fanqie: mergeSimpleConfig(base.fanqie, next.fanqie),
+      douban: mergeSimpleConfig(base.douban, next.douban),
       ranobedb: mergeSimpleConfig(base.ranobedb, next.ranobedb),
       kobo: mergeKoboConfig(base.kobo, next.kobo),
       lubimyczytac: mergeSimpleConfig(base.lubimyczytac, next.lubimyczytac),
@@ -380,6 +388,18 @@ export class ProviderConfigService {
   async getProviderStatuses(config?: ProviderConfigurations): Promise<ProviderStatus[]> {
     const cfg = config ?? (await this.getConfig());
     return [
+      {
+        key: MetadataProviderKey.FANQIE,
+        label: PROVIDER_LABELS[MetadataProviderKey.FANQIE],
+        enabled: cfg.fanqie.enabled,
+        configured: true,
+      },
+      {
+        key: MetadataProviderKey.DOUBAN,
+        label: PROVIDER_LABELS[MetadataProviderKey.DOUBAN],
+        enabled: cfg.douban.enabled,
+        configured: true,
+      },
       {
         key: MetadataProviderKey.GOOGLE,
         label: PROVIDER_LABELS[MetadataProviderKey.GOOGLE],

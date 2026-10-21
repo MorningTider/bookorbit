@@ -134,6 +134,8 @@ export interface AladinProviderConfig {
 }
 
 export interface ProviderConfigurations {
+  fanqie: SimpleProviderConfig;
+  douban: SimpleProviderConfig;
   google: GoogleProviderConfig;
   amazon: AmazonProviderConfig;
   goodreads: SimpleProviderConfig;
@@ -177,6 +179,8 @@ export interface ProviderConnectionTestResult {
  * always square, so it is not under `cover`; it still fills an empty ebook slot as a last resort.
  */
 export const METADATA_PROVIDER_SUPPORTED_FIELDS: Record<MetadataProviderKey, readonly MetadataField[]> = {
+  [MetadataProviderKey.FANQIE]: ["title", "authors", "description", "cover", "language", "genres"],
+  [MetadataProviderKey.DOUBAN]: ["title", "authors", "cover", "publishedYear", "language"],
   [MetadataProviderKey.GOOGLE]: [
     "title",
     "subtitle",
