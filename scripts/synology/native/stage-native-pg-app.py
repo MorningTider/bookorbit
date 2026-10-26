@@ -28,7 +28,13 @@ def docker(method,path,body=None):
     try:
         connection.request(method,path,body=json.dumps(body).encode() if body is not None else None,headers={'Content-Type':'application/json'})
         response=connection.getresponse();data=response.read()
-        if response.status>=400:raise RuntimeError('Docker '+method+' failed with status '+str(response.status))
+        if response.status>=400:
+            message=json.loads(data).get('message','Unknown Docker error')
+            if isinstance(body,dict):
+                for item in body.get('Env',[]):
+                    value=item.partition('=')[2]
+                    if len(value)>8:message=message.replace(value,'<redacted>')
+            raise RuntimeError('Docker '+method+' failed with status '+str(response.status)+': '+message[:500])
         return json.loads(data) if data else None
     finally:connection.close()
 
