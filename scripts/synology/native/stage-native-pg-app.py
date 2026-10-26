@@ -66,6 +66,7 @@ def main():
     port=str(env.get('PORT','3000'))
     env.update({'POSTGRES_HOST':'172.30.77.1','POSTGRES_PORT':'5433','POSTGRES_DB':credentials['database'],'POSTGRES_USER':credentials['role'],'POSTGRES_PASSWORD':credentials['password'],'DATABASE_URL':'postgres://'+urllib.parse.quote(credentials['role'],safe='')+':'+urllib.parse.quote(credentials['password'],safe='')+'@172.30.77.1:5433/'+credentials['database'],'JWT_SECRET':secrets.token_hex(32),'SETUP_BOOTSTRAP_TOKEN':secrets.token_hex(32),'APP_URL':'http://127.0.0.1:18185','CLIENT_URL':'http://127.0.0.1:18185','COVER_SLOTS_BACKFILL_MODE':'skip'})
     config['Env']=[key+'='+value for key,value in env.items()]
+    config['Entrypoint']=['/usr/bin/nice','-n','10']+(config.get('Entrypoint') or [])
     config['Labels']={'bookorbit.acceptance':'native-pg'}
     config.pop('Hostname',None);config.pop('Domainname',None)
     binds=[]
@@ -74,11 +75,11 @@ def main():
         if mount['Destination']=='/data':binds.append(str(app)+':/data:rw')
         elif mount['Destination'].startswith('/books'):binds.append(mount['Source']+':'+mount['Destination']+':ro')
         else:raise ValueError('Unreviewed production application mount')
-    host.update({'Binds':binds,'NetworkMode':network_name,'PortBindings':{port+'/tcp':[{'HostIp':'127.0.0.1','HostPort':'18185'}]},'RestartPolicy':{'Name':'no','MaximumRetryCount':0},'Memory':1024*1024*1024,'NanoCpus':500000000,'CpuPeriod':0,'CpuQuota':0,'AutoRemove':False})
+    host.update({'Binds':binds,'NetworkMode':network_name,'PortBindings':{port+'/tcp':[{'HostIp':'127.0.0.1','HostPort':'18185'}]},'RestartPolicy':{'Name':'no','MaximumRetryCount':0},'Memory':1024*1024*1024,'NanoCpus':0,'CpuShares':0,'CpuPeriod':0,'CpuQuota':0,'AutoRemove':False})
     config['HostConfig']=host
     name='bookorbit-nativepg-acceptance'
     created=docker('POST','/containers/create?name='+name,config)
-    receipt={'container':name,'containerId':created['Id'],'network':network_name,'networkId':network['Id'],'subnet':str(subnet),'nativeGateway':'172.30.77.1','database':credentials['database'],'stageRoot':str(stage),'port':18185,'sourceImage':source['Config']['Image'],'noInternet':True,'readOnlyBooks':True,'productionContainerUnchanged':True}
+    receipt={'container':name,'containerId':created['Id'],'network':network_name,'networkId':network['Id'],'subnet':str(subnet),'nativeGateway':'172.30.77.1','database':credentials['database'],'stageRoot':str(stage),'port':18185,'sourceImage':source['Config']['Image'],'noInternet':True,'readOnlyBooks':True,'productionContainerUnchanged':True,'schedulingPriority':'nice10','memoryLimitMiB':1024}
     path=stage/'receipt.json';path.write_text(json.dumps(receipt,indent=2));path.chmod(0o600)
     print(json.dumps(receipt))
     print('Configure native PG for 172.30.77.0/24 at 172.30.77.1 and restart its DSM package before starting this acceptance application.')
