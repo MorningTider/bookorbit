@@ -65,6 +65,12 @@ def main():
     env=dict(v.split('=',1) for v in config['Env'])
     port=str(env.get('PORT','3000'))
     env.update({'POSTGRES_HOST':'172.30.77.1','POSTGRES_PORT':'5433','POSTGRES_DB':credentials['database'],'POSTGRES_USER':credentials['role'],'POSTGRES_PASSWORD':credentials['password'],'DATABASE_URL':'postgres://'+urllib.parse.quote(credentials['role'],safe='')+':'+urllib.parse.quote(credentials['password'],safe='')+'@172.30.77.1:5433/'+credentials['database'],'JWT_SECRET':secrets.token_hex(32),'SETUP_BOOTSTRAP_TOKEN':secrets.token_hex(32),'APP_URL':'http://127.0.0.1:18185','CLIENT_URL':'http://127.0.0.1:18185','COVER_SLOTS_BACKFILL_MODE':'skip'})
+    uid,gid=int(env['PUID']),int(env['PGID'])
+    for parent,dirs,files in os.walk(str(app),followlinks=False):
+        os.chown(parent,uid,gid,follow_symlinks=False)
+        for name in dirs+files:os.chown(os.path.join(parent,name),uid,gid,follow_symlinks=False)
+    app.chmod(0o700)
+    config['Image']=source['Image']
     config['Env']=[key+'='+value for key,value in env.items()]
     config['Entrypoint']=['/bin/nice','-n','10']+(config.get('Entrypoint') or [])
     config['Labels']={'bookorbit.acceptance':'native-pg'}
