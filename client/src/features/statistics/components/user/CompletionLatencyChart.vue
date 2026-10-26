@@ -72,7 +72,7 @@ function metric(value: number | null): string {
     <div v-else class="flex h-full flex-col gap-3">
       <div class="text-muted-foreground grid grid-cols-3 gap-2 text-xs">
         <div class="rounded-md border px-2 py-1">
-          Median
+          {{ t('uiText.completionLatencyChart.median') }}
           <div class="text-foreground text-sm font-semibold">{{ metric(data.medianDays) }}</div>
         </div>
         <div class="rounded-md border px-2 py-1">

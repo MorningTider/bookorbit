@@ -43,7 +43,7 @@ export function isContentBookFile(file: { format: string | null; role: string })
 }
 
 /** Text and document formats, excluding comic archives and audio. */
-export const EBOOK_FORMAT_LIST = ["epub", "kepub", "mobi", "azw3", "azw", "fb2", "pdf", "djvu"] as const;
+export const EBOOK_FORMAT_LIST = ["epub", "kepub", "mobi", "azw3", "azw", "fb2", "pdf", "djvu", "txt"] as const;
 
 export const READ_STATUSES = ["unread", "want_to_read", "reading", "on_hold", "rereading", "read", "skimmed", "abandoned"] as const;
 export type ReadStatus = (typeof READ_STATUSES)[number];

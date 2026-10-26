@@ -49,6 +49,9 @@ export class AladinProviderConfigDto {
 }
 
 export class UpdateProviderConfigDto {
+  @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) qidian?: SimpleProviderConfigDto;
+  @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) qimao?: SimpleProviderConfigDto;
+  @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) baiduBaike?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => GoogleProviderConfigDto) google?: GoogleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => AmazonProviderConfigDto) amazon?: AmazonProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) goodreads?: SimpleProviderConfigDto;

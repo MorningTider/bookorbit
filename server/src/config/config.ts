@@ -117,3 +117,8 @@ function parseBooleanFlag(value: string | undefined, fallback: boolean): boolean
   if (['false', '0', 'no', 'off'].includes(normalized)) return false;
   return fallback;
 }
+
+export const bookSourceConfig = registerAs('bookSource', () => ({
+  tomatoBinaryPath: process.env.TOMATO_DOWNLOADER_PATH?.trim() ?? '',
+  timeoutMs: Math.min(3_600_000, parsePositiveInteger(process.env.BOOK_SOURCE_DOWNLOAD_TIMEOUT_MS, 600_000)),
+}));

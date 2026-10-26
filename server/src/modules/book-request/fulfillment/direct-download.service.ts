@@ -4,9 +4,11 @@ import { extname, join, resolve, sep } from 'node:path';
 
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { setTimeout as delay } from 'node:timers/promises';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import { BOOK_FORMATS } from '@bookorbit/types';
+import { BOOK_FORMATS, type NetworkProfile } from '@bookorbit/types';
+import { IndexerConfigService } from '../indexers/indexer-config.service';
 
 import { storageConfig } from '../../../config/config';
 import { sanitizeLogValue } from '../../../common/utils/log-sanitize.utils';
@@ -110,6 +112,7 @@ interface Progress {
 
 export interface DirectDownloadRequest {
   downloadId: number;
+  indexerId?: number | null;
   fileUrl: string;
   fileName?: string;
   /** What the source declared the file to be, which is what names a file that arrived without one. */
@@ -151,6 +154,7 @@ export class DirectDownloadService {
   constructor(
     @Inject(storageConfig.KEY) private readonly storage: ConfigType<typeof storageConfig>,
     private readonly downloads: BookRequestDownloadRepository,
+    @Optional() private readonly indexers?: IndexerConfigService,
   ) {}
 
   private get root(): string {
@@ -158,13 +162,14 @@ export class DirectDownloadService {
   }
 
   async add(release: DirectDownloadRequest): Promise<{ clientKey: string }> {
+    const profile = release.indexerId != null && this.indexers ? (await this.indexers.resolveConfig(release.indexerId)).networkProfile : null;
     const url = await ensureSafeUrl(release.fileUrl, { allowPrivate: ALLOW_PRIVATE });
 
     const directory = join(this.root, release.clientKey);
     const target = safeJoin(directory, stagedDirectFileName(release.fileName, release.format));
 
     await mkdir(directory, { recursive: true });
-    this.start(release.downloadId, release.clientKey, url, target, directory, 0, null, null);
+    this.start(release.downloadId, release.clientKey, url, target, directory, 0, null, null, profile);
 
     return { clientKey: release.clientKey };
   }
@@ -181,6 +186,7 @@ export class DirectDownloadService {
       return false;
     }
 
+    const profile = download.indexerId != null && this.indexers ? (await this.indexers.resolveConfig(download.indexerId)).networkProfile : null;
     const url = await ensureSafeUrl(download.directUrl, { allowPrivate: ALLOW_PRIVATE });
     const directory = join(this.root, download.clientKey);
     const target = safeJoin(directory, download.directFileName);
@@ -192,7 +198,7 @@ export class DirectDownloadService {
     if (existingBytes > MAX_FILE_BYTES) return false;
 
     await mkdir(directory, { recursive: true });
-    this.start(download.id, download.clientKey, url, target, directory, existingBytes, validator, download.totalBytes);
+    this.start(download.id, download.clientKey, url, target, directory, existingBytes, validator, download.totalBytes, profile);
     this.logger.log(
       `[direct_download.resume] [start] downloadId=${download.id} key=${download.clientKey} bytes=${existingBytes} - resuming an interrupted direct download`,
     );
@@ -208,6 +214,7 @@ export class DirectDownloadService {
     offset: number,
     validator: string | null,
     expectedBytes: number | null,
+    profile: NetworkProfile | null,
   ): void {
     this.progress.set(clientKey, {
       state: 'downloading',
@@ -220,7 +227,7 @@ export class DirectDownloadService {
 
     // Deliberately not awaited: `add` hands the work over the way a torrent client does, and the
     // poll loop is what reports on it from here.
-    const task = this.run(downloadId, clientKey, url, target, controller.signal, offset, validator, expectedBytes)
+    const task = this.runWithRetries(downloadId, clientKey, url, target, controller.signal, offset, validator, expectedBytes, profile)
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         const message = error instanceof Error ? error.message : String(error);
@@ -340,6 +347,44 @@ export class DirectDownloadService {
     }
   }
 
+  private async runWithRetries(
+    downloadId: number,
+    clientKey: string,
+    url: URL,
+    target: string,
+    signal: AbortSignal,
+    offset: number,
+    validator: string | null,
+    expectedBytes: number | null,
+    profile: NetworkProfile | null,
+  ): Promise<void> {
+    const budget = AbortSignal.timeout(MAX_TRANSFER_MS);
+    const deadline = AbortSignal.any([signal, budget]);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await this.run(downloadId, clientKey, url, target, deadline, offset, validator, expectedBytes, profile);
+        return;
+      } catch (error) {
+        if (budget.aborted) throw new Error(`That download was still running after ${MAX_TRANSFER_MS}ms`, { cause: error });
+        if (signal.aborted || attempt === 3 || !isTransientDownloadError(error)) throw error;
+        await delay(attempt * 500, undefined, { signal: deadline });
+        const record = await this.downloads.findById(downloadId);
+        if (!record || record.clientKey !== clientKey) throw error;
+        const partial = await stat(target)
+          .then((entry) => (entry.isFile() ? entry.size : 0))
+          .catch(() => 0);
+        validator = resumeValidator(record.directEtag, record.directLastModified);
+        offset = partial > 0 && validator ? partial : 0;
+        expectedBytes = offset > 0 ? record.totalBytes : null;
+        const current = this.progress.get(clientKey);
+        if (current) this.progress.set(clientKey, { ...current, downloadedBytes: offset, totalBytes: expectedBytes });
+        this.logger.warn(
+          `[direct_download.fetch] [start] downloadId=${downloadId} key=${clientKey} attempt=${attempt + 1} offset=${offset} - retrying a transient connection failure`,
+        );
+      }
+    }
+  }
+
   private async run(
     downloadId: number,
     clientKey: string,
@@ -349,9 +394,16 @@ export class DirectDownloadService {
     offset: number,
     validator: string | null,
     expectedBytes: number | null,
+    profile: NetworkProfile | null,
   ): Promise<void> {
-    const response = await this.open(url, signal, offset > 0 ? { Range: `bytes=${offset}-`, 'If-Range': validator as string } : {});
-    const responseMeta = validateDownloadResponse(response, offset, expectedBytes, validator);
+    const response = await this.open(url, signal, offset > 0 ? { Range: `bytes=${offset}-`, 'If-Range': validator as string } : {}, profile);
+    let responseMeta: ValidatedDownloadResponse;
+    try {
+      responseMeta = validateDownloadResponse(response, offset, expectedBytes, validator);
+    } catch (error) {
+      await response.body?.cancel().catch(() => {});
+      throw error;
+    }
     const totalBytes = responseMeta.totalBytes;
     if (totalBytes !== null && totalBytes > MAX_FILE_BYTES) {
       throw new Error(`That file is ${totalBytes} bytes, past the ${MAX_FILE_BYTES} byte limit`);
@@ -473,10 +525,10 @@ export class DirectDownloadService {
    * socket open until the agent times it out: five hops through a chain of mirrors would otherwise
    * leave five sockets and five buffers behind per grab.
    */
-  private async open(url: URL, signal: AbortSignal, headers: Record<string, string> = {}): Promise<Response> {
+  private async open(url: URL, signal: AbortSignal, headers: Record<string, string>, profile: NetworkProfile | null): Promise<Response> {
     let current = url;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      const response = await this.openHop(current, signal, headers);
+      const response = await this.openHop(current, signal, headers, profile);
 
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get('location');
@@ -508,7 +560,7 @@ export class DirectDownloadService {
    *
    * The body is not left unbounded: `run` holds it to an idle timeout and a total ceiling.
    */
-  private async openHop(url: URL, signal: AbortSignal, headers: Record<string, string>): Promise<Response> {
+  private async openHop(url: URL, signal: AbortSignal, headers: Record<string, string>, profile: NetworkProfile | null): Promise<Response> {
     const connect = new AbortController();
     const deadline = setTimeout(() => connect.abort(new Error(`That URL did not answer within ${CONNECT_TIMEOUT_MS}ms`)), CONNECT_TIMEOUT_MS);
     try {
@@ -522,7 +574,7 @@ export class DirectDownloadService {
         // Pinned, because the URL came from an indexer or a plugin rather than from an operator:
         // this is exactly the caller the resolve-twice window in `safeFetch` is not acceptable
         // for, so the address that passed policy is the address the socket opens to.
-        { allowPrivate: ALLOW_PRIVATE, profile: null, pinResolvedAddress: true },
+        { allowPrivate: ALLOW_PRIVATE, profile, pinResolvedAddress: true, http1Only: true },
       );
     } finally {
       clearTimeout(deadline);
@@ -549,16 +601,21 @@ function validateDownloadResponse(
 
   if (!validator) throw new Error('That partial download has no HTTP validator and cannot be resumed safely');
 
+  if (response.status !== 206 && response.status !== 416) {
+    throw new Error('That source does not support resuming this partial download safely');
+  }
+
+  const responseValidator = strongEtag(validator) ? response.headers.get('etag') : response.headers.get('last-modified');
+  if (responseValidator !== null && responseValidator.trim() !== validator) {
+    throw new Error('That source changed its HTTP validator since this download started');
+  }
+
   if (response.status === 416) {
     const total = parseUnsatisfiedRange(response.headers.get('content-range'));
     if (total !== offset || (expectedBytes !== null && expectedBytes !== total)) {
       throw new Error('That source no longer agrees with the saved partial download');
     }
     return { totalBytes: total, alreadyComplete: true };
-  }
-
-  if (response.status !== 206) {
-    throw new Error('That source does not support resuming this partial download safely');
   }
 
   const range = parseContentRange(response.headers.get('content-range'));
@@ -610,4 +667,14 @@ function safeJoin(directory: string, fileName: string): string {
     throw new Error('That release names a file that would land outside the download directory');
   }
   return target;
+}
+
+function isTransientDownloadError(error: unknown): boolean {
+  let current: unknown = error;
+  const codes = new Set(['UND_ERR_SOCKET', 'UND_ERR_RES_CONTENT_LENGTH_MISMATCH', 'UND_ERR_CONNECT_TIMEOUT', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN']);
+  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth++) {
+    if ('code' in current && typeof current.code === 'string' && codes.has(current.code)) return true;
+    current = 'cause' in current ? current.cause : undefined;
+  }
+  return false;
 }

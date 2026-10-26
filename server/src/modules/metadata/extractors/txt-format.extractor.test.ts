@@ -40,4 +40,22 @@ describe('TxtFormatExtractor', () => {
     await writeFile(emptyPath, '');
     await expect(new TxtFormatExtractor().extract(emptyPath)).resolves.toBeNull();
   });
+
+  it('extracts explicit title and author labels from the text header', async () => {
+    const path = join(directory, 'fallback.txt');
+    await writeFile(path, '作者：烽火戏诸侯\n书名：剑来\n正文');
+
+    await expect(new TxtFormatExtractor().extract(path)).resolves.toMatchObject({
+      title: '剑来',
+      authors: [{ name: '烽火戏诸侯', sortName: null }],
+    });
+  });
+  it.each(['第一章 初见', '第1章初见', 'Chapter 1: Arrival', '他走进书房，打开了一本书。'])(
+    'keeps the filename when the text starts with body content: %s',
+    async (line) => {
+      const path = join(directory, '剑来.txt');
+      await writeFile(path, `${line}\n这是正文。`);
+      await expect(new TxtFormatExtractor().extract(path)).resolves.toMatchObject({ title: '剑来' });
+    },
+  );
 });

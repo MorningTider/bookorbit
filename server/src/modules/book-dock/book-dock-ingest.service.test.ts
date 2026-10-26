@@ -236,7 +236,7 @@ describe('BookDockIngestService', () => {
     it('skips unsupported extensions', async () => {
       const { service, repo } = makeService();
 
-      const result = await service.ingestFromWatchedFolder('/watched/readme.txt');
+      const result = await service.ingestFromWatchedFolder('/watched/readme.bin');
       expect(result).toBeNull();
       expect(repo.create).not.toHaveBeenCalled();
     });

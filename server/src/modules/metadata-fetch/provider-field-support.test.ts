@@ -1,3 +1,4 @@
+import { BaiduBaikeProvider, QimaoProvider, QidianProvider } from './providers/chinese-catalog/chinese-catalog.provider';
 import { COMMUNITY_RATING_PROVIDER_KEYS, METADATA_PROVIDER_SUPPORTED_FIELDS, MetadataProviderKey, type MetadataField } from '@bookorbit/types';
 
 import type { MetadataProvider } from './providers/metadata-provider';
@@ -24,6 +25,9 @@ import { RanobeDbProvider } from './providers/ranobedb/ranobedb.provider';
  * itself, which is where a new provider or a changed cover shape would show up first.
  */
 const PROVIDER_CLASSES = [
+  BaiduBaikeProvider,
+  QimaoProvider,
+  QidianProvider,
   DoubanProvider,
   FanqieProvider,
   GoogleProvider,

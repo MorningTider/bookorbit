@@ -22,12 +22,14 @@ const COLLECTION_MEMBERSHIP_REQUEST = {
   body: JSON.stringify({ bookIds: [1] }),
 }
 
+const routerMocks = vi.hoisted(() => ({ push: vi.fn() }))
+
 vi.mock('vue-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-router')>()
   return {
     ...actual,
     useRouter: () => ({
-      push: vi.fn<(...args: unknown[]) => unknown>(),
+      push: routerMocks.push,
       replace: vi.fn<(...args: unknown[]) => unknown>(),
     }),
   }
@@ -68,6 +70,8 @@ const globalStubs = {
     DialogPortal: { template: '<div><slot /></div>' },
     DialogOverlay: { template: '<div />' },
     DialogContent: { template: '<div><slot /></div>' },
+    DialogTitle: { template: '<h2><slot /></h2>' },
+    DialogDescription: { template: '<p><slot /></p>' },
     DialogClose: { template: '<button><slot /></button>' },
     BookCoverLightbox: true,
     AddToCollectionSheet: true,
@@ -75,6 +79,7 @@ const globalStubs = {
     SendBookDialog: true,
     DeleteBookDialog: true,
     ResetReadingStateDialog: true,
+    TxtConversionDialog: true,
   },
 }
 
@@ -948,5 +953,46 @@ describe('DetailsTab - reading dates compact display', () => {
     await editStartedButton.trigger('click')
 
     expect(wrapper.findAll('input[type="date"]')).toHaveLength(1)
+  })
+})
+
+describe('DetailsTab reader format selection', () => {
+  const file = (id: number, format: string, role: BookDetail['files'][number]['role']): BookDetail['files'][number] => ({
+    id,
+    format,
+    role,
+    sizeBytes: 100,
+    absolutePath: `/books/test.${format}`,
+    createdAt: '2026-10-25T00:00:00.000Z',
+    filename: `test.${format}`,
+    durationSeconds: null,
+  })
+  it('disables reading and preview when a book only has an unsupported format', async () => {
+    const wrapper = mount(DetailsTab, { props: { book: makeBook({ files: [file(1, 'docx', 'primary')] }) }, global: globalStubs })
+    const read = wrapper.findAll('button').find((button) => button.text() === 'Read')!
+    expect(read.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('button[aria-label="Peek"]').attributes('disabled')).toBeDefined()
+    await read.trigger('click')
+    expect(routerMocks.push).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+  it('opens an available EPUB when the primary format is not readable', async () => {
+    const wrapper = mount(DetailsTab, {
+      props: { book: makeBook({ files: [file(1, 'docx', 'primary'), file(2, 'epub', 'content')] }) },
+      global: globalStubs,
+    })
+    const read = wrapper.findAll('button').find((button) => button.text() === 'Read')!
+    expect(read.attributes('disabled')).toBeUndefined()
+    await read.trigger('click')
+    expect(routerMocks.push).toHaveBeenCalledWith({ name: 'reader', params: { bookId: 1, fileId: 2 }, query: { format: 'epub' } })
+    wrapper.unmount()
+  })
+  it('opens TXT directly through the reader without importing an EPUB', async () => {
+    const wrapper = mount(DetailsTab, { props: { book: makeBook({ files: [file(1, 'txt', 'primary')] }) }, global: globalStubs })
+    const read = wrapper.findAll('button').find((button) => button.text() === 'Read')!
+    expect(read.attributes('disabled')).toBeUndefined()
+    await read.trigger('click')
+    expect(routerMocks.push).toHaveBeenCalledWith({ name: 'reader', params: { bookId: 1, fileId: 1 }, query: { format: 'txt' } })
+    wrapper.unmount()
   })
 })

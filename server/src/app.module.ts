@@ -10,6 +10,7 @@ import {
   audiolessEpubConfig,
   authConfig,
   bookRequestConfig,
+  bookSourceConfig,
   coverSlotsConfig,
   dbConfig,
   djvuConfig,
@@ -42,6 +43,7 @@ import { BookModule } from './modules/book/book.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CoverModule } from './modules/cover/cover.module';
 import { KoboModule } from './modules/kobo/kobo.module';
+import { BookSourceModule } from './modules/book-source/book-source.module';
 import { LibraryModule } from './modules/library/library.module';
 import { SmartScopeModule } from './modules/smart-scope/smart-scope.module';
 import { OpdsModule } from './modules/opds/opds.module';
@@ -113,6 +115,7 @@ import { PodcastModule } from './modules/podcast/podcast.module';
         emailConfig,
         migrationConfig,
         bookRequestConfig,
+        bookSourceConfig,
         oidcRuntimeConfig,
         podcastConfig,
         audiolessEpubConfig,
@@ -171,6 +174,7 @@ import { PodcastModule } from './modules/podcast/podcast.module';
     EpubModule,
     BookDockModule,
     BookRequestModule,
+    BookSourceModule,
     EmailModule,
     MetadataScoreModule,
     StatisticsModule,

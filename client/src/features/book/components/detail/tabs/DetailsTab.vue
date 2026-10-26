@@ -371,12 +371,21 @@ const isFaceAudio = computed(() => {
 const isPrimaryComic = computed(() => primaryFile.value?.format != null && isComicFormat(primaryFile.value.format))
 const formatEntries = computed(() => bookFormatEntries(props.book.files, props.book.formatPriority))
 const isMultiTrackAudio = computed(() => formatEntries.value.some((entry) => entry.audio && entry.files.length > 1))
-const canConvertTxtToEpub = computed(() => props.book.files.some((file) => file.format?.toLowerCase() === 'txt') && !props.book.files.some((file) => file.format?.toLowerCase() === 'epub'))
+const canConvertTxtToEpub = computed(
+  () =>
+    hasLibraryPermission('library_upload', props.book?.libraryId, 'editor') &&
+    props.book.files.some((file) => file.format?.toLowerCase() === 'txt') &&
+    !props.book.files.some((file) => file.format?.toLowerCase() === 'epub'),
+)
 // A multi-file audiobook opens from its first track, so it is one entry in the menu.
 const openableFiles = computed(() =>
   formatEntries.value
     .flatMap((entry) => (entry.audio ? entry.files.slice(0, 1) : entry.files))
     .filter((file) => READER_OPENABLE_FORMATS.has(file.format!.toLowerCase())),
+)
+const readerFile = computed(() => openableFiles.value.find((file) => file.id === primaryFile.value?.id) ?? openableFiles.value[0] ?? null)
+const readerUnavailableHint = computed(() =>
+  !readerFile.value && props.book.files.some((file) => file.format?.toLowerCase() === 'txt') ? t('txtConversion.note') : undefined,
 )
 const hasMultipleFiles = computed(() => openableFiles.value.length > 1)
 const readAloudSync = ref<ReadAloudProgressSync>(props.book.readAloudSync)
@@ -451,7 +460,7 @@ async function handleToggleReadAloudSync() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode }),
     })
-    if (!res.ok) throw new Error('Failed to update read-aloud sync')
+    if (!res.ok) throw new Error(t('uiText.detailsTab.failedToUpdateReadAloudSync'))
     const updated = (await res.json()) as BookDetail
     readAloudSync.value = updated.readAloudSync
     emit('saved', updated)
@@ -913,15 +922,15 @@ const koboAnomaly = computed(() => {
   const snapshots = koboState.value?.snapshots ?? []
   const pendingDelete = snapshots.filter((snapshot) => snapshot.pendingDelete)
   if (pendingDelete.length > 0) {
-    return { label: `Pending delete on ${formatKoboDeviceNames(pendingDelete)}`, tooltip: 'Kobo will remove it on the next sync.' }
+    return { label: `Pending delete on ${formatKoboDeviceNames(pendingDelete)}`, tooltip: t('uiText.detailsTab.koboWillRemoveItOnTheNextSync') }
   }
   const removedByDevice = snapshots.filter((snapshot) => snapshot.removedByDevice)
   if (removedByDevice.length > 0) {
-    return { label: `Removed on ${formatKoboDeviceNames(removedByDevice)}`, tooltip: 'Kobo reported this book removed.' }
+    return { label: `Removed on ${formatKoboDeviceNames(removedByDevice)}`, tooltip: t('uiText.detailsTab.koboReportedThisBookRemoved') }
   }
   const unsynced = snapshots.filter((snapshot) => snapshot.synced === false)
   if (unsynced.length > 0) {
-    return { label: `Not synced on ${formatKoboDeviceNames(unsynced)}`, tooltip: 'Queued for the next Kobo sync.' }
+    return { label: `Not synced on ${formatKoboDeviceNames(unsynced)}`, tooltip: t('uiText.detailsTab.queuedForTheNextKoboSync') }
   }
   return null
 })
@@ -995,11 +1004,14 @@ function handleMoveFromMenu() {
 
 const conversionOpen = ref(false)
 function handleConvertTxtToEpub() {
+  if (!canConvertTxtToEpub.value) return
   moreMenuOpen.value = false
   mobileMoreMenuOpen.value = false
   conversionOpen.value = true
 }
-function handleConversionOpen(open: boolean) { conversionOpen.value = open }
+function handleConversionOpen(open: boolean) {
+  conversionOpen.value = open
+}
 async function handleConversionComplete() {
   conversionOpen.value = false
   const response = await api(`/api/v1/books/${props.book.id}`)
@@ -1070,11 +1082,11 @@ function openEditCover() {
 }
 
 function openBookWithMode(mode?: 'peek') {
-  if (!primaryFile.value) return
+  if (!readerFile.value) return
   router.push({
     name: 'reader',
-    params: { bookId: props.book.id, fileId: primaryFile.value.id },
-    query: mode === 'peek' ? { format: primaryFile.value.format ?? 'epub', mode } : { format: primaryFile.value.format ?? 'epub' },
+    params: { bookId: props.book.id, fileId: readerFile.value.id },
+    query: mode === 'peek' ? { format: readerFile.value.format ?? 'epub', mode } : { format: readerFile.value.format ?? 'epub' },
   })
 }
 
@@ -1120,7 +1132,7 @@ async function handleResetFileProgress(row: EditionProgress) {
       fileId < 0
         ? await api(`/api/v1/audiobooks/${props.book.id}/playback-state`, { method: 'DELETE' })
         : await api(`/api/v1/books/files/${fileId}/progress`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to reset file progress')
+    if (!res.ok) throw new Error(t('uiText.detailsTab.failedToResetFileProgress'))
     await loadSupplemental()
   } finally {
     setFileResetting(fileId, false)
@@ -1387,7 +1399,8 @@ watch(
             <div v-if="hasMultipleFiles" class="flex flex-1 h-9 rounded-md overflow-hidden">
               <button
                 class="flex flex-1 items-center justify-center gap-2 bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-                :disabled="!primaryFile"
+                :disabled="!readerFile"
+                :title="readerUnavailableHint"
                 @click="openBook"
               >
                 <Headphones v-if="isPrimaryAudio" class="size-4" />
@@ -1428,7 +1441,8 @@ watch(
             <button
               v-else
               class="flex flex-1 items-center justify-center gap-2 h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-              :disabled="!primaryFile"
+              :disabled="!readerFile"
+              :title="readerUnavailableHint"
               @click="openBook"
             >
               <Headphones v-if="isPrimaryAudio" class="size-4" />
@@ -1440,7 +1454,8 @@ watch(
               <TooltipTrigger as-child>
                 <button
                   class="flex items-center justify-center h-9 w-12 shrink-0 rounded-md border border-input bg-background hover:bg-muted transition-colors disabled:opacity-50"
-                  :disabled="!primaryFile"
+                  :disabled="!readerFile"
+                  :title="readerUnavailableHint"
                   :aria-label="t('book.detail.details.peek')"
                   @click="peekBook"
                 >
@@ -1470,7 +1485,7 @@ watch(
               <Send class="size-3.5" />
             </button>
             <Popover
-              v-if="canManageReadingState || canEditMetadata || hasPermission('library_delete_books')"
+              v-if="canManageReadingState || canEditMetadata || canConvertTxtToEpub || hasPermission('library_delete_books')"
               :open="moreMenuOpen"
               @update:open="(v) => (moreMenuOpen = v)"
             >
@@ -1499,7 +1514,7 @@ watch(
                   {{ t('book.move.action') }}
                 </button>
                 <button
-                  v-if="canConvertTxtToEpub && hasPermission('library_upload')"
+                  v-if="canConvertTxtToEpub"
                   class="flex w-full items-center gap-2 px-2 py-1.5 rounded-xs text-sm hover:bg-muted transition-colors"
                   @click="handleConvertTxtToEpub"
                 >
@@ -1842,7 +1857,7 @@ watch(
               {{ t('book.detail.details.personalReview.title') }}
             </p>
             <p v-if="personalNoteUpdatedLabel && !personalNoteEditing" class="mt-0.5 text-[11px] text-muted-foreground">
-              Updated {{ personalNoteUpdatedLabel }}
+              {{ t('uiText.detailsTab.updated') }}{{ personalNoteUpdatedLabel }}
             </p>
           </div>
           <Tooltip v-if="!personalNoteEditing">
@@ -1921,8 +1936,7 @@ watch(
           class="inline-flex items-center gap-1.5 rounded-md border border-dashed border-input px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
           @click="startPersonalNoteEdit"
         >
-          <Pencil class="size-3.5" />
-          Add personal review
+          <Pencil class="size-3.5" />{{ t('uiText.detailsTab.addPersonalReview') }}
         </button>
       </div>
 

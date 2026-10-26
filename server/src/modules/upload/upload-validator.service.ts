@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { open } from 'fs/promises';
 import { extname } from 'path';
+import iconv from 'iconv-lite';
 import { UPLOAD_SUPPORTED_FORMATS } from '@bookorbit/types';
 
 import { uploadError } from './upload-errors';
@@ -101,7 +102,7 @@ function matchesFormatSignature(bytes: Buffer, format: string): boolean {
     case 'fb2':
       return /<\??(?:xml[^>]*>\s*)?(?:[\w-]+:)?FictionBook\b/i.test(bytes.toString('utf8'));
     case 'txt':
-      return bytes.length > 0;
+      return isLikelyText(bytes);
     case 'flac':
       return ascii.startsWith('fLaC');
     case 'ogg':
@@ -115,4 +116,34 @@ function matchesFormatSignature(bytes: Buffer, format: string): boolean {
     default:
       return false;
   }
+}
+
+function isLikelyText(bytes: Buffer): boolean {
+  if (bytes.length === 0) return false;
+
+  const isUtf16Le = bytes.subarray(0, 2).equals(Buffer.from([0xff, 0xfe]));
+  const isUtf16Be = bytes.subarray(0, 2).equals(Buffer.from([0xfe, 0xff]));
+  if (isUtf16Le || isUtf16Be) {
+    const body = bytes.subarray(2);
+    if (body.length < 2 || body.length % 2 !== 0) return false;
+    try {
+      const encoding = isUtf16Le ? 'utf16le' : 'utf16be';
+      return hasAcceptableTextCharacters(iconv.decode(body, encoding));
+    } catch {
+      return false;
+    }
+  }
+
+  if (bytes.includes(0)) return false;
+  return hasAcceptableTextCharacters(bytes.toString('utf8'));
+}
+
+function hasAcceptableTextCharacters(text: string): boolean {
+  if (text.length === 0) return false;
+  let controlCharacters = 0;
+  for (const character of text) {
+    const codePoint = character.codePointAt(0)!;
+    if (codePoint < 0x09 || (codePoint > 0x0d && codePoint < 0x20)) controlCharacters += 1;
+  }
+  return controlCharacters <= Math.max(4, Math.floor(text.length * 0.05));
 }

@@ -6,12 +6,35 @@ export function groupAttachedFormats(
   books: Array<{ id: number; folderPath: string }>,
   files: Array<{ bookId: number; absolutePath: string }>,
 ): BookCandidate[] {
-  const bookPaths = new Map(books.map(book => [book.id, book.folderPath]));
-  const owners = new Map(files.map(file => [file.absolutePath, file.bookId]));
+  const bookPaths = new Map(books.map((book) => [book.id, book.folderPath]));
+  const owners = new Map(files.map((file) => [file.absolutePath, file.bookId]));
   const grouped = new Map<number, BookCandidate>();
   const result: BookCandidate[] = [];
   for (const candidate of candidates) {
-    const owner = candidate.files.length === 1 ? owners.get(candidate.files[0]!.absolutePath) : undefined;
+    const candidateOwners = new Set(
+      candidate.files.flatMap((file) => {
+        const owner = owners.get(file.absolutePath);
+        return owner === undefined ? [] : [owner];
+      }),
+    );
+
+    if (candidateOwners.size > 1) {
+      const split = new Map<number | string, BookCandidate>();
+      for (const file of candidate.files) {
+        const owner = owners.get(file.absolutePath);
+        const key = owner ?? `unowned:${file.absolutePath}`;
+        let group = split.get(key);
+        if (!group) {
+          group = { folderPath: owner === undefined ? file.absolutePath : (bookPaths.get(owner) ?? file.absolutePath), files: [] };
+          split.set(key, group);
+        }
+        group.files.push(file);
+      }
+      result.push(...split.values());
+      continue;
+    }
+
+    const owner = candidateOwners.values().next().value as number | undefined;
     const folderPath = owner === undefined ? undefined : bookPaths.get(owner);
     if (owner === undefined || !folderPath || !owners.has(folderPath)) {
       result.push(candidate);

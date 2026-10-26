@@ -269,16 +269,19 @@ export function useFoliate(
         loading.value = false
       })
 
-      loadTimeoutId = setTimeout(() => {
-        if (loading.value) {
-          error.value = i18n.global.t('reader.bookLoadTimeout')
-          loading.value = false
-        }
-      }, 30_000)
+      loadTimeoutId = setTimeout(
+        () => {
+          if (loading.value) {
+            error.value = i18n.global.t('reader.bookLoadTimeout')
+            loading.value = false
+          }
+        },
+        format === 'txt' ? 150_000 : 30_000,
+      )
 
       let shouldRestoreByFraction = false
 
-      if (format === 'epub') {
+      if (format === 'epub' || format === 'txt') {
         const infoRes = await api(`/api/v1/epub/${bookId}/info?fileId=${fileId}`)
         if (!infoRes.ok) throw new Error(`Failed to fetch EPUB info: ${infoRes.status}`)
         const bookInfo = await infoRes.json()

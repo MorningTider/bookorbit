@@ -1,3 +1,4 @@
+import { setI18nLocale } from '@/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -144,4 +145,29 @@ describe('StorygraphSyncProgress', () => {
 
     expect(wrapper.text()).not.toContain('failed to sync')
   })
+})
+
+it('renders complete Chinese count messages and switches language without remounting', async () => {
+  await setI18nLocale('en')
+  activeSyncStatus.value = null
+  pendingSummary.value = { totalBooks: 5, pendingBooks: 2 }
+  syncFailures.value = [
+    { bookId: 7, title: '示例', authorName: null, syncError: 'no_match', lastAttemptAt: null },
+    { bookId: 8, title: '示例二', authorName: null, syncError: 'no_match', lastAttemptAt: null },
+  ]
+  const wrapper = mount(StorygraphSyncProgress)
+  try {
+    await setI18nLocale('zh')
+    await flushPromises()
+    expect(wrapper.text()).toContain('2本待同步，共5本。')
+    expect(wrapper.text()).toContain('2本图书同步失败')
+    expect(wrapper.text()).not.toContain('同步失败s')
+    await setI18nLocale('en')
+    await flushPromises()
+    expect(wrapper.text()).toContain('2 pending of 5 books.')
+    expect(wrapper.text()).toContain('2 books failed to sync')
+  } finally {
+    wrapper.unmount()
+    await setI18nLocale('en')
+  }
 })

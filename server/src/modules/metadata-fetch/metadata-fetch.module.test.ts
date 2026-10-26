@@ -1,3 +1,4 @@
+import { BaiduBaikeProvider, QimaoProvider, QidianProvider } from './providers/chinese-catalog/chinese-catalog.provider';
 import { MODULE_METADATA } from '@nestjs/common/constants';
 
 import { MetadataPreferencesModule } from '../metadata-preferences/metadata-preferences.module';
@@ -31,6 +32,9 @@ describe('MetadataFetchModule', () => {
 
     expect(providers).toEqual(
       expect.arrayContaining([
+        BaiduBaikeProvider,
+        QimaoProvider,
+        QidianProvider,
         DoubanProvider,
         FanqieProvider,
         GoogleProvider,
@@ -61,6 +65,9 @@ describe('MetadataFetchModule', () => {
 
     expect(providerFactory).toBeDefined();
     expect(providerFactory?.inject).toEqual([
+      BaiduBaikeProvider,
+      QimaoProvider,
+      QidianProvider,
       DoubanProvider,
       FanqieProvider,
       GoogleProvider,

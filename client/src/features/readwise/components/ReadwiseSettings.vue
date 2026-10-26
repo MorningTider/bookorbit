@@ -27,10 +27,18 @@ const form = reactive({
 })
 
 const disabledReasonMessages: Record<ReadwiseSyncDisabledReason, string> = {
-  permission_denied: "Your account doesn't have Readwise sync permission.",
-  missing_token: 'Add your Readwise access token to start syncing.',
-  user_disabled: 'Sync is turned off.',
-  invalid_token: 'Your Readwise token was rejected. Paste a new one and re-enable.',
+  get permission_denied() {
+    return t('uiText.readwiseSettings.permissionDenied')
+  },
+  get missing_token() {
+    return t('uiText.readwiseSettings.addYourReadwiseAccessTokenToStartSyncing')
+  },
+  get user_disabled() {
+    return t('uiText.readwiseSettings.syncIsTurnedOff')
+  },
+  get invalid_token() {
+    return t('uiText.readwiseSettings.yourReadwiseTokenWasRejectedPasteANewOneAndReEnable')
+  },
 }
 
 onMounted(async () => {
@@ -41,7 +49,7 @@ onMounted(async () => {
 async function handleValidateToken() {
   const token = tokenInput.value.trim()
   if (!token && !settings.value?.tokenConfigured) {
-    toast.error('Enter your Readwise access token first')
+    toast.error(t('uiText.readwiseSettings.enterYourReadwiseAccessTokenFirst'))
     return
   }
   const result = await validateToken(token || undefined)
@@ -55,9 +63,9 @@ async function handleSave() {
   })
   if (ok) {
     tokenInput.value = ''
-    toast.success('Readwise settings saved')
+    toast.success(t('uiText.readwiseSettings.readwiseSettingsSaved'))
   } else {
-    toast.error(error.value ?? 'Failed to save settings')
+    toast.error(error.value ?? t('uiText.readwiseSettings.failedToSaveSettings'))
   }
 }
 
@@ -78,12 +86,11 @@ function toggleTokenVisible() {
       <div class="flex items-center gap-3">
         <Link class="size-5 text-primary shrink-0" />
         <div>
-          <p class="font-medium text-sm">Connection</p>
-          <p class="text-xs text-muted-foreground mt-0.5">Connect your Readwise account to sync your highlights.</p>
+          <p class="font-medium text-sm">{{ t('uiText.readwiseSettings.connection') }}</p>
+          <p class="text-xs text-muted-foreground mt-0.5">{{ t('uiText.readwiseSettings.connectYourReadwiseAccountToSyncYourHighlights') }}</p>
         </div>
         <div v-if="settings?.tokenConfigured" class="ml-auto flex items-center gap-1.5 text-xs text-primary">
-          <CheckCircle2 class="size-3.5" />
-          Connected
+          <CheckCircle2 class="size-3.5" />{{ t('uiText.readwiseSettings.connected') }}
         </div>
       </div>
 
@@ -100,24 +107,26 @@ function toggleTokenVisible() {
       </div>
 
       <div class="space-y-2">
-        <label :for="tokenInputId" class="text-xs font-medium text-muted-foreground uppercase tracking-wider"> Access Token </label>
+        <label :for="tokenInputId" class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{
+          t('uiText.readwiseSettings.accessToken')
+        }}</label>
         <div class="flex gap-2">
           <input
             :id="tokenInputId"
             v-model="tokenInput"
             v-bind="SECRET_INPUT_ATTRS"
             type="text"
-            placeholder="Paste your Readwise access token"
+            :placeholder="t('uiText.readwiseSettings.pasteYourReadwiseAccessToken')"
             class="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             :class="{ 'input-secret': !tokenVisible }"
           />
           <Button variant="outline" size="sm" type="button" @click="toggleTokenVisible">
-            {{ tokenVisible ? 'Hide' : 'Show' }}
+            {{ tokenVisible ? t('uiText.readwiseSettings.hide') : t('uiText.readwiseSettings.show') }}
           </Button>
         </div>
         <p class="text-xs text-muted-foreground">
-          Find your token at
-          <a href="https://readwise.io/access_token" target="_blank" rel="noopener" class="text-primary underline underline-offset-2"
+          {{ t('uiText.readwiseSettings.findYourTokenAt')
+          }}<a href="https://readwise.io/access_token" target="_blank" rel="noopener" class="text-primary underline underline-offset-2"
             >readwise.io/access_token</a
           >.
         </p>
@@ -125,9 +134,8 @@ function toggleTokenVisible() {
 
       <div class="flex items-center gap-2">
         <Button variant="outline" size="sm" type="button" :disabled="validating" @click="handleValidateToken">
-          <Loader2 v-if="validating" class="size-3 animate-spin" />
-          Test
-        </Button>
+          <Loader2 v-if="validating" class="size-3 animate-spin" />{{ t('uiText.readwiseSettings.test') }}</Button
+        >
         <span
           v-if="validationResult !== null"
           class="flex items-center gap-1 text-xs"
@@ -141,8 +149,8 @@ function toggleTokenVisible() {
 
       <div class="flex items-center justify-between pt-2 border-t border-border">
         <div>
-          <p class="text-sm">Enable sync</p>
-          <p class="text-xs text-muted-foreground mt-0.5">Automatically send your highlights to Readwise.</p>
+          <p class="text-sm">{{ t('uiText.readwiseSettings.enableSync') }}</p>
+          <p class="text-xs text-muted-foreground mt-0.5">{{ t('uiText.readwiseSettings.automaticallySendYourHighlightsToReadwise') }}</p>
         </div>
         <ToggleSwitch v-model="form.enabled" />
       </div>
@@ -150,9 +158,8 @@ function toggleTokenVisible() {
       <div class="flex items-center justify-end pt-2 border-t border-border">
         <Button size="sm" type="button" :disabled="saving" @click="handleSave">
           <Loader2 v-if="saving" class="size-3.5 animate-spin" />
-          <Save v-else class="size-3.5" />
-          Save
-        </Button>
+          <Save v-else class="size-3.5" />{{ t('uiText.readwiseSettings.save') }}</Button
+        >
       </div>
     </div>
   </div>

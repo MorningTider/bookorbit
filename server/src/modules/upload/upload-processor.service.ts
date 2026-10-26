@@ -2,7 +2,7 @@ import { realignAudioTrackOrder } from '../../db/audio-track-order';
 import { deleteBookFilesWithHashInvalidation, deleteBooksWithHashInvalidation } from '../../db/book-file-hash-history';
 import { Inject, Injectable, InternalServerErrorException, Logger, Optional } from '@nestjs/common';
 import { stat } from 'fs/promises';
-import { basename, join, relative } from 'path';
+import { basename } from 'path';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { isAudioFormat } from '@bookorbit/types';

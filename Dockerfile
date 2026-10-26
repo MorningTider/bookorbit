@@ -10,7 +10,9 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY patches/ ./patches/
 COPY packages/types/package.json ./packages/types/
+COPY packages/plugin-api/package.json ./packages/plugin-api/
 COPY client/package.json ./client/
+COPY server/package.json ./server/
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --filter client... --frozen-lockfile
 
@@ -31,7 +33,9 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY patches/ ./patches/
 COPY packages/types/package.json ./packages/types/
+COPY packages/plugin-api/package.json ./packages/plugin-api/
 COPY server/package.json ./server/
+COPY client/package.json ./client/
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --filter server... --frozen-lockfile
 

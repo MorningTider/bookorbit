@@ -19,6 +19,7 @@ export const CBX_SPREAD_GAP_MAX = 64;
 export const READER_OPENABLE_FORMATS = new Set([
   // epub reader (foliate)
   "epub",
+  "txt",
   "mobi",
   "azw3",
   "azw",

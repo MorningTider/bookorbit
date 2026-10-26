@@ -13,6 +13,11 @@ vi.mock('vue-sonner', () => ({
 
 function makeConfig(overrides: Partial<ProviderConfigurations> = {}): ProviderConfigurations {
   return {
+    baiduBaike: { enabled: false },
+    qimao: { enabled: false },
+    qidian: { enabled: false },
+    fanqie: { enabled: false },
+    douban: { enabled: false },
     google: { enabled: true, apiKey: 'google-key' },
     amazon: { enabled: true, domain: 'amazon.com', cookie: 'cookie' },
     goodreads: { enabled: false },
@@ -36,6 +41,8 @@ function makeStatuses(): ProviderStatus[] {
   const configured = (key: string, enabled: boolean, isConfigured = true) =>
     ({ key, label: key, enabled, configured: isConfigured }) as ProviderStatus
   return [
+    configured('fanqie', false),
+    configured('douban', false),
     configured('google', true),
     configured('amazon', true),
     configured('goodreads', false),
@@ -133,7 +140,7 @@ describe('ProviderConfigPanel browsing', () => {
 
     const clear = wrapper.findAll('button').find((candidate) => candidate.text() === 'Clear filters')
     await clear?.trigger('click')
-    expect(wrapper.findAll('[role="switch"]')).toHaveLength(14)
+    expect(wrapper.findAll('[role="switch"]')).toHaveLength(19)
     wrapper.unmount()
   })
 })

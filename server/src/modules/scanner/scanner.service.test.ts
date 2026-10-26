@@ -764,6 +764,20 @@ describe('genuinely new primary file', () => {
     expect(mockMetadata.extractAndSave).toHaveBeenCalledWith(expect.any(Number), '/library/Author/Book/book.epub', 'epub');
   });
 
+  it('extracts metadata for a newly scanned TXT file', async () => {
+    const file = makeFileStat({ absolutePath: '/library/Author/Book/book.txt', relPath: 'Author/Book/book.txt', format: 'txt' });
+    const candidate = makeCandidate('/library/Author/Book', [file]);
+    mockFindCandidates.mockResolvedValue({ candidates: [candidate], skippedDirs: new Set(), unchangedDirs: new Set(), dirMtimes: new Map() });
+
+    const repo = makeRepo();
+    const done = awaitScan(repo);
+    const { service } = makeService(repo);
+    await service.startScan(1, 'manual');
+    await done;
+
+    expect(mockMetadata.extractAndSave).toHaveBeenCalledWith(expect.any(Number), file.absolutePath, 'txt');
+  });
+
   it('queues import metadata fetch only after local metadata extraction and book promotion', async () => {
     const candidate = makeCandidate('/library/Author/Book', [makeFileStat()]);
     mockFindCandidates.mockResolvedValue({ candidates: [candidate], skippedDirs: new Set(), unchangedDirs: new Set(), dirMtimes: new Map() });

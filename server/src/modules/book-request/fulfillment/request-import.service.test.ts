@@ -696,7 +696,7 @@ describe('RequestImportService.importDownload', () => {
   it('rejects a release with no supported book file', async () => {
     const harness = await makeHarness();
     const folder = join(harness.bookDockPath, '..', 'downloads', 'junk');
-    await makeFile(folder, 'readme.txt');
+    await makeFile(folder, 'readme.bin');
 
     await expect(harness.service.importDownload(download(folder))).resolves.toBe(false);
     expect(harness.fulfillment.failDownload).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('no supported book file'));

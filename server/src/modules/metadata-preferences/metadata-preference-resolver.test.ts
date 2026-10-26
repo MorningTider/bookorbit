@@ -31,7 +31,7 @@ describe('MetadataPreferenceResolver', () => {
     expect(Object.keys(defaults.fields)).toHaveLength(ALL_METADATA_FIELDS.length);
     expect(defaults.fields.isbn).toMatchObject({ enabled: true, mergeStrategy: 'fillMissing' });
 
-    const fieldsWithItunes: (keyof typeof defaults.fields)[] = ['title', 'description', 'authors'];
+    const fieldsWithItunes: (keyof typeof defaults.fields)[] = ['title', 'authors'];
     for (const field of fieldsWithItunes) {
       expect(defaults.fields[field].enabled).toBe(true);
       expect(defaults.fields[field].providers).toEqual([
@@ -41,8 +41,27 @@ describe('MetadataPreferenceResolver', () => {
         MetadataProviderKey.AMAZON,
         MetadataProviderKey.KOBO,
         MetadataProviderKey.OPEN_LIBRARY,
+        MetadataProviderKey.DOUBAN,
+        MetadataProviderKey.FANQIE,
+        MetadataProviderKey.BAIDU_BAIKE,
+        MetadataProviderKey.QIMAO,
+        MetadataProviderKey.QIDIAN,
       ]);
     }
+
+    expect(defaults.fields.description.providers).toEqual([
+      MetadataProviderKey.GOODREADS,
+      MetadataProviderKey.GOOGLE,
+      MetadataProviderKey.ITUNES,
+      MetadataProviderKey.AMAZON,
+      MetadataProviderKey.KOBO,
+      MetadataProviderKey.OPEN_LIBRARY,
+      MetadataProviderKey.DOUBAN,
+      MetadataProviderKey.FANQIE,
+      MetadataProviderKey.BAIDU_BAIKE,
+      MetadataProviderKey.QIMAO,
+      MetadataProviderKey.QIDIAN,
+    ]);
 
     expect(defaults.fields.cover.providers).toEqual([
       MetadataProviderKey.AMAZON,
@@ -51,6 +70,11 @@ describe('MetadataPreferenceResolver', () => {
       MetadataProviderKey.GOODREADS,
       MetadataProviderKey.GOOGLE,
       MetadataProviderKey.OPEN_LIBRARY,
+      MetadataProviderKey.DOUBAN,
+      MetadataProviderKey.FANQIE,
+      MetadataProviderKey.BAIDU_BAIKE,
+      MetadataProviderKey.QIMAO,
+      MetadataProviderKey.QIDIAN,
     ]);
 
     expect(defaults.fields.genres.providers).toEqual([
@@ -58,6 +82,7 @@ describe('MetadataPreferenceResolver', () => {
       MetadataProviderKey.GOOGLE,
       MetadataProviderKey.ITUNES,
       MetadataProviderKey.KOBO,
+      MetadataProviderKey.FANQIE,
     ]);
     expect(defaults.fields.communityRating.providers).toEqual([
       MetadataProviderKey.HARDCOVER,
@@ -76,11 +101,16 @@ describe('MetadataPreferenceResolver', () => {
       MetadataProviderKey.AMAZON,
       MetadataProviderKey.KOBO,
     ]);
-    for (const field of ['seriesName', 'seriesIndex'] as const) {
-      expect(defaults.fields[field].providers).toEqual([MetadataProviderKey.GOODREADS, MetadataProviderKey.AMAZON, MetadataProviderKey.KOBO]);
-    }
+    expect(defaults.fields.seriesName.providers).toEqual([
+      MetadataProviderKey.GOODREADS,
+      MetadataProviderKey.AMAZON,
+      MetadataProviderKey.KOBO,
+      MetadataProviderKey.DOUBAN,
+      MetadataProviderKey.BAIDU_BAIKE,
+    ]);
+    expect(defaults.fields.seriesIndex.providers).toEqual([MetadataProviderKey.GOODREADS, MetadataProviderKey.AMAZON, MetadataProviderKey.KOBO]);
 
-    const fieldsWithoutItunes: (keyof typeof defaults.fields)[] = ['publisher', 'publishedYear', 'language', 'pageCount'];
+    const fieldsWithoutItunes: (keyof typeof defaults.fields)[] = ['publisher', 'pageCount'];
     for (const field of fieldsWithoutItunes) {
       expect(defaults.fields[field].enabled).toBe(true);
       expect(defaults.fields[field].providers).toEqual([
@@ -89,8 +119,34 @@ describe('MetadataPreferenceResolver', () => {
         MetadataProviderKey.AMAZON,
         MetadataProviderKey.KOBO,
         MetadataProviderKey.OPEN_LIBRARY,
+        MetadataProviderKey.DOUBAN,
+        MetadataProviderKey.BAIDU_BAIKE,
       ]);
     }
+
+    expect(defaults.fields.publishedYear.providers).toEqual([
+      ...[
+        MetadataProviderKey.GOODREADS,
+        MetadataProviderKey.GOOGLE,
+        MetadataProviderKey.AMAZON,
+        MetadataProviderKey.KOBO,
+        MetadataProviderKey.OPEN_LIBRARY,
+      ],
+      MetadataProviderKey.DOUBAN,
+      MetadataProviderKey.BAIDU_BAIKE,
+    ]);
+    expect(defaults.fields.language.providers).toEqual([
+      MetadataProviderKey.GOODREADS,
+      MetadataProviderKey.GOOGLE,
+      MetadataProviderKey.AMAZON,
+      MetadataProviderKey.KOBO,
+      MetadataProviderKey.OPEN_LIBRARY,
+      MetadataProviderKey.DOUBAN,
+      MetadataProviderKey.FANQIE,
+      MetadataProviderKey.BAIDU_BAIKE,
+      MetadataProviderKey.QIMAO,
+      MetadataProviderKey.QIDIAN,
+    ]);
 
     expect(defaults.fields.title.mergeStrategy).toBe('overwriteIfProvided');
     expect(defaults.fields.description.mergeStrategy).toBe('overwriteIfProvided');
@@ -245,6 +301,20 @@ describe('MetadataPreferenceResolver', () => {
 
     expect(strict.options?.providerIdMode).toBe('existingOnly');
     expect(legacy.options?.providerIdMode).toBe('preferExisting');
+  });
+
+  it('keeps saved publication rules unchanged when Baidu gains additional fields', () => {
+    const defaults = resolver.getDefaultPreferences();
+    const fields = ['publishedYear', 'pageCount', 'seriesName', 'publisher', 'isbn'] as const;
+    const preferences: MetadataFetchPreferences = { fields: { ...defaults.fields } };
+    for (const field of fields)
+      preferences.fields[field] = { ...defaults.fields[field], providers: [MetadataProviderKey.DOUBAN], mergeStrategy: 'fillMissing' };
+    const next = resolver.withForwardCompatibility(preferences, Object.values(MetadataProviderKey));
+    for (const field of fields) {
+      expect(defaults.fields[field].providers).toContain(MetadataProviderKey.BAIDU_BAIKE);
+      expect(next.fields[field].providers).toEqual([MetadataProviderKey.DOUBAN]);
+      expect(next.fields[field].mergeStrategy).toBe('fillMissing');
+    }
   });
 
   it('preserves explicit provider selections when applying forward compatibility', () => {

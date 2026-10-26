@@ -181,6 +181,14 @@ describe('UploadService', () => {
     mockStat.mockResolvedValue({ ino: 12345n, mtime: new Date('2025-01-01') } as any);
   });
 
+  it('requires editor access before reading or converting a TXT file', async () => {
+    db.select.mockReturnValueOnce(selectChain([{ libraryId: 3 }]));
+    libraryService.verifyUserAccessLevel.mockRejectedValueOnce(new ForbiddenException());
+    await expect(service.convertTxtToEpub(1, user)).rejects.toThrow(ForbiddenException);
+    expect(libraryService.verifyUserAccessLevel).toHaveBeenCalledWith(7, 3, false, 'editor');
+    expect(db.select).toHaveBeenCalledTimes(1);
+  });
+
   it('uploads successfully and processes a new-book import after the record is created', async () => {
     db.select
       .mockReturnValueOnce(selectChain([{ id: 1, allowedFormats: ['epub'], fileNamingPattern: '{authors:first}/{title}.{extension}' }]))
@@ -1333,11 +1341,21 @@ describe('UploadService', () => {
       expect(storage.streamToTemp).not.toHaveBeenCalled();
     });
 
-    it('throws BadRequestException for book_per_file organization mode', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow({ organizationMode: 'book_per_file' })]));
+    it('adds a converted format beside the file identity in book_per_file libraries', async () => {
+      mockUploadedFormat('epub', 'Book Title.epub');
+      db.select
+        .mockReturnValueOnce(
+          selectJoinChain([
+            makeBookRow({ folderPath: '/library/Book Title.txt', organizationMode: 'book_per_file', allowedFormats: ['txt', 'epub'] }),
+          ]),
+        )
+        .mockReturnValueOnce(noHashConflict());
 
-      await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(BadRequestException);
-      expect(storage.streamToTemp).not.toHaveBeenCalled();
+      const result = await service.addFileToBook(10, 'Book Title.epub', {} as any, user);
+
+      expect(storage.moveToPath).toHaveBeenCalledWith('/tmp/upload.bin', '/library/Book Title.epub');
+      expect(pathPolicy.assertWithinRoot).toHaveBeenCalledWith('/library/Book Title.epub', '/library');
+      expect(result.filename).toBe('Book Title.epub');
     });
 
     it('throws BadRequestException when format validation fails', async () => {

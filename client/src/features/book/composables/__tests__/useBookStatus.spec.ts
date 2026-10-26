@@ -1,3 +1,5 @@
+import { nextTick, watchEffect } from 'vue'
+import { setI18nLocale } from '@/i18n'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -6,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/api', () => ({ api: mocks.api }))
 
-import { ReadStatusUpdateError, useBookStatus } from '../useBookStatus'
+import { ReadStatusUpdateError, useBookStatus, STATUS_OPTIONS } from '../useBookStatus'
 
 describe('useBookStatus', () => {
   beforeEach(() => {
@@ -86,5 +88,32 @@ describe('useBookStatus', () => {
 
     expect(error).toBeInstanceOf(ReadStatusUpdateError)
     expect(error).toMatchObject({ message: 'HTTP 400', errorCode: 'READING_DATES_INVALID_ORDER' })
+  })
+  it('updates all shared status labels reactively when the language changes', async () => {
+    await setI18nLocale('en')
+    let displayed = ''
+    const stop = watchEffect(() => {
+      displayed = STATUS_OPTIONS[0]!.label
+    })
+    try {
+      expect(displayed).toBe('Unread')
+      await setI18nLocale('zh')
+      await nextTick()
+      expect(displayed).toBe('未读')
+      expect(STATUS_OPTIONS.map((option) => option.label)).toEqual(['未读', '想读', '正在阅读', '搁置', '重读', '已读', '略读', '弃读'])
+      expect(STATUS_OPTIONS.map((option) => option.value)).toEqual([
+        'unread',
+        'want_to_read',
+        'reading',
+        'on_hold',
+        'rereading',
+        'read',
+        'skimmed',
+        'abandoned',
+      ])
+    } finally {
+      stop()
+      await setI18nLocale('en')
+    }
   })
 })

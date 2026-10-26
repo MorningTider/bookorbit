@@ -288,6 +288,7 @@ export class RequestFulfillmentService {
       if (client === null) {
         await this.direct.add({
           downloadId: download.id,
+          indexerId: grab.indexerId ?? null,
           fileUrl: directUrl as string,
           fileName: directFileName as string,
           clientKey: grab.clientKey,

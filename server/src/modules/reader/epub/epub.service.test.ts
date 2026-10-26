@@ -1,3 +1,4 @@
+import { TxtReaderCacheService } from './txt-reader-cache.service';
 vi.mock('fs/promises', () => ({ stat: vi.fn() }));
 vi.mock('unzipper', () => ({ Open: { file: vi.fn() } }));
 vi.mock('./epub-zip-entry-stream', () => ({ openEpubZipEntryRange: vi.fn() }));
@@ -219,12 +220,18 @@ describe('EpubService', () => {
   const libraryService = {
     verifyUserAccess: vi.fn(),
   };
+  const txtCache = { prepare: vi.fn() };
   let service: EpubService;
 
   beforeEach(async () => {
     vi.resetAllMocks();
     const module = await Test.createTestingModule({
-      providers: [EpubService, { provide: BookReadService, useValue: bookReadService }, { provide: LibraryService, useValue: libraryService }],
+      providers: [
+        EpubService,
+        { provide: TxtReaderCacheService, useValue: txtCache },
+        { provide: BookReadService, useValue: bookReadService },
+        { provide: LibraryService, useValue: libraryService },
+      ],
     }).compile();
     service = module.get(EpubService);
     bookReadService.findLibraryIdByBookId.mockResolvedValue(3);
@@ -622,6 +629,23 @@ describe('EpubService', () => {
 
     bookReadService.findPrimaryFilesByBookIds.mockResolvedValueOnce([{ format: 'pdf', absolutePath: '/books/file.pdf' }]);
     await expect(service.getBookInfo(5, undefined, user)).rejects.toThrow(new NotFoundException('No primary EPUB file for book 5'));
+  });
+
+  it('uses a TXT reading projection after verifying library and file ownership', async () => {
+    bookReadService.findFileById.mockResolvedValue({ id: 77, bookId: 5, format: 'txt', absolutePath: '/books/original.txt' });
+    txtCache.prepare.mockResolvedValue('/tmp/txt-reading.epub');
+    mockOpenFile.mockResolvedValue(makeEpubArchive() as any);
+    await service.getBookInfo(5, 77, user);
+    expect(libraryService.verifyUserAccess).toHaveBeenCalledWith(user.id, 3, false);
+    expect(txtCache.prepare).toHaveBeenCalledWith(5, 77, '/books/original.txt');
+    expect(mockOpenFile).toHaveBeenCalledWith('/tmp/txt-reading.epub');
+    txtCache.prepare.mockClear();
+    libraryService.verifyUserAccess.mockRejectedValueOnce(new ForbiddenException());
+    await expect(service.getBookInfo(5, 77, user)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(txtCache.prepare).not.toHaveBeenCalled();
+    bookReadService.findFileById.mockResolvedValueOnce({ id: 77, bookId: 6, format: 'txt', absolutePath: '/books/another-user.txt' });
+    await expect(service.getBookInfo(5, 77, user)).rejects.toBeInstanceOf(NotFoundException);
+    expect(txtCache.prepare).not.toHaveBeenCalled();
   });
 
   it('uses explicit fileId path when valid and skips primary-file lookup', async () => {

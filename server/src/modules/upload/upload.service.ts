@@ -93,7 +93,7 @@ export class UploadService {
   async convertTxtToEpub(bookId: number, user: RequestUser, options: ConvertTxtDto = {}) {
     const [owner] = await this.db.select({ libraryId: books.libraryId }).from(books).where(eq(books.id, bookId)).limit(1);
     if (!owner) throw new NotFoundException('Book not found');
-    await this.libraryService.verifyUserAccess(user.id, owner.libraryId, user.isSuperuser);
+    await this.libraryService.verifyUserAccessLevel(user.id, owner.libraryId, user.isSuperuser, 'editor');
     if (this.convertingBooks.has(bookId)) throw new BadRequestException('This book is already being converted');
     if (this.convertingBooks.size >= 2) throw new ServiceUnavailableException('Conversion queue is busy; retry shortly');
     this.convertingBooks.add(bookId);
@@ -101,23 +101,33 @@ export class UploadService {
     let temporary: string | undefined;
     this.logger.log(`[book.convert_txt] [start] bookId=${bookId} userId=${user.id} - TXT conversion started`);
     try {
-      const [txt] = await this.db.select({ path: bookFiles.absolutePath }).from(bookFiles)
-        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.format, 'txt'))).limit(1);
+      const [txt] = await this.db
+        .select({ path: bookFiles.absolutePath })
+        .from(bookFiles)
+        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.format, 'txt')))
+        .limit(1);
       if (!txt) throw new NotFoundException('No TXT file is attached to this book');
-      const [existing] = await this.db.select({ id: bookFiles.id }).from(bookFiles)
-        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.format, 'epub'))).limit(1);
+      const [existing] = await this.db
+        .select({ id: bookFiles.id })
+        .from(bookFiles)
+        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.format, 'epub')))
+        .limit(1);
       if (existing) throw new BadRequestException('An EPUB file is already attached to this book');
-      const [metadata] = await this.db.select({
-        title: schema.bookMetadata.title,
-        language: schema.bookMetadata.language,
-        description: schema.bookMetadata.description,
-        publisher: schema.bookMetadata.publisher,
-        publishedDate: schema.bookMetadata.publishedDate,
-        isbn10: schema.bookMetadata.isbn10,
-        isbn13: schema.bookMetadata.isbn13,
-      })
-        .from(schema.bookMetadata).where(eq(schema.bookMetadata.bookId, bookId)).limit(1);
-      const authorRows = await this.db.select({ name: schema.authors.name })
+      const [metadata] = await this.db
+        .select({
+          title: schema.bookMetadata.title,
+          language: schema.bookMetadata.language,
+          description: schema.bookMetadata.description,
+          publisher: schema.bookMetadata.publisher,
+          publishedDate: schema.bookMetadata.publishedDate,
+          isbn10: schema.bookMetadata.isbn10,
+          isbn13: schema.bookMetadata.isbn13,
+        })
+        .from(schema.bookMetadata)
+        .where(eq(schema.bookMetadata.bookId, bookId))
+        .limit(1);
+      const authorRows = await this.db
+        .select({ name: schema.authors.name })
         .from(schema.bookAuthors)
         .innerJoin(schema.authors, eq(schema.bookAuthors.authorId, schema.authors.id))
         .where(eq(schema.bookAuthors.bookId, bookId))
@@ -148,11 +158,16 @@ export class UploadService {
         isbn: metadata?.isbn13 || metadata?.isbn10,
         cover,
       });
+      await this.libraryService.verifyUserAccessLevel(user.id, owner.libraryId, user.isSuperuser, 'editor');
       const result = await this.addFileToBook(bookId, filename, createReadStream(output), user);
-      this.logger.log(`[book.convert_txt] [end] bookId=${bookId} durationMs=${Date.now() - startedAt} fileId=${result.id} - TXT conversion completed`);
+      this.logger.log(
+        `[book.convert_txt] [end] bookId=${bookId} durationMs=${Date.now() - startedAt} fileId=${result.id} - TXT conversion completed`,
+      );
       return result;
     } catch (error) {
-      this.logger.warn(`[book.convert_txt] [fail] bookId=${bookId} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(error instanceof Error ? error.message : String(error))}" - TXT conversion failed`);
+      this.logger.warn(
+        `[book.convert_txt] [fail] bookId=${bookId} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(error instanceof Error ? error.message : String(error))}" - TXT conversion failed`,
+      );
       throw error;
     } finally {
       this.convertingBooks.delete(bookId);

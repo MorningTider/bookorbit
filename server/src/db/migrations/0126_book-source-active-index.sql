@@ -1,0 +1,1 @@
+CREATE INDEX "book_source_jobs_user_active_idx" ON "book_source_jobs" USING btree ("user_id") WHERE "book_source_jobs"."status" in ('queued', 'downloading', 'importing');

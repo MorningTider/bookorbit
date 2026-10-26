@@ -1,4 +1,5 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { TxtReaderCacheService } from './txt-reader-cache.service';
+import { ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { stat } from 'fs/promises';
 import type { Readable } from 'stream';
 import * as unzipper from 'unzipper';
@@ -343,6 +344,7 @@ export class EpubService {
   constructor(
     private readonly bookReadService: BookReadService,
     private readonly libraryService: LibraryService,
+    @Optional() private readonly txtReaderCache?: TxtReaderCacheService,
   ) {}
 
   async getBookInfo(bookId: number, fileId: number | undefined, user: RequestUser): Promise<EpubBookInfo> {
@@ -475,11 +477,19 @@ export class EpubService {
     if (fileId != null) {
       const file = await this.bookReadService.findFileById(fileId);
       if (!file || file.bookId !== bookId) throw new NotFoundException(`File ${fileId} not found for book ${bookId}`);
+      if (file.format === 'txt' && this.txtReaderCache) {
+        const path = await this.txtReaderCache.prepare(bookId, file.id, file.absolutePath);
+        return { fileId: file.id, absolutePath: path, readerPath: path };
+      }
       if (file.format !== 'epub') throw new NotFoundException(`File ${fileId} is not an EPUB file`);
       return { fileId: file.id, absolutePath: file.absolutePath, readerPath: file.absolutePath, fileHash: file.fileHash, sizeBytes: file.sizeBytes };
     }
 
     const [file] = await this.bookReadService.findPrimaryFilesByBookIds([bookId]);
+    if (file?.format === 'txt' && this.txtReaderCache) {
+      const path = await this.txtReaderCache.prepare(bookId, 0, file.absolutePath);
+      return { fileId: null, absolutePath: path, readerPath: path };
+    }
     if (!file || file.format !== 'epub') throw new NotFoundException(`No primary EPUB file for book ${bookId}`);
     return { fileId: null, absolutePath: file.absolutePath, readerPath: file.absolutePath, sizeBytes: file.sizeBytes };
   }

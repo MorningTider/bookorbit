@@ -119,6 +119,9 @@ export function isComicDiffFieldKey(key: DiffFieldKey): key is ComicDiffFieldKey
 }
 
 export const PROVIDER_ID_FIELD: Record<MetadataProviderKey, ProviderIdPatchField | undefined> = {
+  baiduBaike: undefined,
+  qimao: undefined,
+  qidian: undefined,
   fanqie: undefined,
   douban: undefined,
   google: 'googleBooksId',

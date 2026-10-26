@@ -1,3 +1,4 @@
+import { TxtReaderCacheService } from './txt-reader-cache.service';
 import 'reflect-metadata';
 
 vi.mock('../../book/book.module', () => ({ BookModule: class BookModule {} }));
@@ -13,6 +14,6 @@ describe('EpubModule', () => {
   it('registers expected imports/controllers/providers', () => {
     expect(Reflect.getMetadata('imports', EpubModule)).toEqual([BookModule, LibraryModule]);
     expect(Reflect.getMetadata('controllers', EpubModule)).toEqual([EpubController]);
-    expect(Reflect.getMetadata('providers', EpubModule)).toEqual([EpubService]);
+    expect(Reflect.getMetadata('providers', EpubModule)).toEqual(expect.arrayContaining([EpubService, TxtReaderCacheService]));
   });
 });

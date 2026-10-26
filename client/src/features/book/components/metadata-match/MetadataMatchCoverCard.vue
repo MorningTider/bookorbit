@@ -312,7 +312,7 @@ function handlePick(choice: CoverChoice) {
         <p v-if="searching" role="status" class="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Loader2 class="size-3 animate-spin motion-reduce:animate-none" aria-hidden="true" />{{ searchingText }}
         </p>
-        <p v-else-if="!choices.length" class="text-[11px] text-muted-foreground">
+        <p v-else-if="!choices.length && !shown" class="text-[11px] text-muted-foreground">
           {{ emptyText ?? t('book.detail.editMetadata.match.cover.noCover') }}
         </p>
       </div>

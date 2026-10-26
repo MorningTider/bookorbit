@@ -24,11 +24,25 @@ export class TxtFormatExtractor implements FormatExtractor {
       await handle.close();
     }
     const text = decodeTxt(buffer);
-    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    const title = lines[0] && lines[0].length <= 200 ? lines[0] : titleFromPath(absolutePath);
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+    const explicitTitle = lines.find((line) => /^(?:书名|title)\s*[:：]/i.test(line));
+    const firstLine = lines.find((line) => !/^(?:作者|作\s*者|author)\s*[:：]/i.test(line));
+    const isChapter =
+      /^(?:第[零〇一二三四五六七八九十百千万两\d]+[章节卷回部篇]|序章|序言|楔子|前言|后记|尾声|番外|chapter\s+[\divxlcdm]+(?:\b|[.:]))/i.test(
+        firstLine ?? '',
+      );
+    const titleLine = explicitTitle ?? (isChapter || /[。！？]/.test(firstLine ?? '') ? undefined : firstLine);
+    const rawTitle = titleLine && titleLine.length <= 200 ? titleLine : titleFromPath(absolutePath);
+    const title = rawTitle.replace(/^(?:书名|title)\s*[:：]\s*/i, '').trim() || titleFromPath(absolutePath);
+    const authorLine = lines.find((line) => /^(?:作者|作\s*者|author)\s*[:：]/i.test(line));
+    const author = authorLine?.replace(/^(?:作者|作\s*者|author)\s*[:：]\s*/i, '').trim();
     return {
       title,
-      authors: [],
+      authors: author ? [{ name: author, sortName: null }] : [],
       genres: [],
       tags: [],
       cover: null,

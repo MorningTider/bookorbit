@@ -103,7 +103,7 @@ function handleCustomScale(event: Event) {
               "
               @click="selectHorizontalLayout"
             >
-              Horizontal
+              {{ t('uiText.pdfSettings.horizontal') }}
             </button>
           </div>
         </div>
@@ -145,7 +145,7 @@ function handleCustomScale(event: Event) {
               :class="effective.spread === 'auto' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'"
               @click="selectAutoSpread"
             >
-              Auto
+              {{ t('uiText.pdfSettings.auto') }}
             </button>
           </div>
         </div>
@@ -169,10 +169,10 @@ function handleCustomScale(event: Event) {
           <div class="flex flex-wrap gap-2">
             <button
               v-for="opt in [
-                { id: 'fit-page' as const, label: 'Fit Page' },
-                { id: 'fit-width' as const, label: 'Fit Width' },
-                { id: 'automatic' as const, label: 'Automatic' },
-                { id: 'custom' as const, label: 'Custom' },
+                { id: 'fit-page' as const, label: t('settings.reader.pdf.fitPage') },
+                { id: 'fit-width' as const, label: t('settings.reader.pdf.fitWidth') },
+                { id: 'automatic' as const, label: t('uiText.pdfReaderSettingsPanel.automatic') },
+                { id: 'custom' as const, label: t('settings.reader.pdf.custom') },
               ]"
               :key="opt.id"
               :data-zoom-mode="opt.id"

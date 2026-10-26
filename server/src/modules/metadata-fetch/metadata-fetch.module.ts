@@ -1,3 +1,4 @@
+import { BaiduBaikeProvider, QimaoProvider, QidianProvider } from './providers/chinese-catalog/chinese-catalog.provider';
 import { FanqieProvider } from './providers/fanqie/fanqie.provider';
 import { DoubanProvider } from './providers/douban/douban.provider';
 import { Module } from '@nestjs/common';
@@ -32,6 +33,9 @@ import { LubimyczytacProvider } from './providers/lubimyczytac/lubimyczytac.prov
 import { AladinProvider } from './providers/aladin/aladin.provider';
 
 const PROVIDER_CLASSES = [
+  BaiduBaikeProvider,
+  QimaoProvider,
+  QidianProvider,
   DoubanProvider,
   FanqieProvider,
   GoogleProvider,

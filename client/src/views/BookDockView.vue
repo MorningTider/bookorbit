@@ -489,9 +489,8 @@ onUnmounted(() => {
               v-if="summary.paused"
               class="ml-2 inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-medium"
             >
-              <span class="size-1.5 rounded-full bg-current" />
-              Paused
-            </span>
+              <span class="size-1.5 rounded-full bg-current" />{{ t('uiText.bookDockView.paused') }}</span
+            >
             <Transition name="fade">
               <span
                 v-if="newFilesDetected"

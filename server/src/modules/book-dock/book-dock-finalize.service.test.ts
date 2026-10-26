@@ -2032,6 +2032,129 @@ describe('BookDockFinalizeService', () => {
       expect(overrides.get(9)?.lookedUpCoverUrl).toBe('https://covers.example/print-jacket.jpg');
     });
 
+    it('files a direct download using its original filename when metadata only contains the staging name', async () => {
+      const { service, repo } = makeService();
+      repo.findById.mockResolvedValue(
+        makeRow({
+          id: 9,
+          fileName: 'request-7-Foxy Grandpa.cbz',
+          format: 'cbz',
+          unitDirectory: null,
+          embeddedMetadata: { title: 'request-7-Foxy Grandpa', authors: ['Bunny'], pageCount: 28 } as BookDockMetadata,
+          fetchedMetadata: null,
+          selectedMetadata: null,
+        }),
+      );
+      const finalizeFile = vi.spyOn(service as any, 'finalizeFile').mockResolvedValue({ fileId: 9, fileName: 'f', success: false, message: 'x' });
+      await service.finalizeManagedFile(9, { sourceFileName: 'Foxy Grandpa.cbz' });
+      const row = finalizeFile.mock.calls[0]![0] as BookDockFileRow;
+      expect(row.selectedMetadata?.title).toBe('Foxy Grandpa');
+      expect(row.selectedMetadata?.authors).toEqual(['Bunny']);
+      expect(row.selectedMetadata?.pageCount).toBe(28);
+      expect(row.fileName).toBe('request-7-Foxy Grandpa.cbz');
+    });
+
+    it.each([
+      {
+        name: 'embedded title',
+        embedded: 'ComicInfo title',
+        fetched: null,
+        selected: null,
+        file: 'request-7-Foxy Grandpa.cbz',
+        source: 'Foxy Grandpa.cbz',
+        expected: 'ComicInfo title',
+      },
+      {
+        name: 'looked-up title',
+        embedded: 'request-7-Foxy Grandpa',
+        fetched: { title: 'Catalog title' },
+        selected: null,
+        file: 'request-7-Foxy Grandpa.cbz',
+        source: 'Foxy Grandpa.cbz',
+        expected: 'Catalog title',
+      },
+      {
+        name: 'manual title',
+        embedded: 'request-7-Foxy Grandpa',
+        fetched: null,
+        selected: { title: 'My title' },
+        file: 'request-7-Foxy Grandpa.cbz',
+        source: 'Foxy Grandpa.cbz',
+        expected: 'My title',
+      },
+      {
+        name: 'unrelated source name',
+        embedded: 'request-7-Foxy Grandpa',
+        fetched: null,
+        selected: null,
+        file: 'request-7-Foxy Grandpa.cbz',
+        source: 'Another Comic.cbz',
+        expected: 'request-7-Foxy Grandpa',
+      },
+      {
+        name: 'unstaged file',
+        embedded: 'Foxy Grandpa',
+        fetched: null,
+        selected: null,
+        file: 'Foxy Grandpa.cbz',
+        source: 'Another Comic.cbz',
+        expected: 'Foxy Grandpa',
+      },
+      {
+        name: 'normalized filename fallback with scan suffix',
+        embedded: 'request-7-Foxy Grandpa Shows The BoysUp-To-Date Sports',
+        fetched: null,
+        selected: null,
+        file: 'request-7-Foxy Grandpa Shows The BoysUp-To-Date Sports (MSU).cbz',
+        source: 'Foxy Grandpa Shows The BoysUp-To-Date Sports (MSU).cbz',
+        expected: 'Foxy Grandpa Shows The BoysUp-To-Date Sports',
+      },
+      {
+        name: 'embedded title differing from normalized filename',
+        embedded: 'Genuine title',
+        fetched: null,
+        selected: null,
+        file: 'request-7-Foxy Grandpa (MSU).cbz',
+        source: 'Foxy Grandpa (MSU).cbz',
+        expected: 'Genuine title',
+      },
+      {
+        name: 'collision suffix',
+        embedded: 'request-7-Foxy Grandpa-2',
+        fetched: null,
+        selected: null,
+        file: 'request-7-Foxy Grandpa-2.cbz',
+        source: 'Foxy Grandpa.cbz',
+        expected: 'Foxy Grandpa',
+      },
+      {
+        name: 'actual numbered title',
+        embedded: 'request-7-Foxy Grandpa-2',
+        fetched: null,
+        selected: null,
+        file: 'request-7-Foxy Grandpa-2.cbz',
+        source: 'Foxy Grandpa-2.cbz',
+        expected: 'Foxy Grandpa-2',
+      },
+    ])('keeps provenance when resolving $name', async ({ embedded, fetched, selected, file, source, expected }) => {
+      const { service, repo } = makeService();
+      repo.findById.mockResolvedValue(
+        makeRow({
+          id: 9,
+          fileName: file,
+          format: 'cbz',
+          unitDirectory: null,
+          embeddedMetadata: { title: embedded } as BookDockMetadata,
+          fetchedMetadata: fetched,
+          selectedMetadata: selected,
+        }),
+      );
+      const finalizeFile = vi.spyOn(service as any, 'finalizeFile').mockResolvedValue({ fileId: 9, fileName: 'f', success: false, message: 'x' });
+      await service.finalizeManagedFile(9, { sourceFileName: source });
+      const row = finalizeFile.mock.calls[0]![0] as BookDockFileRow;
+      expect(row.selectedMetadata?.title).toBe(expected);
+    });
+
     it('tries the requested art for a joined format only while its slot would otherwise stay empty', async () => {
       const { service, db, metadataService } = makeService();
       stubMetadataWrites(db);

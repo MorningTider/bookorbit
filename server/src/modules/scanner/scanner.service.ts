@@ -10,6 +10,7 @@ import { pathsReferToSameEntry } from '../../common/utils/path-identity.utils';
 import { selectPrimaryFile } from '../../common/utils/primary-file-selection.utils';
 import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
 import { groupAttachedFormats } from './lib/group-attached-formats';
+import { groupLooseTxtEpubCandidates } from './lib/group-loose-txt-epub';
 
 import type {
   AddedAtSource,
@@ -130,6 +131,7 @@ const METADATA_FORMATS = new Set([
   'fb2',
   'pdf',
   'djvu',
+  'txt',
   'm4b',
   'mp3',
   'm4a',
@@ -138,6 +140,7 @@ const METADATA_FORMATS = new Set([
   'flac',
   'opf',
 ]);
+const COVER_REFRESH_FORMATS = new Set([...METADATA_FORMATS].filter((format) => format !== 'txt'));
 const SCANNER_METADATA_SOURCES = ['embedded', 'opfFile'] as const;
 const COVER_RECONCILE_BATCH_SIZE = 500;
 const COVER_REFRESH_BATCH_SIZE = 5;
@@ -794,7 +797,7 @@ export class ScannerService implements OnApplicationBootstrap {
     this.logger.log(`[${event}] [start] libraryId=${libraryId} - cover refresh started`);
     try {
       const rows = await this.scannerRepo.findPrimaryBookFilesByLibrary(libraryId);
-      const candidates = rows.filter((r) => r.format && METADATA_FORMATS.has(r.format));
+      const candidates = rows.filter((r) => r.format && COVER_REFRESH_FORMATS.has(r.format));
       const total = candidates.length;
       const formatPriority = (await this.scannerRepo.findLibrarySettings(libraryId))?.formatPriority ?? DEFAULT_FORMAT_PRIORITY;
       const backgroundStartedAt = Date.now();
@@ -1608,6 +1611,7 @@ export class ScannerService implements OnApplicationBootstrap {
         this.scannerRepo.findBookFilesByLibraryFolder(libraryFolderId),
       ]);
 
+      candidates = groupLooseTxtEpubCandidates(candidates);
       candidates = groupAttachedFormats(candidates, knownBooks, knownFiles);
       const isFirstScan = knownBooks.length === 0 && knownFiles.length === 0;
       const maps = ScannerService.buildLookupMaps(knownBooks, knownFiles);

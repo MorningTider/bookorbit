@@ -311,7 +311,7 @@ watch(mediaOverlay.isPlaying, (playing) => {
 
 function ensureTtsAvailable(): boolean {
   if (isTtsAvailable) return true
-  toast.error('TTS currently supports EPUB files only')
+  toast.error(t('uiText.readerView.ttsCurrentlySupportsEPUBFilesOnly'))
   return false
 }
 
@@ -453,7 +453,7 @@ async function buildTtsBook(): Promise<{
   totalChapters: number
 } | null> {
   if (!bookMeta.value) {
-    toast.error('Book metadata not loaded yet')
+    toast.error(t('uiText.readerView.bookMetadataNotLoadedYet'))
     return null
   }
   return {
@@ -603,7 +603,7 @@ async function beginNarration(sectionIdx: number, matches: ((item: { text: strin
   const startId = ++mediaOverlayStartId
   const mo = getMediaOverlay()
   if (!mo) {
-    toast.error('This book has no embedded narration')
+    toast.error(t('uiText.readerView.thisBookHasNoEmbeddedNarration'))
     return
   }
   const book = await buildTtsBook()
@@ -663,7 +663,7 @@ async function handleReadFromHere() {
   try {
     const { providerId, voiceId, speed } = await resolveProviderAndVoice()
     if (!voiceId.trim()) {
-      toast.error('No TTS voices are available for the selected provider')
+      toast.error(t('uiText.readerView.noTTSVoicesAreAvailableForTheSelectedProvider'))
       return
     }
     const chapterIdx = sectionIndex.value
@@ -674,7 +674,7 @@ async function handleReadFromHere() {
     const startBlock = blockIndex >= 0 ? blockIndex : 0
     await startPlayback(book, providerId, voiceId, speed, (chapterIndex) => getServerTextBlocks(fileId, chapterIndex), chapterIdx, startBlock)
   } catch {
-    toast.error('Failed to start TTS playback')
+    toast.error(t('uiText.readerView.failedToStartTTSPlayback'))
   }
 }
 
@@ -695,12 +695,12 @@ async function handleResumeTts() {
   try {
     const { providerId, voiceId, speed } = await resolveProviderAndVoice()
     if (!voiceId.trim()) {
-      toast.error('No TTS voices are available for the selected provider')
+      toast.error(t('uiText.readerView.noTTSVoicesAreAvailableForTheSelectedProvider'))
       return
     }
     await startPlayback(book, providerId, voiceId, speed, (chapterIndex) => getServerTextBlocks(fileId, chapterIndex), chapterIdx, blockIdx)
   } catch {
-    toast.error('Failed to resume TTS playback')
+    toast.error(t('uiText.readerView.failedToResumeTTSPlayback'))
   }
 }
 
@@ -717,7 +717,7 @@ async function handleClearSavedTtsPosition() {
     showTtsResumePrompt.value = false
     clearHighlight()
   } catch {
-    toast.error('Failed to clear saved TTS position')
+    toast.error(t('uiText.readerView.failedToClearSavedTTSPosition'))
   } finally {
     clearingSavedTtsPosition.value = false
   }
@@ -732,7 +732,7 @@ async function handlePlayFromCurrentPage() {
   try {
     const { providerId, voiceId, speed } = await resolveProviderAndVoice()
     if (!voiceId.trim()) {
-      toast.error('No TTS voices are available for the selected provider')
+      toast.error(t('uiText.readerView.noTTSVoicesAreAvailableForTheSelectedProvider'))
       return
     }
     const chapterIdx = sectionIndex.value
@@ -742,7 +742,7 @@ async function handlePlayFromCurrentPage() {
     const startBlock = blockIndex >= 0 ? blockIndex : 0
     await startPlayback(book, providerId, voiceId, speed, (chapterIndex) => getServerTextBlocks(fileId, chapterIndex), chapterIdx, startBlock)
   } catch {
-    toast.error('Failed to start TTS playback')
+    toast.error(t('uiText.readerView.failedToStartTTSPlayback'))
   }
 }
 
@@ -860,7 +860,9 @@ function canRunManualNavigation(): boolean {
   const now = Date.now()
   if (now - lastNavigationBlockedToastAt.value >= 1200) {
     lastNavigationBlockedToastAt.value = now
-    toast.info(mediaOverlay.isActive.value ? 'Pause narration to navigate pages.' : 'Pause TTS playback to navigate pages.')
+    toast.info(
+      mediaOverlay.isActive.value ? t('uiText.readerView.pauseNarrationToNavigatePages') : t('uiText.readerView.pauseTTSPlaybackToNavigatePages'),
+    )
   }
 
   return false
@@ -1409,7 +1411,7 @@ onUnmounted(() => {
           <button
             class="absolute top-4 right-4 z-50 px-3.5 py-2 rounded-xl bg-background/90 text-foreground border border-border/80 shadow-lg hover:bg-background pointer-events-auto flex items-center gap-2 text-xs font-semibold cursor-pointer transition-all duration-200 active:scale-95 animate-pulse"
             @click="showTapZones = false"
-            title="Close Guide"
+            :title="t('uiText.readerView.closeGuide')"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -1426,7 +1428,7 @@ onUnmounted(() => {
               <line x1="18" x2="6" y1="6" y2="18" />
               <line x1="6" x2="18" y1="6" y2="18" />
             </svg>
-            <span>Exit Guide</span>
+            <span>{{ t('uiText.readerView.exitGuide') }}</span>
           </button>
 
           <!-- Mobile Guide -->
@@ -1477,21 +1479,21 @@ onUnmounted(() => {
                 </span>
               </div>
               <div>
-                <h3 class="text-sm font-semibold tracking-wide uppercase text-foreground mb-1">Mobile Interactions</h3>
-                <p class="text-xs text-muted-foreground mb-4">Optimized for handheld touch reading</p>
+                <h3 class="text-sm font-semibold tracking-wide uppercase text-foreground mb-1">{{ t('uiText.readerView.mobileInteractions') }}</h3>
+                <p class="text-xs text-muted-foreground mb-4">{{ t('uiText.readerView.optimizedForHandheldTouchReading') }}</p>
                 <div class="space-y-3 text-left">
                   <div class="flex items-start gap-2.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
                     <div>
-                      <p class="text-xs font-medium text-foreground">Tap Anywhere</p>
-                      <p class="text-[10px] text-muted-foreground">Toggles the header and footer overlays</p>
+                      <p class="text-xs font-medium text-foreground">{{ t('uiText.readerView.tapAnywhere') }}</p>
+                      <p class="text-[10px] text-muted-foreground">{{ t('uiText.readerView.togglesTheHeaderAndFooterOverlays') }}</p>
                     </div>
                   </div>
                   <div class="flex items-start gap-2.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
                     <div>
-                      <p class="text-xs font-medium text-foreground">Swipe Left / Right</p>
-                      <p class="text-[10px] text-muted-foreground">Turns pages smoothly forward or backward</p>
+                      <p class="text-xs font-medium text-foreground">{{ t('uiText.readerView.swipeLeftRight') }}</p>
+                      <p class="text-[10px] text-muted-foreground">{{ t('uiText.readerView.turnsPagesSmoothlyForwardOrBackward') }}</p>
                     </div>
                   </div>
                 </div>
@@ -1524,8 +1526,8 @@ onUnmounted(() => {
                   <line x1="4" x2="20" y1="6" y2="6" />
                   <line x1="4" x2="20" y1="18" y2="18" />
                 </svg>
-                <span class="text-xs font-semibold tracking-wide uppercase text-foreground">Toggle Header</span>
-                <span class="text-[10px] text-muted-foreground">Click top edge (y &lt; 64px)</span>
+                <span class="text-xs font-semibold tracking-wide uppercase text-foreground">{{ t('uiText.readerView.toggleHeader') }}</span>
+                <span class="text-[10px] text-muted-foreground">{{ t('uiText.readerView.clickTopEdgeY64px') }}</span>
               </div>
             </div>
 
@@ -1552,8 +1554,8 @@ onUnmounted(() => {
                       <path d="m15 18-6-6 6-6" />
                     </svg>
                   </span>
-                  <span class="text-xs font-semibold tracking-wide uppercase text-foreground">Previous Page</span>
-                  <span class="text-[10px] text-muted-foreground max-w-[120px]">Click left 30%</span>
+                  <span class="text-xs font-semibold tracking-wide uppercase text-foreground">{{ t('uiText.readerView.previousPage') }}</span>
+                  <span class="text-[10px] text-muted-foreground max-w-[120px]">{{ t('uiText.readerView.clickLeft30') }}</span>
                 </div>
               </div>
 
@@ -1580,8 +1582,8 @@ onUnmounted(() => {
                       <line x1="4" x2="20" y1="18" y2="18" />
                     </svg>
                   </span>
-                  <span class="text-xs font-semibold tracking-wide uppercase text-foreground">Toggle Header & Footer</span>
-                  <span class="text-[10px] text-muted-foreground max-w-[120px]">Click center 40%</span>
+                  <span class="text-xs font-semibold tracking-wide uppercase text-foreground">{{ t('uiText.readerView.toggleHeaderFooter') }}</span>
+                  <span class="text-[10px] text-muted-foreground max-w-[120px]">{{ t('uiText.readerView.clickCenter40') }}</span>
                 </div>
               </div>
 
@@ -1606,8 +1608,8 @@ onUnmounted(() => {
                       <path d="m9 18 6-6-6-6" />
                     </svg>
                   </span>
-                  <span class="text-xs font-semibold tracking-wide uppercase text-foreground">Next Page</span>
-                  <span class="text-[10px] text-muted-foreground max-w-[120px]">Click right 30%</span>
+                  <span class="text-xs font-semibold tracking-wide uppercase text-foreground">{{ t('uiText.readerView.nextPage') }}</span>
+                  <span class="text-[10px] text-muted-foreground max-w-[120px]">{{ t('uiText.readerView.clickRight30') }}</span>
                 </div>
               </div>
             </div>
@@ -1635,8 +1637,8 @@ onUnmounted(() => {
                   <line x1="4" x2="20" y1="6" y2="6" />
                   <line x1="4" x2="20" y1="18" y2="18" />
                 </svg>
-                <span class="text-xs font-semibold tracking-wide uppercase text-foreground">Toggle Footer</span>
-                <span class="text-[10px] text-muted-foreground">Click bottom edge (y &gt; height - 64px)</span>
+                <span class="text-xs font-semibold tracking-wide uppercase text-foreground">{{ t('uiText.readerView.toggleFooter') }}</span>
+                <span class="text-[10px] text-muted-foreground">{{ t('uiText.readerView.clickBottomEdgeYHeight64px') }}</span>
               </div>
             </div>
           </div>

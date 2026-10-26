@@ -259,6 +259,42 @@ describe('CoverService', () => {
       );
     });
 
+    it('sends the Douban referer when proxying Douban covers', async () => {
+      const service = createProxyService();
+      fetchMock.mockResolvedValueOnce(makeImageResponse(Buffer.from('bytes'), 'image/jpeg'));
+
+      await service.proxyImage('https://img9.doubanio.com/view/subject/l/public/cover.jpg');
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://img9.doubanio.com/view/subject/l/public/cover.jpg',
+        expect.objectContaining({ headers: expect.objectContaining({ Referer: 'https://book.douban.com/' }) }),
+      );
+    });
+
+    it('sends the Fanqie referer when proxying Fanqie covers', async () => {
+      const service = createProxyService();
+      fetchMock.mockResolvedValueOnce(makeImageResponse(Buffer.from('bytes'), 'image/jpeg'));
+
+      await service.proxyImage('https://p6-novel.byteimg.com/cover.jpg');
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://p6-novel.byteimg.com/cover.jpg',
+        expect.objectContaining({ headers: expect.objectContaining({ Referer: 'https://fanqienovel.com/' }) }),
+      );
+    });
+
+    it('rewrites old Fanqie CDN hosts to the working novel image host', async () => {
+      const service = createProxyService();
+      fetchMock.mockResolvedValueOnce(makeImageResponse(Buffer.from('bytes'), 'image/jpeg'));
+
+      await service.proxyImage('https://p6-tt.bytecdn.cn/cover.jpg');
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://p6-novel.byteimg.com/cover.jpg',
+        expect.objectContaining({ headers: expect.objectContaining({ Referer: 'https://fanqienovel.com/' }) }),
+      );
+    });
+
     it('rejects invalid URLs before requesting remote data', async () => {
       const service = createProxyService();
 

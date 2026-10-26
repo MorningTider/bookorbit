@@ -427,4 +427,12 @@ describe('useFoliate.open', () => {
 
     expect(mockGoTo.mock.calls).toEqual([['OPS/ch1.xhtml#missing'], [2]])
   })
+  it('opens TXT through authenticated streaming resources and restores its reading position', async () => {
+    const foliate = useFoliate(() => container)
+    await foliate.open(7, 9, 'txt', 'epubcfi(/6/2!)', 0.5)
+    expect(api).toHaveBeenCalledWith('/api/v1/epub/7/info?fileId=9')
+    expect(mockOpen).toHaveBeenCalled()
+    expect(mockGoTo).toHaveBeenCalledWith('epubcfi(/6/2!)')
+    expect(api).not.toHaveBeenCalledWith('/api/v1/books/files/9/serve')
+  })
 })

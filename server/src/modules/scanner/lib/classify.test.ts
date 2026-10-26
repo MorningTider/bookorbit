@@ -14,6 +14,12 @@ describe('classifyFile — primary formats', () => {
     expect(classifyFile('/books/Book.CBZ')).toEqual({ format: 'cbz', role: 'content' });
   });
 
+  it('classifies TXT as content while keeping it below EPUB in the default priority', () => {
+    expect(classifyFile('/books/Book/book.txt')).toEqual({ format: 'txt', role: 'content' });
+    expect(isPrimaryFormat('/books/Book/book.txt')).toBe(true);
+    expect(DEFAULT_FORMAT_PRIORITY.indexOf('txt')).toBeGreaterThan(DEFAULT_FORMAT_PRIORITY.indexOf('epub'));
+  });
+
   it('format matches the lowercased extension, not the original', () => {
     const { format } = classifyFile('/books/Book.EPUB');
     expect(format).toBe('epub');

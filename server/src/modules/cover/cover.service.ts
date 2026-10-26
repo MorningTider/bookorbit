@@ -5,6 +5,7 @@ import type { BookCoverSource } from '../book-cover-store/book-cover-store.repos
 import type { RequestUser } from '../../common/types/request-user';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 import { ensureSafeRemoteHost } from '../../common/utils/ssrf.utils';
+import { normalizeRemoteImageUrl, remoteImageHeaders } from '../../common/utils/remote-image-headers';
 import { BookReadService } from '../book/book-read.service';
 import { BookCoverStore } from '../book-cover-store/book-cover-store.service';
 import { BookMetadataLockService } from '../book-metadata-lock/book-metadata-lock.service';
@@ -253,18 +254,17 @@ export class CoverService {
   }
 
   private async fetchRemoteImageWithRedirects(url: URL, redirectCount = 0): Promise<{ buffer: Buffer; contentType: string }> {
+    const requestUrl = normalizeRemoteImageUrl(url);
+    if (requestUrl.hostname !== url.hostname) await ensureSafeRemoteHost(requestUrl.hostname);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), COVER_PROXY_TIMEOUT_MS);
 
     try {
       // codeql[js/request-forgery] - URL is validated by ensureSafeRemoteHost before reaching this method
-      const response = await fetch(url.toString(), {
+      const response = await fetch(requestUrl.toString(), {
         signal: controller.signal,
         redirect: 'manual',
-        headers: {
-          'User-Agent': COVER_PROXY_USER_AGENT,
-          Accept: 'image/*',
-        },
+        headers: remoteImageHeaders(requestUrl, COVER_PROXY_USER_AGENT),
       });
 
       if (this.isRedirectStatus(response.status)) {
@@ -275,7 +275,7 @@ export class CoverService {
         const location = response.headers.get('location');
         if (!location) throw new BadRequestException('Image redirect is missing location');
 
-        const redirectUrl = await this.resolveRedirectUrl(url, location);
+        const redirectUrl = await this.resolveRedirectUrl(requestUrl, location);
         return this.fetchRemoteImageWithRedirects(redirectUrl, redirectCount + 1);
       }
 

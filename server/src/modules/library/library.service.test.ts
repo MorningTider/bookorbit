@@ -314,6 +314,7 @@ describe('LibraryService', () => {
           'azw',
           'fb2',
           'djvu',
+          'txt',
           'm4b',
           'mp3',
           'm4a',

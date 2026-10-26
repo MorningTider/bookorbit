@@ -20,6 +20,7 @@ import RequestEmptyState from './components/RequestEmptyState.vue'
 import RequestListSkeleton from './components/RequestListSkeleton.vue'
 import RequestListTable from './components/RequestListTable.vue'
 import RequestSearchPanel from './components/RequestSearchPanel.vue'
+import FanqieSourcePanel from '@/features/book-source/FanqieSourcePanel.vue'
 import { useBookRequestActions, useBookRequests, type ActionOutcome } from './composables/useBookRequests'
 import { useBookRequestProgress } from './composables/useBookRequestProgress'
 import { useBookRequestSummary } from './composables/useBookRequestSummary'
@@ -31,7 +32,7 @@ import { useRouteTab } from '@/composables/useRouteTab'
 import { REQUEST_DRAWER } from './requestDrawerContext'
 import { localizedRequestActionFailure } from './requestActionFailure'
 
-const TABS = ['search', 'mine', 'all'] as const
+const TABS = ['search', 'sources', 'mine', 'all'] as const
 type RequestsTab = (typeof TABS)[number]
 
 /** How close together two change broadcasts have to be for the page to answer them once. */
@@ -45,7 +46,9 @@ const { user } = useAuth()
 
 const canManage = computed(() => hasPermission(Permission.ManageBookRequests))
 const canSelfFulfil = computed(() => hasPermission(Permission.BookRequestSelfFulfill))
-const availableTabs = computed<RequestsTab[]>(() => (canManage.value ? [...TABS] : ['search', 'mine']))
+const availableTabs = computed<RequestsTab[]>(() =>
+  TABS.filter((tab) => (tab !== 'all' || canManage.value) && (tab !== 'sources' || (hasPermission(Permission.LibraryUpload) && canSelfFulfil.value))),
+)
 
 function normalizeTab(value: unknown): RequestsTab {
   return typeof value === 'string' && (TABS as readonly string[]).includes(value) ? (value as RequestsTab) : 'search'
@@ -70,6 +73,7 @@ const activeList = computed(() => (activeTab.value === 'all' ? all : mine))
 const activeItems = computed(() => activeList.value.items.value)
 const tabCounts = computed<Record<RequestsTab, number | null>>(() => ({
   search: null,
+  sources: null,
   mine: requestSummary.value?.mineTotal ?? null,
   all: canManage.value ? (requestSummary.value?.allTotal ?? null) : null,
 }))
@@ -565,7 +569,7 @@ function goToNextPage() {
       request or waiting on one, and the queue below it is otherwise a list of rows with no stated
       reason for standing still.
     -->
-    <NoRequestSourcesNotice v-if="noSourcesEnabled" :nothing-configured="noSourcesConfigured" class="mb-4" />
+    <NoRequestSourcesNotice v-if="noSourcesEnabled && activeTab !== 'sources'" :nothing-configured="noSourcesConfigured" class="mb-4" />
 
     <!-- Underline tabs with a roving tabindex, matching the only other tablist in the app. -->
     <div role="tablist" :aria-label="t('bookRequests.title')" class="mb-4 flex gap-1 border-b border-border">
@@ -602,6 +606,16 @@ function goToNextPage() {
     -->
     <section v-if="activeTab === 'search'" id="requests-panel-search" role="tabpanel" aria-labelledby="requests-tab-search" class="w-full max-w-5xl">
       <RequestSearchPanel @submitted="handleSubmitted" />
+    </section>
+
+    <section
+      v-else-if="activeTab === 'sources'"
+      id="requests-panel-sources"
+      role="tabpanel"
+      aria-labelledby="requests-tab-sources"
+      class="w-full max-w-5xl"
+    >
+      <FanqieSourcePanel />
     </section>
 
     <section v-else :id="`requests-panel-${activeTab}`" role="tabpanel" :aria-labelledby="`requests-tab-${activeTab}`" class="space-y-4">

@@ -15,6 +15,8 @@ export interface SafeFetchOptions extends SafeRemoteHostOptions {
    * the global fetch, which is why it is asked for rather than assumed.
    */
   pinResolvedAddress?: boolean;
+  /** Keep streamed file bodies on HTTP/1.1 when a source's HTTP/2 framing is unreliable. */
+  http1Only?: boolean;
 }
 
 /**
@@ -50,7 +52,7 @@ export async function safeFetch(rawUrl: string, init: RequestInit = {}, options:
   // a caller with no profile behaves exactly as it did before this existed.
   const url = await ensureSafeUrl(rawUrl, options);
 
-  if (!hasNetworkProfile(options.profile) && !options.pinResolvedAddress) {
+  if (!hasNetworkProfile(options.profile) && !options.pinResolvedAddress && !options.http1Only) {
     return fetch(url, init);
   }
 
@@ -70,12 +72,20 @@ function dispatcherFor(options: SafeFetchOptions): Dispatcher {
   // An empty profile is a real case here: `pinResolvedAddress` wants the checked lookup without
   // asking for a different resolver or an egress, and that pools as its own agent.
   const profile = options.profile ?? {};
-  const key = JSON.stringify({ r: profile.resolvers ?? [], p: profile.proxyUrl ?? '', a: Boolean(options.allowPrivate) });
+  const key = JSON.stringify({
+    r: profile.resolvers ?? [],
+    p: profile.proxyUrl ?? '',
+    a: Boolean(options.allowPrivate),
+    h1: Boolean(options.http1Only),
+  });
   const existing = dispatchers.get(key);
   if (existing) return existing;
 
   const connect = { lookup: buildLookup(profile, options) };
-  const dispatcher: Dispatcher = profile.proxyUrl ? new ProxyAgent({ uri: profile.proxyUrl, connect }) : new Agent({ connect });
+  const transport = options.http1Only ? { allowH2: false } : {};
+  const dispatcher: Dispatcher = profile.proxyUrl
+    ? new ProxyAgent({ uri: profile.proxyUrl, connect, ...transport })
+    : new Agent({ connect, ...transport });
 
   dispatchers.set(key, dispatcher);
   return dispatcher;

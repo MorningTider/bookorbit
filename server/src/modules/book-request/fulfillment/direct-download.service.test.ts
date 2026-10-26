@@ -12,7 +12,7 @@ vi.mock('undici', async (importOriginal) => ({
   fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
 }));
 
-import { Agent } from 'undici';
+import { Agent, ProxyAgent } from 'undici';
 
 import { DirectDownloadService, stagedDirectFileName } from './direct-download.service';
 import type { BookRequestDownloadRow } from '../../../db/schema';
@@ -26,11 +26,14 @@ describe('DirectDownloadService', () => {
   let appDataPath: string;
   let service: DirectDownloadService;
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
-  let downloads: { update: ReturnType<typeof vi.fn> };
+  let downloads: { update: ReturnType<typeof vi.fn>; findById: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     appDataPath = await mkdtemp(join(tmpdir(), 'bookorbit-http-'));
-    downloads = { update: vi.fn().mockResolvedValue(undefined) };
+    downloads = {
+      update: vi.fn().mockResolvedValue(undefined),
+      findById: vi.fn().mockResolvedValue({ id: 1, clientKey: HASH, directEtag: null, directLastModified: null, totalBytes: null }),
+    };
     service = new DirectDownloadService({ appDataPath } as never, downloads as never);
     fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
@@ -39,6 +42,47 @@ describe('DirectDownloadService', () => {
   afterEach(async () => {
     vi.unstubAllGlobals();
     await rm(appDataPath, { recursive: true, force: true });
+  });
+
+  it('uses the operator-configured source proxy for both initial and redirected file requests', async () => {
+    const indexers = { resolveConfig: vi.fn().mockResolvedValue({ networkProfile: { proxyUrl: 'http://127.0.0.1:7890' } }) };
+    service = new DirectDownloadService({ appDataPath } as never, downloads as never, indexers as never);
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: 'https://example.com/final.epub' } }))
+      .mockResolvedValueOnce(fileResponse('book bytes'));
+    await service.add({ downloadId: 1, indexerId: 12, clientKey: HASH, fileUrl: 'https://example.com/start.epub' });
+    expect((await settle()).state).toBe('completed');
+    expect(indexers.resolveConfig).toHaveBeenCalledWith(12);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const call of fetchMock.mock.calls) expect((call[1] as RequestInit & { dispatcher: unknown }).dispatcher).toBeInstanceOf(ProxyAgent);
+  });
+
+  it('reloads the current source network configuration when resuming a persisted transfer', async () => {
+    const indexers = { resolveConfig: vi.fn().mockResolvedValue({ networkProfile: { proxyUrl: 'http://127.0.0.1:7890' } }) };
+    service = new DirectDownloadService({ appDataPath } as never, downloads as never, indexers as never);
+    fetchMock.mockResolvedValue(fileResponse('book bytes'));
+    const resumed = await service.resume({
+      id: 1,
+      indexerId: 12,
+      source: 'direct_url',
+      clientKey: HASH,
+      directUrl: 'https://example.com/book.epub',
+      directFileName: 'book.epub',
+      directEtag: null,
+      directLastModified: null,
+      totalBytes: null,
+    } as BookRequestDownloadRow);
+    expect(resumed).toBe(true);
+    expect((await settle()).state).toBe('completed');
+    expect(indexers.resolveConfig).toHaveBeenCalledWith(12);
+    expect((fetchMock.mock.calls[0][1] as RequestInit & { dispatcher: unknown }).dispatcher).toBeInstanceOf(ProxyAgent);
+  });
+
+  it('retains private-address protection even when a source proxy is configured', async () => {
+    const indexers = { resolveConfig: vi.fn().mockResolvedValue({ networkProfile: { proxyUrl: 'http://127.0.0.1:7890' } }) };
+    service = new DirectDownloadService({ appDataPath } as never, downloads as never, indexers as never);
+    await expect(service.add({ downloadId: 1, indexerId: 12, clientKey: HASH, fileUrl: 'http://127.0.0.1/private.epub' })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   function fileResponse(body: string, headers: Record<string, string> = {}): Response {
@@ -73,6 +117,56 @@ describe('DirectDownloadService', () => {
     expect(status.progressPercent).toBe(100);
     expect(status.contentPath).toBe(join(appDataPath, 'request-downloads', HASH, 'book.epub'));
     await expect(readFile(status.contentPath!, 'utf8')).resolves.toBe('a real epub would go here');
+  });
+
+  it('retries a transient connection reset without changing download identity', async () => {
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('fetch failed', { cause: Object.assign(new Error('reset'), { code: 'ECONNRESET' }) }))
+      .mockResolvedValueOnce(fileResponse('recovered'));
+    await service.add({ downloadId: 1, fileUrl: 'https://archive.org/download/x/book.epub', fileName: 'book.epub', clientKey: HASH });
+    expect((await settle()).state).toBe('completed');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(downloads.findById).toHaveBeenCalledWith(1);
+  });
+
+  it('resumes a reset body only with persisted validators and exact content range', async () => {
+    const broken = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('part'));
+        setTimeout(() => controller.error(new TypeError('terminated', { cause: Object.assign(new Error('reset'), { code: 'UND_ERR_SOCKET' }) })), 20);
+      },
+    });
+    downloads.findById.mockResolvedValue({ id: 1, clientKey: HASH, directEtag: '"edition-1"', directLastModified: null, totalBytes: 8 });
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(broken, { headers: { 'content-type': 'application/epub+zip', 'content-length': '8', etag: '"edition-1"' } }),
+      )
+      .mockResolvedValueOnce(
+        new Response('tail', {
+          status: 206,
+          headers: { 'content-type': 'application/epub+zip', 'content-range': 'bytes 4-7/8', etag: '"edition-1"' },
+        }),
+      );
+    await service.add({ downloadId: 1, fileUrl: 'https://archive.org/download/x/book.epub', fileName: 'book.epub', clientKey: HASH });
+    const result = await settle();
+    expect(result.state).toBe('completed');
+    expect((fetchMock.mock.calls[1][1] as RequestInit).headers).toMatchObject({ Range: 'bytes=4-', 'If-Range': '"edition-1"' });
+    expect(await readFile(result.contentPath!, 'utf8')).toBe('parttail');
+  });
+
+  it('stops transient retries after three attempts', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed', { cause: Object.assign(new Error('reset'), { code: 'ECONNRESET' }) }));
+    await service.add({ downloadId: 1, fileUrl: 'https://archive.org/download/x/book.epub', fileName: 'book.epub', clientKey: HASH });
+    expect((await settle()).state).toBe('failed');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('cancels retry backoff without opening another request', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed', { cause: Object.assign(new Error('reset'), { code: 'ECONNRESET' }) }));
+    await service.add({ downloadId: 1, fileUrl: 'https://archive.org/download/x/book.epub', fileName: 'book.epub', clientKey: HASH });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await service.remove(HASH, { deleteFiles: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('persists validators and resumes a partial file only from the requested byte', async () => {
@@ -130,6 +224,40 @@ describe('DirectDownloadService', () => {
     const status = await settle();
     expect(status.state).toBe('failed');
     expect(status.errorMessage).toContain('does not support resuming');
+  });
+
+  it.each([
+    { status: 206, etag: '"edition-2"', validator: '"edition-1"', modified: null },
+    { status: 206, etag: 'W/"edition-1"', validator: '"edition-1"', modified: null },
+    { status: 206, etag: null, validator: null, modified: 'Tue, 02 Jan 2024 00:00:00 GMT' },
+    { status: 416, etag: '"edition-2"', validator: '"edition-1"', modified: null },
+  ])('rejects changed resume validators: $status $etag $modified', async ({ status, etag, validator, modified }) => {
+    const directory = join(appDataPath, 'request-downloads', HASH);
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, 'book.epub'), 'partial');
+    fetchMock.mockResolvedValue(
+      new Response(status === 206 ? ' tail' : '', {
+        status,
+        headers: {
+          'content-range': status === 206 ? 'bytes 7-11/12' : 'bytes */7',
+          ...(etag ? { etag } : {}),
+          ...(modified ? { 'last-modified': modified } : {}),
+        },
+      }),
+    );
+    await service.resume({
+      id: 45,
+      source: 'direct_url',
+      clientKey: HASH,
+      directUrl: 'https://example.com/book.epub',
+      directFileName: 'book.epub',
+      directEtag: validator,
+      directLastModified: validator ? null : 'Mon, 01 Jan 2024 00:00:00 GMT',
+      totalBytes: status === 206 ? 12 : 7,
+    } as BookRequestDownloadRow);
+    const result = await settle();
+    expect(result.state).toBe('failed');
+    expect(result.errorMessage).toContain('changed its HTTP validator');
   });
 
   it('accepts a completed partial file only when a 416 confirms its exact saved size', async () => {

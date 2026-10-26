@@ -3,6 +3,7 @@ import { MetadataProviderKey, type MetadataCandidate } from '@bookorbit/types';
 import { ProviderConfigService } from '../../../metadata-preferences/provider-config.service';
 import { fetchWithThrottle } from '../../fetch-with-throttle';
 import { sanitizeLogValue } from '../../../../common/utils/log-sanitize.utils';
+import { normalizeRemoteImageUrl } from '../../../../common/utils/remote-image-headers';
 import type { MetadataProvider } from '../metadata-provider';
 import type { MetadataSearchParams } from '../metadata-search-params';
 
@@ -18,14 +19,26 @@ export function mapFanqieResults(data: unknown): MetadataCandidate[] {
     if (typeof item.thumb_url === 'string') {
       try {
         const url = new URL(item.thumb_url);
-        if (url.protocol === 'https:' && /(^|\.)(byteimg\.com|bytecdn\.cn)$/.test(url.hostname)) coverUrl = url.href;
-      } catch { /* Ignore invalid upstream image URLs. */ }
+        if (url.protocol === 'https:' && /(^|\.)(byteimg\.com|bytecdn\.cn)$/.test(url.hostname)) {
+          coverUrl = normalizeRemoteImageUrl(url).href;
+        }
+      } catch {
+        /* Ignore invalid upstream image URLs. */
+      }
     }
-    return [{ provider: MetadataProviderKey.FANQIE, providerId: item.book_id, title: item.title,
-      authors: typeof item.author === 'string' && item.author ? [item.author] : [],
-      description: typeof item.abstract === 'string' ? item.abstract : undefined,
-      genres: typeof item.category === 'string' && item.category ? [item.category] : [],
-      language: 'zh', ...(coverUrl ? { coverUrl } : {}), sourceUrl: `https://fanqienovel.com/page/${item.book_id}` }];
+    return [
+      {
+        provider: MetadataProviderKey.FANQIE,
+        providerId: item.book_id,
+        title: item.title,
+        authors: typeof item.author === 'string' && item.author ? [item.author] : [],
+        description: typeof item.abstract === 'string' ? item.abstract : undefined,
+        genres: typeof item.category === 'string' && item.category ? [item.category] : [],
+        language: 'zh',
+        ...(coverUrl ? { coverUrl } : {}),
+        sourceUrl: `https://fanqienovel.com/page/${item.book_id}`,
+      },
+    ];
   });
 }
 
@@ -39,7 +52,7 @@ export class FanqieProvider implements MetadataProvider {
   constructor(private readonly config: ProviderConfigService) {}
   async search(params: MetadataSearchParams): Promise<MetadataCandidate[]> {
     if (!(await this.config.getConfig()).fanqie.enabled) return [];
-    const query = (params.isbn || params.title || '').trim().slice(0, 200);
+    const query = (params.isbn?.trim() || [params.title, params.author].filter(Boolean).join(' ')).trim().slice(0, 200);
     if (!query) return [];
     const startedAt = Date.now();
     this.logger.log('[metadata.fanqie] [start] - Fanqie search started');
@@ -55,7 +68,9 @@ export class FanqieProvider implements MetadataProvider {
       this.logger.log(`[metadata.fanqie] [end] durationMs=${Date.now() - startedAt} count=${result.length} - Fanqie search completed`);
       return result;
     } catch (error) {
-      this.logger.warn(`[metadata.fanqie] [fail] durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(error instanceof Error ? error.message : String(error))}" - Fanqie search failed`);
+      this.logger.warn(
+        `[metadata.fanqie] [fail] durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(error instanceof Error ? error.message : String(error))}" - Fanqie search failed`,
+      );
       throw error;
     }
   }

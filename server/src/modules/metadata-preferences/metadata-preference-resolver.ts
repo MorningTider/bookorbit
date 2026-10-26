@@ -48,14 +48,26 @@ const PROVIDERS_WITH_ITUNES: MetadataProviderKey[] = [
   MetadataProviderKey.OPEN_LIBRARY,
 ];
 
+const CHINESE_CATALOG_PROVIDERS: MetadataProviderKey[] = [
+  MetadataProviderKey.DOUBAN,
+  MetadataProviderKey.FANQIE,
+  MetadataProviderKey.BAIDU_BAIKE,
+  MetadataProviderKey.QIMAO,
+  MetadataProviderKey.QIDIAN,
+];
+const TITLE_AUTHOR_PROVIDERS: MetadataProviderKey[] = [...PROVIDERS_WITH_ITUNES, ...CHINESE_CATALOG_PROVIDERS];
+const DESCRIPTION_PROVIDERS: MetadataProviderKey[] = [...PROVIDERS_WITH_ITUNES, ...CHINESE_CATALOG_PROVIDERS];
+
 const AUDIOBOOK_FIELD_PROVIDERS: MetadataProviderKey[] = [MetadataProviderKey.AUDIBLE, MetadataProviderKey.LIBROFM];
 
 const FIELD_DEFAULTS: Partial<Record<MetadataField, Partial<FieldPreference>>> = {
-  isbn: { mergeStrategy: 'fillMissing' },
-  title: { mergeStrategy: 'overwriteIfProvided', providers: PROVIDERS_WITH_ITUNES },
+  isbn: { mergeStrategy: 'fillMissing', providers: [...DEFAULT_PROVIDER_ORDER, MetadataProviderKey.DOUBAN, MetadataProviderKey.BAIDU_BAIKE] },
+  publisher: { providers: [...DEFAULT_PROVIDER_ORDER, MetadataProviderKey.DOUBAN, MetadataProviderKey.BAIDU_BAIKE] },
+  pageCount: { providers: [...DEFAULT_PROVIDER_ORDER, MetadataProviderKey.DOUBAN, MetadataProviderKey.BAIDU_BAIKE] },
+  title: { mergeStrategy: 'overwriteIfProvided', providers: TITLE_AUTHOR_PROVIDERS },
   // iTunes and Open Library carry no subtitle, so listing them here would only flag the rule.
   subtitle: { providers: [MetadataProviderKey.GOODREADS, MetadataProviderKey.GOOGLE, MetadataProviderKey.AMAZON, MetadataProviderKey.KOBO] },
-  description: { providers: PROVIDERS_WITH_ITUNES },
+  description: { providers: DESCRIPTION_PROVIDERS },
   cover: {
     providers: [
       MetadataProviderKey.AMAZON,
@@ -64,6 +76,7 @@ const FIELD_DEFAULTS: Partial<Record<MetadataField, Partial<FieldPreference>>> =
       MetadataProviderKey.GOODREADS,
       MetadataProviderKey.GOOGLE,
       MetadataProviderKey.OPEN_LIBRARY,
+      ...CHINESE_CATALOG_PROVIDERS,
     ],
   },
   // Audnexus is left out: it repeats the Audible request and would bring Audible's chapter
@@ -80,14 +93,30 @@ const FIELD_DEFAULTS: Partial<Record<MetadataField, Partial<FieldPreference>>> =
       MetadataProviderKey.OPEN_LIBRARY,
     ],
   },
-  authors: { providers: PROVIDERS_WITH_ITUNES },
+  authors: { providers: TITLE_AUTHOR_PROVIDERS },
   genres: {
     mergeStrategy: 'mergeExisting',
-    providers: [MetadataProviderKey.GOODREADS, MetadataProviderKey.GOOGLE, MetadataProviderKey.ITUNES, MetadataProviderKey.KOBO],
+    providers: [
+      MetadataProviderKey.GOODREADS,
+      MetadataProviderKey.GOOGLE,
+      MetadataProviderKey.ITUNES,
+      MetadataProviderKey.KOBO,
+      MetadataProviderKey.FANQIE,
+    ],
   },
+  publishedYear: { providers: [...DEFAULT_PROVIDER_ORDER, MetadataProviderKey.DOUBAN, MetadataProviderKey.BAIDU_BAIKE] },
+  language: { providers: [...DEFAULT_PROVIDER_ORDER, ...CHINESE_CATALOG_PROVIDERS] },
   communityRating: { providers: [...COMMUNITY_RATING_PROVIDER_KEYS] },
   // Google and Open Library carry no series.
-  seriesName: { providers: [MetadataProviderKey.GOODREADS, MetadataProviderKey.AMAZON, MetadataProviderKey.KOBO] },
+  seriesName: {
+    providers: [
+      MetadataProviderKey.GOODREADS,
+      MetadataProviderKey.AMAZON,
+      MetadataProviderKey.KOBO,
+      MetadataProviderKey.DOUBAN,
+      MetadataProviderKey.BAIDU_BAIKE,
+    ],
+  },
   seriesIndex: { providers: [MetadataProviderKey.GOODREADS, MetadataProviderKey.AMAZON, MetadataProviderKey.KOBO] },
   // Only audiobook sources carry these, so the base order could never fill them. Audnexus stays out
   // for the reason it stays out of the audio cover: chapters follow the narrators order, and it would

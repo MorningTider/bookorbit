@@ -45,6 +45,7 @@ import { BookReadService } from '../book/book-read.service';
 import { NotificationService } from '../notification/notification.service';
 import { SeriesIdentityService } from '../../common/services/series-identity.service';
 import { SeriesMembershipService } from '../../common/services/series-membership.service';
+import { parseBookFilename } from '../../common/utils/book-filename.utils';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 import { resolveExistingPathSpelling } from '../../common/utils/path-identity.utils';
 import { resolveSingleFileBookPath } from '../../common/utils/book-path.utils';
@@ -1048,7 +1049,7 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
    */
   async finalizeManagedFile(
     fileId: number,
-    override: { libraryId?: number; folderId?: number; joinBook?: JoinBook },
+    override: { libraryId?: number; folderId?: number; joinBook?: JoinBook; sourceFileName?: string },
   ): Promise<BookDockFinalizeFileResult> {
     const row = await this.repo.findById(fileId);
     if (!row) {
@@ -1059,7 +1060,8 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
       mergeBookDockMetadata(row.embeddedMetadata, row.fetchedMetadata, row.selectedMetadata),
       row.selectedMetadata,
     );
-    const rowForFinalize = merged ? { ...row, selectedMetadata: merged } : row;
+    const resolvedMetadata = managedSourceMetadata(row, merged, override.sourceFileName);
+    const rowForFinalize = resolvedMetadata ? { ...row, selectedMetadata: resolvedMetadata } : row;
 
     const overrideMap = new Map<number, FinalizeOverrideEntry>([
       [fileId, { libraryId: override.libraryId, folderId: override.folderId, joinBook: override.joinBook, lookedUpCoverUrl }],
@@ -1883,4 +1885,25 @@ function shouldAutoFinalize(row: BookDockFileRow, mode: BookDockAutoFinalizeMeta
 
 function dedupeIds(ids: number[]): number[] {
   return [...new Set(ids)];
+}
+
+function managedSourceMetadata(row: BookDockFileRow, metadata: BookDockMetadata | null, sourceFileName?: string): BookDockMetadata | null {
+  if (
+    !sourceFileName ||
+    row.unitDirectory ||
+    (row.selectedMetadata && Object.hasOwn(row.selectedMetadata, 'title')) ||
+    row.fetchedMetadata?.title?.trim()
+  )
+    return metadata;
+  const sourceTitle = basename(sourceFileName, extname(sourceFileName)).trim();
+  const stagedTitle = basename(row.fileName, extname(row.fileName)).trim();
+  const stagedName = /^request-\d+-(.+)$/.exec(stagedTitle)?.[1];
+  const currentTitle = metadata?.title?.trim();
+  if (!sourceTitle || !stagedName || (currentTitle && currentTitle !== stagedTitle && currentTitle !== parseBookFilename(row.fileName).title))
+    return metadata;
+  const suffix = stagedName.startsWith(sourceTitle + '-') ? stagedName.slice(sourceTitle.length + 1) : '';
+  const ownCollisionSuffix = /^\d+$/.test(suffix) && Number.isSafeInteger(Number(suffix)) && Number(suffix) >= 2;
+  // The request module supplies the original name only when it has authorized filing.
+  if (stagedName !== sourceTitle && !ownCollisionSuffix) return metadata;
+  return { ...metadata, title: parseBookFilename(sourceFileName).title || sourceTitle };
 }

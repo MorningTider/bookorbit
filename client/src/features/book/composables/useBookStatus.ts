@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import { Book, BookCheck, BookMarked, BookOpen, BookX, Pause, RotateCcw, ScanLine } from '@lucide/vue'
 import type { ReadStatus, UserBookStatus } from '@bookorbit/types'
@@ -7,16 +8,23 @@ export type StatusOption = {
   label: string
 }
 
-export const STATUS_OPTIONS: StatusOption[] = [
-  { value: 'unread', label: 'Unread' },
-  { value: 'want_to_read', label: 'Want to read' },
-  { value: 'reading', label: 'Reading' },
-  { value: 'on_hold', label: 'On hold' },
-  { value: 'rereading', label: 'Re-reading' },
-  { value: 'read', label: 'Read' },
-  { value: 'skimmed', label: 'Skimmed' },
-  { value: 'abandoned', label: 'Abandoned' },
-]
+const STATUS_TRANSLATIONS: Record<ReadStatus, string> = {
+  unread: 'book.readStatus.unread',
+  want_to_read: 'book.readStatus.wantToRead',
+  reading: 'book.readStatus.reading',
+  on_hold: 'book.readStatus.onHold',
+  rereading: 'book.readStatus.rereading',
+  read: 'book.readStatus.read',
+  skimmed: 'book.readStatus.skimmed',
+  abandoned: 'book.readStatus.abandoned',
+}
+
+export const STATUS_OPTIONS: StatusOption[] = (Object.keys(STATUS_TRANSLATIONS) as ReadStatus[]).map((value) => ({
+  value,
+  get label() {
+    return i18n.global.t(STATUS_TRANSLATIONS[value])
+  },
+}))
 
 export const STATUS_ICONS: Record<ReadStatus, unknown> = {
   unread: Book,

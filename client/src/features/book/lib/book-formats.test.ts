@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it } from 'vitest'
-import { READ_ALONG_FORMAT_PRIORITY, type BookFileRef } from '@bookorbit/types'
+import { EBOOK_FORMAT_LIST, READ_ALONG_FORMAT_PRIORITY, READER_OPENABLE_FORMATS, isBookFormat, type BookFileRef } from '@bookorbit/types'
 
 import { i18n } from '@/i18n'
 import { bookFormatEntries, formatKeyCode, formatKeyName, rankedContentFiles } from './book-formats'
@@ -68,5 +68,12 @@ describe('format labels', () => {
     expect(formatKeyName('epub')).toBe('EPUB e-book')
     expect(formatKeyName(READ_ALONG_FORMAT_PRIORITY)).toBe('Read-along EPUB')
     expect(formatKeyName('djvu')).toBe('DjVu document')
+    expect(formatKeyName('txt')).toBe('TXT plain text')
+  })
+
+  it('recognizes TXT as an ebook format supported through the reading cache', () => {
+    expect(EBOOK_FORMAT_LIST).toContain('txt')
+    expect(isBookFormat('txt')).toBe(true)
+    expect(READER_OPENABLE_FORMATS.has('txt')).toBe(true)
   })
 })

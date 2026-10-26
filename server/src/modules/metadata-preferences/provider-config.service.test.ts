@@ -63,6 +63,11 @@ describe('ProviderConfigService', () => {
     const config = await service.getConfig();
 
     expect(config).toEqual({
+      baiduBaike: { enabled: false },
+      qimao: { enabled: false },
+      qidian: { enabled: false },
+      fanqie: { enabled: true },
+      douban: { enabled: true },
       google: { enabled: false, apiKey: '' },
       amazon: { enabled: true, domain: 'amazon.com', cookie: '' },
       goodreads: { enabled: true },
@@ -358,6 +363,11 @@ describe('ProviderConfigService', () => {
 
   it('builds provider statuses including provider-specific configuration hints', async () => {
     const statuses = await service.getProviderStatuses({
+      baiduBaike: { enabled: false },
+      qimao: { enabled: false },
+      qidian: { enabled: false },
+      fanqie: { enabled: true },
+      douban: { enabled: true },
       google: { enabled: true, apiKey: '' },
       amazon: { enabled: true, domain: 'amazon.com', cookie: '' },
       goodreads: { enabled: false },
@@ -375,6 +385,11 @@ describe('ProviderConfigService', () => {
     });
 
     expect(statuses.map((s) => s.key)).toEqual([
+      MetadataProviderKey.BAIDU_BAIKE,
+      MetadataProviderKey.QIMAO,
+      MetadataProviderKey.QIDIAN,
+      MetadataProviderKey.FANQIE,
+      MetadataProviderKey.DOUBAN,
       MetadataProviderKey.GOOGLE,
       MetadataProviderKey.AMAZON,
       MetadataProviderKey.GOODREADS,
@@ -402,6 +417,11 @@ describe('ProviderConfigService', () => {
 
   it('reports hardcover as configured when api key is present', async () => {
     const statuses = await service.getProviderStatuses({
+      baiduBaike: { enabled: false },
+      qimao: { enabled: false },
+      qidian: { enabled: false },
+      fanqie: { enabled: true },
+      douban: { enabled: true },
       google: { enabled: true, apiKey: 'g' },
       amazon: { enabled: true, domain: 'amazon.com', cookie: 'c' },
       goodreads: { enabled: true },

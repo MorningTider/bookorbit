@@ -210,6 +210,7 @@ export class RequestVerificationService implements OnModuleInit {
       libraryId: join?.libraryId ?? request.targetLibraryId ?? undefined,
       folderId,
       ...(join ? { joinBook: join.joinBook } : {}),
+      ...(download.source === 'direct_url' && download.directFileName ? { sourceFileName: download.directFileName } : {}),
     });
     if (!result.success) return { ok: false, reason: result.message ?? 'the Book Dock could not file this book' };
     if (join) {

@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { onUnmounted } from 'vue'
 import type { PdfReaderSettings } from '@bookorbit/types'
+const { t } = useI18n()
 
 const props = defineProps<{
   scrollMode: PdfReaderSettings['scrollMode']
@@ -98,7 +101,7 @@ onUnmounted(() => {
 <template>
   <div class="max-h-[min(80vh,38rem)] overflow-y-auto p-4">
     <div class="mb-5">
-      <p class="settings-group-label">Zoom</p>
+      <p class="settings-group-label">{{ t('uiText.pdfReaderSettingsPanel.zoom') }}</p>
       <div class="grid grid-cols-3 gap-2">
         <button
           class="rounded-md border px-3 py-2 text-xs font-medium transition-colors"
@@ -107,7 +110,7 @@ onUnmounted(() => {
           "
           @click="selectFitPage"
         >
-          Fit page
+          {{ t('uiText.pdfReaderSettingsPanel.fitPage') }}
         </button>
         <button
           class="rounded-md border px-3 py-2 text-xs font-medium transition-colors"
@@ -116,7 +119,7 @@ onUnmounted(() => {
           "
           @click="selectFitWidth"
         >
-          Fit width
+          {{ t('uiText.pdfReaderSettingsPanel.fitWidth') }}
         </button>
         <button
           class="rounded-md border px-3 py-2 text-xs font-medium transition-colors"
@@ -125,7 +128,7 @@ onUnmounted(() => {
           "
           @click="selectAutomatic"
         >
-          Automatic
+          {{ t('uiText.pdfReaderSettingsPanel.automatic') }}
         </button>
       </div>
       <div class="mt-3 flex items-center gap-3">
@@ -135,7 +138,7 @@ onUnmounted(() => {
           max="4"
           step="0.05"
           :value="props.customScale"
-          aria-label="Custom zoom"
+          :aria-label="t('uiText.pdfReaderSettingsPanel.customZoom')"
           class="h-1 flex-1 cursor-pointer accent-primary"
           @input="handleCustomZoomPreview"
           @change="handleCustomZoomCommit"
@@ -145,7 +148,7 @@ onUnmounted(() => {
     </div>
 
     <div class="mb-5">
-      <p class="settings-group-label">Layout</p>
+      <p class="settings-group-label">{{ t('uiText.pdfReaderSettingsPanel.layout') }}</p>
       <div class="grid grid-cols-3 gap-2">
         <button
           class="rounded-md border px-3 py-2 text-xs font-medium transition-colors"
@@ -154,7 +157,7 @@ onUnmounted(() => {
           "
           @click="selectPage"
         >
-          Page
+          {{ t('uiText.pdfReaderSettingsPanel.page') }}
         </button>
         <button
           class="rounded-md border px-3 py-2 text-xs font-medium transition-colors"
@@ -165,7 +168,7 @@ onUnmounted(() => {
           "
           @click="selectVertical"
         >
-          Vertical scroll
+          {{ t('uiText.pdfReaderSettingsPanel.verticalScroll') }}
         </button>
         <button
           class="rounded-md border px-3 py-2 text-xs font-medium transition-colors"
@@ -176,48 +179,48 @@ onUnmounted(() => {
           "
           @click="selectHorizontal"
         >
-          Horizontal scroll
+          {{ t('uiText.pdfReaderSettingsPanel.horizontalScroll') }}
         </button>
       </div>
     </div>
 
     <div class="mb-5">
-      <p class="settings-group-label">Page spread</p>
+      <p class="settings-group-label">{{ t('uiText.pdfReaderSettingsPanel.pageSpread') }}</p>
       <div class="grid grid-cols-4 gap-2">
         <button
           class="rounded-md border px-2 py-2 text-xs font-medium transition-colors"
           :class="props.spread === 'none' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'"
           @click="selectSinglePage"
         >
-          Single
+          {{ t('uiText.pdfReaderSettingsPanel.single') }}
         </button>
         <button
           class="rounded-md border px-2 py-2 text-xs font-medium transition-colors"
           :class="props.spread === 'odd' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'"
           @click="selectOddSpread"
         >
-          Odd
+          {{ t('uiText.pdfReaderSettingsPanel.odd') }}
         </button>
         <button
           class="rounded-md border px-2 py-2 text-xs font-medium transition-colors"
           :class="props.spread === 'even' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'"
           @click="selectEvenSpread"
         >
-          Even
+          {{ t('uiText.pdfReaderSettingsPanel.even') }}
         </button>
         <button
           class="rounded-md border px-2 py-2 text-xs font-medium transition-colors"
           :class="props.spread === 'auto' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'"
           @click="selectAutoSpread"
         >
-          Auto
+          {{ t('uiText.pdfReaderSettingsPanel.auto') }}
         </button>
       </div>
     </div>
 
     <div>
       <div class="mb-2 flex items-center justify-between">
-        <p class="settings-group-label !mb-0">Rotation</p>
+        <p class="settings-group-label !mb-0">{{ t('uiText.pdfReaderSettingsPanel.rotation') }}</p>
         <span class="text-xs tabular-nums text-muted-foreground">{{ props.rotation }}°</span>
       </div>
       <div class="grid grid-cols-2 gap-2">
@@ -225,13 +228,13 @@ onUnmounted(() => {
           class="rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
           @click="handleRotateBackward"
         >
-          Rotate left
+          {{ t('uiText.pdfReaderSettingsPanel.rotateLeft') }}
         </button>
         <button
           class="rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
           @click="handleRotateForward"
         >
-          Rotate right
+          {{ t('uiText.pdfReaderSettingsPanel.rotateRight') }}
         </button>
       </div>
     </div>

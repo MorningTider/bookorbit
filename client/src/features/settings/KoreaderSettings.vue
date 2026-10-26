@@ -1430,7 +1430,7 @@ async function handleDownloadPlugin() {
                   <li>{{ t('settings.reader.koreader.pluginStep3') }}</li>
                   <li>
                     {{ t('settings.reader.koreader.pluginStep4Prefix') }}
-                    <span class="font-mono text-foreground">Browse BookOrbit</span>
+                    <span class="font-mono text-foreground">{{ t('uiText.koreaderSettings.browseBookOrbit') }}</span>
                     {{ t('settings.reader.koreader.pluginStep4Suffix') }}
                   </li>
                 </ol>
@@ -1442,7 +1442,8 @@ async function handleDownloadPlugin() {
                 <ol class="list-decimal list-outside space-y-2 pl-5">
                   <li>
                     {{ t('settings.reader.koreader.stockStep1Prefix') }}
-                    <span class="font-mono text-foreground">Tools &gt; Progress sync</span>{{ t('settings.reader.koreader.stockStep1Suffix') }}
+                    <span class="font-mono text-foreground">{{ t('uiText.koreaderSettings.toolsProgressSync') }}</span
+                    >{{ t('settings.reader.koreader.stockStep1Suffix') }}
                   </li>
                   <li>{{ t('settings.reader.koreader.stockStep2') }}</li>
                   <li>{{ t('settings.reader.koreader.stockStep3') }}</li>

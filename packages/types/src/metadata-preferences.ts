@@ -134,6 +134,9 @@ export interface AladinProviderConfig {
 }
 
 export interface ProviderConfigurations {
+  baiduBaike: SimpleProviderConfig;
+  qimao: SimpleProviderConfig;
+  qidian: SimpleProviderConfig;
   fanqie: SimpleProviderConfig;
   douban: SimpleProviderConfig;
   google: GoogleProviderConfig;
@@ -179,8 +182,33 @@ export interface ProviderConnectionTestResult {
  * always square, so it is not under `cover`; it still fills an empty ebook slot as a last resort.
  */
 export const METADATA_PROVIDER_SUPPORTED_FIELDS: Record<MetadataProviderKey, readonly MetadataField[]> = {
+  [MetadataProviderKey.BAIDU_BAIKE]: [
+    "title",
+    "authors",
+    "description",
+    "cover",
+    "language",
+    "publisher",
+    "isbn",
+    "publishedYear",
+    "pageCount",
+    "seriesName",
+  ],
+  [MetadataProviderKey.QIMAO]: ["title", "authors", "description", "cover", "language", "genres"],
+  [MetadataProviderKey.QIDIAN]: ["title", "authors", "description", "cover", "language"],
   [MetadataProviderKey.FANQIE]: ["title", "authors", "description", "cover", "language", "genres"],
-  [MetadataProviderKey.DOUBAN]: ["title", "authors", "cover", "publishedYear", "language"],
+  [MetadataProviderKey.DOUBAN]: [
+    "title",
+    "authors",
+    "description",
+    "cover",
+    "publisher",
+    "isbn",
+    "publishedYear",
+    "language",
+    "pageCount",
+    "seriesName",
+  ],
   [MetadataProviderKey.GOOGLE]: [
     "title",
     "subtitle",

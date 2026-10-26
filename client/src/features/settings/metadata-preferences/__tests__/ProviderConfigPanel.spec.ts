@@ -14,6 +14,11 @@ import ProviderConfigPanel from '../components/ProviderConfigPanel.vue'
  */
 function makeConfig(overrides: Partial<ProviderConfigurations> = {}): ProviderConfigurations {
   return {
+    baiduBaike: { enabled: false },
+    qimao: { enabled: false },
+    qidian: { enabled: false },
+    fanqie: { enabled: false },
+    douban: { enabled: false },
     google: { enabled: true, apiKey: 'google-secret-key' },
     amazon: { enabled: true, domain: 'amazon.com', cookie: 'amazon-session-cookie' },
     goodreads: { enabled: false },

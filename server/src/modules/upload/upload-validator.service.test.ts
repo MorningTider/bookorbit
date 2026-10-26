@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import iconv from 'iconv-lite';
 
 import { djvuPageFixture } from '../../../test/e2e/djvu-fixture';
 
@@ -45,6 +46,11 @@ describe('UploadValidatorService', () => {
 
     it('accepts .kepub format', () => {
       expect(service.validateFormat('book.kepub', [])).toBe('kepub');
+    });
+
+    it('accepts .txt format when the library allows it', () => {
+      expect(service.validateFormat('book.txt', ['epub', 'txt'])).toBe('txt');
+      expect(() => service.validateFormat('book.txt', ['epub'])).toThrow(BadRequestException);
     });
 
     it('double extension uses last extension', () => {
@@ -153,6 +159,10 @@ describe('UploadValidatorService', () => {
       ['m4b', Buffer.concat([Buffer.alloc(4), Buffer.from('ftypM4B ')])],
       ['m4a', Buffer.concat([Buffer.alloc(4), Buffer.from('ftypM4A ')])],
       ['mp3', Buffer.from('ID3\x04\x00')],
+      ['txt', Buffer.from([0xef, 0xbb, 0xbf, ...Buffer.from('中文小说正文', 'utf8')])],
+      ['txt', Buffer.from('GB18030-compatible plain text', 'utf8')],
+      ['txt', Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('UTF-16 LE 正文', 'utf16le')])],
+      ['txt', Buffer.concat([Buffer.from([0xfe, 0xff]), iconv.encode('UTF-16 BE 正文', 'utf16be')])],
     ])('accepts a bounded magic signature for %s', async (format, contents) => {
       const directory = await mkdtemp(join(tmpdir(), 'bookorbit-signature-test-'));
       const path = join(directory, `book.${format}`);
@@ -170,6 +180,19 @@ describe('UploadValidatorService', () => {
       try {
         await writeFile(path, 'not a zip archive');
         await expect(service.validateContent(path, 'epub')).rejects.toMatchObject({
+          response: { errorCode: 'UPLOAD_CONTENT_INVALID' },
+        });
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
+
+    it('rejects binary data renamed with a .txt extension', async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'bookorbit-signature-test-'));
+      const path = join(directory, 'book.txt');
+      try {
+        await writeFile(path, Buffer.from([0, 1, 2, 3, 4, 5]));
+        await expect(service.validateContent(path, 'txt')).rejects.toMatchObject({
           response: { errorCode: 'UPLOAD_CONTENT_INVALID' },
         });
       } finally {

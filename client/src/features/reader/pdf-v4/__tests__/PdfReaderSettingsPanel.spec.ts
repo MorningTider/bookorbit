@@ -1,3 +1,4 @@
+import { setI18nLocale } from '@/i18n'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PdfReaderSettingsPanel from '../components/PdfReaderSettingsPanel.vue'
@@ -60,4 +61,22 @@ describe('PdfReaderSettingsPanel', () => {
     expect(wrapper.emitted('setZoom')).toEqual([['automatic']])
     expect(wrapper.emitted('setSpread')).toEqual([['auto']])
   })
+})
+
+it('updates PDF controls when language changes and preserves emitted setting values', async () => {
+  await setI18nLocale('en')
+  const wrapper = mountPanel()
+  try {
+    expect(wrapper.text()).toContain('Fit width')
+    await setI18nLocale('zh')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('适合宽度')
+    expect(wrapper.text()).not.toContain('Fit width')
+    const button = wrapper.findAll('button').find((item) => item.text() === '横向滚动')!
+    await button.trigger('click')
+    expect(wrapper.emitted('setScrollMode')).toEqual([['horizontal']])
+  } finally {
+    wrapper.unmount()
+    await setI18nLocale('en')
+  }
 })

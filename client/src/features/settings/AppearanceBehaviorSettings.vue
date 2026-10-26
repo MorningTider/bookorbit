@@ -102,7 +102,7 @@ function setThumbnailClickAction(action: BookThumbnailClickAction) {
             {{ t('settings.appearance.behavior.collapseSeries.label') }}
           </p>
           <p class="settings-hint overflow-hidden text-ellipsis whitespace-nowrap md:whitespace-normal md:overflow-visible">
-            Group books in the same series into a single card in library, collection, and Smart Scope views
+            {{ t('uiText.appearanceBehaviorSettings.groupBooksInTheSameSeriesIntoASingle') }}
           </p>
         </div>
         <ToggleSwitch :model-value="globalCollapseEnabled" @update:model-value="handleGlobalCollapseToggle" />

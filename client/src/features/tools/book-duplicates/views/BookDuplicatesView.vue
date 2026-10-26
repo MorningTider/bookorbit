@@ -347,7 +347,10 @@ function handleKeydown(event: KeyboardEvent): void {
             <span class="flex items-center gap-1"
               ><kbd class="duplicate-key">1</kbd>&ndash;<kbd class="duplicate-key">9</kbd>{{ t('tools.bookDuplicates.keys.keep') }}</span
             >
-            <span class="flex items-center gap-1"><kbd class="duplicate-key">space</kbd>{{ t('tools.bookDuplicates.keys.select') }}</span>
+            <span class="flex items-center gap-1"
+              ><kbd class="duplicate-key">{{ t('uiText.bookDuplicatesView.space') }}</kbd
+              >{{ t('tools.bookDuplicates.keys.select') }}</span
+            >
           </p>
         </template>
       </div>

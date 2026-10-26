@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { Button } from '@/components/ui/button'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, ExternalLink, HelpCircle, Loader2, RefreshCw, Link2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import type { StorygraphEdition, StorygraphLinkedBook } from '@bookorbit/types'
@@ -12,6 +14,7 @@ import {
   setStorygraphEdition,
 } from '../api/storygraph.api'
 import { useStorygraphSync } from '../composables/useStorygraphSync'
+const { t } = useI18n()
 
 function editionUrl(edition: StorygraphEdition): string {
   return `https://app.thestorygraph.com/books/${edition.id}`
@@ -69,42 +72,45 @@ function toggleExpanded(bookId: number) {
 }
 
 // StoryGraph reports match methods as lowercase slugs; present them with real casing.
-const MATCH_METHOD_LABELS: Record<string, string> = {
+const MATCH_METHOD_LABELS = computed<Record<string, string>>(() => ({
   isbn: 'ISBN',
-  title: 'Title',
-  cached: 'Cached',
-  manual: 'Manual',
-}
+  title: t('uiText.storygraphLinkedBooks.title'),
+  cached: t('uiText.storygraphLinkedBooks.cached'),
+  manual: t('uiText.storygraphLinkedBooks.manual'),
+}))
 
 function matchMethodLabel(method: string): string {
-  return MATCH_METHOD_LABELS[method] ?? method
+  return MATCH_METHOD_LABELS.value[method] ?? method
 }
 
 function statusLabel(book: StorygraphLinkedBook): string {
-  if (book.matchError) return `Error: ${book.matchError}`
-  if (book.storygraphBookId) return `Linked${book.matchMethod ? ` (${matchMethodLabel(book.matchMethod)})` : ''}`
-  return 'Not linked yet'
+  if (book.matchError) return t('uiText.storygraphLinkedBooks.errorWithMessage', { message: book.matchError })
+  if (book.storygraphBookId)
+    return book.matchMethod
+      ? t('uiText.storygraphLinkedBooks.linkedWithMethod', { method: matchMethodLabel(book.matchMethod) })
+      : t('uiText.storygraphLinkedBooks.linked')
+  return t('uiText.storygraphLinkedBooks.notLinkedYet')
 }
 
 async function handleLink(book: StorygraphLinkedBook) {
   const input = (linkInputs[book.bookId] ?? '').trim()
   if (!input) {
-    toast.error('Paste a StoryGraph URL or book id first')
+    toast.error(t('uiText.storygraphLinkedBooks.pasteAStoryGraphURLOrBookIdFirst'))
     return
   }
   linking[book.bookId] = true
   try {
     const result = await linkStorygraphBook(book.bookId, input)
     if (result.success) {
-      toast.success(`Linked: ${result.title || result.storygraphBookId}`)
+      toast.success(t('uiText.storygraphLinkedBooks.linkedTitle', { title: result.title || result.storygraphBookId }))
       linkInputs[book.bookId] = ''
       delete editionsByBookId[book.bookId]
       await loadBooks()
     } else {
-      toast.error('Could not find that StoryGraph book')
+      toast.error(t('uiText.storygraphLinkedBooks.couldNotFindThatStoryGraphBook'))
     }
   } catch {
-    toast.error('Failed to link StoryGraph book')
+    toast.error(t('uiText.storygraphLinkedBooks.failedToLinkStoryGraphBook'))
   } finally {
     linking[book.bookId] = false
   }
@@ -114,13 +120,13 @@ async function handleRematch(book: StorygraphLinkedBook) {
   rematching[book.bookId] = true
   try {
     const { result } = await rematchStorygraphBook(book.bookId)
-    if (result === 'synced') toast.success('Re-matched and synced with StoryGraph')
-    else if (result === 'failed') toast.error('StoryGraph re-match failed, check the server logs')
-    else toast.info('StoryGraph sync is not connected for your account')
+    if (result === 'synced') toast.success(t('uiText.storygraphLinkedBooks.reMatchedAndSyncedWithStoryGraph'))
+    else if (result === 'failed') toast.error(t('uiText.storygraphLinkedBooks.storygraphReMatchFailedCheckTheServerLogs'))
+    else toast.info(t('uiText.storygraphLinkedBooks.storygraphSyncIsNotConnectedForYourAccount'))
     delete editionsByBookId[book.bookId]
     await loadBooks()
   } catch {
-    toast.error('Failed to re-match with StoryGraph')
+    toast.error(t('uiText.storygraphLinkedBooks.failedToReMatchWithStoryGraph'))
   } finally {
     rematching[book.bookId] = false
   }
@@ -141,14 +147,14 @@ async function handleSetEdition(book: StorygraphLinkedBook, edition: StorygraphE
   try {
     const { success } = await setStorygraphEdition(book.bookId, edition.id)
     if (success) {
-      toast.success(`Switched to ${edition.format}`)
+      toast.success(t('uiText.storygraphLinkedBooks.switchedFormat', { format: edition.format }))
       delete editionsByBookId[book.bookId]
       await loadBooks()
     } else {
-      toast.error('Failed to switch edition')
+      toast.error(t('uiText.storygraphLinkedBooks.failedToSwitchEdition'))
     }
   } catch {
-    toast.error('Failed to switch edition')
+    toast.error(t('uiText.storygraphLinkedBooks.failedToSwitchEdition'))
   } finally {
     settingEdition[book.bookId] = false
   }
@@ -158,25 +164,24 @@ async function handleSetEdition(book: StorygraphLinkedBook, edition: StorygraphE
 <template>
   <div class="border border-border rounded-lg bg-card px-4 py-4 md:px-5 md:py-5 shadow-xs space-y-4">
     <div>
-      <p class="font-medium text-sm">Linked books</p>
-      <p class="text-xs text-muted-foreground mt-0.5">
-        Shows books you're currently reading. StoryGraph has no public API, so matching is sometimes wrong. Fix a book here by pasting its correct
-        StoryGraph URL, or pick a different edition (paperback, ebook, audiobook) once it's linked.
-      </p>
+      <p class="font-medium text-sm">{{ t('uiText.storygraphLinkedBooks.linkedBooks') }}</p>
+      <p class="text-xs text-muted-foreground mt-0.5">{{ t('uiText.storygraphLinkedBooks.showsBooksYouReCurrentlyReadingStoryGraphHasNo') }}</p>
     </div>
 
     <div v-if="loading" class="flex items-center gap-2 text-xs text-muted-foreground py-4">
-      <Loader2 class="size-3.5 animate-spin" />
-      Loading books...
+      <Loader2 class="size-3.5 animate-spin" />{{ t('uiText.storygraphLinkedBooks.loadingBooks') }}
     </div>
 
     <div v-else-if="loadError" class="flex items-center gap-2 text-xs text-destructive py-2">
-      <AlertCircle class="size-3.5 shrink-0" />
-      Failed to load books.
-      <Button variant="link" size="sm" type="button" class="h-auto p-0" @click="handleRetryLoadBooks">Retry</Button>
+      <AlertCircle class="size-3.5 shrink-0" />{{ t('uiText.storygraphLinkedBooks.failedToLoadBooks')
+      }}<Button variant="link" size="sm" type="button" class="h-auto p-0" @click="handleRetryLoadBooks">{{
+        t('uiText.storygraphLinkedBooks.retry')
+      }}</Button>
     </div>
 
-    <div v-else-if="books.length === 0" class="text-xs text-muted-foreground py-2">No books currently being read.</div>
+    <div v-else-if="books.length === 0" class="text-xs text-muted-foreground py-2">
+      {{ t('uiText.storygraphLinkedBooks.noBooksCurrentlyBeingRead') }}
+    </div>
 
     <div v-else class="divide-y divide-border/60">
       <div v-for="book in books" :key="book.bookId" class="py-2.5">
@@ -202,30 +207,26 @@ async function handleSetEdition(book: StorygraphLinkedBook, edition: StorygraphE
 
         <div v-if="expandedBookId === book.bookId" class="mt-3 space-y-3 pl-1">
           <p v-if="!book.storygraphBookId" class="flex items-start gap-1.5 text-[11px] text-muted-foreground leading-relaxed">
-            <HelpCircle class="size-3.5 shrink-0 mt-0.5" />
-            This book couldn't be matched to StoryGraph automatically. Use "Try auto-match" to search again, or paste the book's StoryGraph URL, or
-            its StoryGraph book ID (the code after <code class="px-1 rounded-xs bg-muted">/books/</code> in the URL, not an ISBN), below for an exact
-            link.
+            <HelpCircle class="size-3.5 shrink-0 mt-0.5" />{{ t('uiText.storygraphLinkedBooks.thisBookCouldnTBeMatchedToStoryGraphAutomatically')
+            }}<code class="px-1 rounded-xs bg-muted">/books/</code>{{ t('uiText.storygraphLinkedBooks.inTheURLNotAnISBNBelowForAn') }}
           </p>
           <div class="flex gap-2">
             <input
               v-model="linkInputs[book.bookId]"
               type="text"
-              placeholder="Paste a StoryGraph URL or book ID"
+              :placeholder="t('uiText.storygraphLinkedBooks.pasteAStoryGraphURLOrBookID')"
               class="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
             <Button size="sm" type="button" :disabled="linking[book.bookId]" @click="handleLink(book)">
               <Loader2 v-if="linking[book.bookId]" class="size-3 animate-spin" />
-              <Link2 v-else class="size-3" />
-              Link
-            </Button>
+              <Link2 v-else class="size-3" />{{ t('uiText.storygraphLinkedBooks.link') }}</Button
+            >
           </div>
 
           <Button variant="outline" size="sm" type="button" :disabled="rematching[book.bookId]" @click="handleRematch(book)">
             <Loader2 v-if="rematching[book.bookId]" class="size-3 animate-spin" />
-            <RefreshCw v-else class="size-3" />
-            Try auto-match
-          </Button>
+            <RefreshCw v-else class="size-3" />{{ t('uiText.storygraphLinkedBooks.tryAutoMatch') }}</Button
+          >
 
           <div v-if="book.storygraphBookId">
             <Button
@@ -236,12 +237,13 @@ async function handleSetEdition(book: StorygraphLinkedBook, edition: StorygraphE
               :disabled="loadingEditions[book.bookId]"
               @click="loadEditions(book)"
             >
-              <Loader2 v-if="loadingEditions[book.bookId]" class="size-3 animate-spin" />
-              View editions
-            </Button>
+              <Loader2 v-if="loadingEditions[book.bookId]" class="size-3 animate-spin" />{{ t('uiText.storygraphLinkedBooks.viewEditions') }}</Button
+            >
 
             <div v-else class="space-y-1.5">
-              <p v-if="editionsByBookId[book.bookId]!.length === 0" class="text-xs text-muted-foreground">No editions found.</p>
+              <p v-if="editionsByBookId[book.bookId]!.length === 0" class="text-xs text-muted-foreground">
+                {{ t('uiText.storygraphLinkedBooks.noEditionsFound') }}
+              </p>
               <div
                 v-for="edition in editionsByBookId[book.bookId]"
                 :key="edition.id"
@@ -259,7 +261,9 @@ async function handleSetEdition(book: StorygraphLinkedBook, edition: StorygraphE
                     <p class="text-xs truncate">
                       <span v-if="edition.title" class="font-medium">{{ edition.title }} · </span>
                       {{ edition.format }}
-                      <span v-if="edition.pages" class="text-muted-foreground">· {{ edition.pages }} pages</span>
+                      <span v-if="edition.pages" class="text-muted-foreground"
+                        >· {{ edition.pages }}{{ t('uiText.storygraphLinkedBooks.pages') }}</span
+                      >
                       <span v-if="edition.language" class="text-muted-foreground">· {{ edition.language }}</span>
                     </p>
                     <p class="text-[11px] text-muted-foreground break-words">
@@ -276,8 +280,8 @@ async function handleSetEdition(book: StorygraphLinkedBook, edition: StorygraphE
                     :href="editionUrl(edition)"
                     target="_blank"
                     rel="noopener"
-                    title="Open on StoryGraph"
-                    aria-label="Open on StoryGraph"
+                    :title="t('uiText.storygraphLinkedBooks.openOnStoryGraph')"
+                    :aria-label="t('uiText.storygraphLinkedBooks.openOnStoryGraph')"
                     class="flex items-center justify-center p-1.5 rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   >
                     <ExternalLink class="size-3.5" />
@@ -289,7 +293,7 @@ async function handleSetEdition(book: StorygraphLinkedBook, edition: StorygraphE
                     :disabled="settingEdition[book.bookId] || edition.id === book.storygraphBookId"
                     @click="handleSetEdition(book, edition)"
                   >
-                    {{ edition.id === book.storygraphBookId ? 'Current' : 'Use this' }}
+                    {{ edition.id === book.storygraphBookId ? t('uiText.storygraphLinkedBooks.current') : t('uiText.storygraphLinkedBooks.useThis') }}
                   </Button>
                 </div>
               </div>

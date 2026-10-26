@@ -138,7 +138,7 @@ watchEffect(() => {
     />
     <template v-else>
       <div v-if="peakHour" class="text-muted-foreground mb-1 text-center text-xs">
-        Peak: <span class="text-foreground font-medium">{{ HOUR_LABELS[peakHour.hour] }}</span>
+        {{ t('uiText.readingClockChart.peak') }}<span class="text-foreground font-medium">{{ HOUR_LABELS[peakHour.hour] }}</span>
       </div>
       <VChart :option autoresize style="height: calc(100% - 20px)" />
     </template>

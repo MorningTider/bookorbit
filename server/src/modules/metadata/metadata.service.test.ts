@@ -512,6 +512,19 @@ describe('MetadataService', () => {
       expect(coverStore.saveExtracted).toHaveBeenCalledWith(9, 'audio', square, { origin: 'provider', overwrite: true });
     });
 
+    it('uses the Douban referer when downloading a provider cover', async () => {
+      const coverStore = makeStore(false);
+      const service = makeService(makeDb().db, undefined, { coverStore });
+      const fetchMock = serve({ 'https://img9.doubanio.com/cover.jpg': await image(400, 600) });
+
+      await expect(service.downloadAndSaveCover([{ url: 'https://img9.doubanio.com/cover.jpg' }], 9, 'ebook')).resolves.toBe(true);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        new URL('https://img9.doubanio.com/cover.jpg'),
+        expect.objectContaining({ headers: expect.objectContaining({ Referer: 'https://book.douban.com/' }) }),
+      );
+    });
+
     it('never replaces a filled slot with a wrong-shape image', async () => {
       const coverStore = makeStore(true);
       const service = makeService(makeDb().db, undefined, { coverStore });

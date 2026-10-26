@@ -622,6 +622,16 @@ describe('RequestVerificationService review surface', () => {
     expect(notifier.notifyBookAvailable).toHaveBeenCalled();
   });
 
+  it.each(['direct_url', 'magnet'])('passes an original filename only for verified direct sources: %s', async (source) => {
+    const { service, finalizeService } = makeService({ downloadRow: { source, directFileName: 'Foxy Grandpa.cbz' } });
+    await service.fileHeldImport(7, { id: 9 } as never);
+    expect(finalizeService.finalizeManagedFile).toHaveBeenCalledWith(100, {
+      libraryId: 2,
+      folderId: 3,
+      ...(source === 'direct_url' ? { sourceFileName: 'Foxy Grandpa.cbz' } : {}),
+    });
+  });
+
   it("files a half of a pair into the book it joins, in that book's own library and folder", async () => {
     const { service, finalizeService, companions } = makeService();
     const join = { libraryId: 8, folderId: 9, joinBook: { bookId: 42, folderPath: '/lib/Dune' } };

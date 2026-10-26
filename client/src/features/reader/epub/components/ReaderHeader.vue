@@ -208,13 +208,13 @@ function getFooterModeTooltip(mode: 0 | 1 | 2): string {
           <button
             class="viewer-btn hidden sm:flex"
             :class="props.showTapZones ? '!bg-muted !text-primary' : ''"
-            aria-label="Toggle tap zones"
+            :aria-label="t('uiText.readerHeader.toggleTapZones')"
             @click="emit('toggleTapZones')"
           >
             <Columns3 :size="18" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>Show tap zones</TooltipContent>
+        <TooltipContent>{{ t('uiText.readerHeader.showTapZones') }}</TooltipContent>
       </Tooltip>
 
       <Tooltip>

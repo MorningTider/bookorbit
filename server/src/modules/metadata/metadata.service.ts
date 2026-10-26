@@ -9,6 +9,7 @@ import { DB } from '../../db';
 import * as schema from '../../db/schema';
 import { mapWithConcurrency } from '../../common/utils/batch.utils';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
+import { normalizeRemoteImageUrl, remoteImageHeaders } from '../../common/utils/remote-image-headers';
 import { isKnownPlaceholderCover } from '../../common/utils/placeholder-cover.utils';
 import {
   chooseCanonicalMetadataTextRow,
@@ -313,7 +314,9 @@ export class MetadataService {
       return null;
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    const res = await fetch(parsed, { signal: AbortSignal.timeout(COVER_DOWNLOAD_TIMEOUT_MS) });
+    parsed = normalizeRemoteImageUrl(parsed);
+    const headers = remoteImageHeaders(parsed, 'BookOrbit/3.5 (+metadata cover fetch)');
+    const res = await fetch(parsed, { signal: AbortSignal.timeout(COVER_DOWNLOAD_TIMEOUT_MS), headers });
     if (!res.ok || !res.body) return null;
     const declared = Number(res.headers.get('content-length'));
     if (Number.isFinite(declared) && declared > MAX_COVER_DOWNLOAD_BYTES) return null;

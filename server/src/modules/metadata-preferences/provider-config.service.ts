@@ -22,6 +22,9 @@ const HARDCOVER_TEST_QUERY = 'query { me { username } }';
 const AMAZON_TEST_QUERY = 'books';
 const PROVIDER_TEST_TIMEOUT_MS = 10_000;
 const DEFAULT_CONFIG: ProviderConfigurations = {
+  baiduBaike: { enabled: false },
+  qimao: { enabled: false },
+  qidian: { enabled: false },
   fanqie: { enabled: true },
   douban: { enabled: true },
   google: { enabled: false, apiKey: '' },
@@ -128,6 +131,9 @@ function mergeAladinConfig(base: ProviderConfigurations['aladin'], value: unknow
 }
 
 const PROVIDER_LABELS: Record<MetadataProviderKey, string> = {
+  [MetadataProviderKey.BAIDU_BAIKE]: '百度百科',
+  [MetadataProviderKey.QIMAO]: '七猫小说',
+  [MetadataProviderKey.QIDIAN]: '起点中文网',
   [MetadataProviderKey.FANQIE]: '番茄小说',
   [MetadataProviderKey.DOUBAN]: '豆瓣读书',
   [MetadataProviderKey.GOOGLE]: 'Google Books',
@@ -193,6 +199,9 @@ export class ProviderConfigService {
       audnexus: { ...DEFAULT_CONFIG.audnexus },
       librofm: { ...DEFAULT_CONFIG.librofm },
       comicvine: { ...DEFAULT_CONFIG.comicvine },
+      baiduBaike: { ...DEFAULT_CONFIG.baiduBaike },
+      qimao: { ...DEFAULT_CONFIG.qimao },
+      qidian: { ...DEFAULT_CONFIG.qidian },
       fanqie: { ...DEFAULT_CONFIG.fanqie },
       douban: { ...DEFAULT_CONFIG.douban },
       ranobedb: { ...DEFAULT_CONFIG.ranobedb },
@@ -215,6 +224,9 @@ export class ProviderConfigService {
       audnexus: mergeSimpleConfig(base.audnexus, next.audnexus),
       librofm: mergeSimpleConfig(base.librofm, next.librofm),
       comicvine: mergeComicVineConfig(base.comicvine, next.comicvine),
+      baiduBaike: mergeSimpleConfig(base.baiduBaike, next.baiduBaike),
+      qimao: mergeSimpleConfig(base.qimao, next.qimao),
+      qidian: mergeSimpleConfig(base.qidian, next.qidian),
       fanqie: mergeSimpleConfig(base.fanqie, next.fanqie),
       douban: mergeSimpleConfig(base.douban, next.douban),
       ranobedb: mergeSimpleConfig(base.ranobedb, next.ranobedb),
@@ -386,8 +398,26 @@ export class ProviderConfigService {
   }
 
   async getProviderStatuses(config?: ProviderConfigurations): Promise<ProviderStatus[]> {
-    const cfg = config ?? (await this.getConfig());
+    const cfg = config ? this.normalizeConfig(this.mergeConfig(this.createDefaultConfig(), config)) : await this.getConfig();
     return [
+      {
+        key: MetadataProviderKey.BAIDU_BAIKE,
+        label: PROVIDER_LABELS[MetadataProviderKey.BAIDU_BAIKE],
+        enabled: cfg.baiduBaike.enabled,
+        configured: true,
+      },
+      {
+        key: MetadataProviderKey.QIMAO,
+        label: PROVIDER_LABELS[MetadataProviderKey.QIMAO],
+        enabled: cfg.qimao.enabled,
+        configured: true,
+      },
+      {
+        key: MetadataProviderKey.QIDIAN,
+        label: PROVIDER_LABELS[MetadataProviderKey.QIDIAN],
+        enabled: cfg.qidian.enabled,
+        configured: true,
+      },
       {
         key: MetadataProviderKey.FANQIE,
         label: PROVIDER_LABELS[MetadataProviderKey.FANQIE],

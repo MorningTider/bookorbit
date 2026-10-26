@@ -4,10 +4,10 @@ import type { TxtConversionRequest } from '@bookorbit/types';
 
 export class ConvertTxtDto implements TxtConversionRequest {
   @IsOptional()
-  @IsIn(['auto', 'utf8', 'gb18030', 'utf16le'])
-  encoding?: 'auto' | 'utf8' | 'gb18030' | 'utf16le';
+  @IsIn(['auto', 'utf8', 'gb18030', 'utf16le', 'utf16be'])
+  encoding?: 'auto' | 'utf8' | 'gb18030' | 'utf16le' | 'utf16be';
 
   @IsOptional()
-  @IsIn(['auto', 'single'])
-  chapters?: 'auto' | 'single';
+  @IsIn(['auto', 'chinese', 'english', 'single'])
+  chapters?: 'auto' | 'chinese' | 'english' | 'single';
 }

@@ -134,12 +134,12 @@ describe('MetadataExtractionService', () => {
     expect(extractor).toHaveBeenCalledWith(`/books/book.${format}`);
   });
 
-  it('returns null for unsupported formats without invoking an extractor', async () => {
+  it('returns null for unknown formats without invoking an extractor', async () => {
     const service = new MetadataExtractionService({ extractMetadata: mocks.djvu, extractCover: mocks.djvuCover } as never);
 
-    await expect(service.extract('/books/book.txt', 'txt')).resolves.toBeNull();
+    await expect(service.extract('/books/book.unknown', 'unknown')).resolves.toBeNull();
 
-    expect(service.supports('txt')).toBe(false);
+    expect(service.supports('unknown')).toBe(false);
     expect(mocks.epub).not.toHaveBeenCalled();
     expect(mocks.audio).not.toHaveBeenCalled();
   });
