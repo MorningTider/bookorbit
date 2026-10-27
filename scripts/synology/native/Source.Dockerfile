@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 ARG BUILD_IMAGE
 FROM ${BUILD_IMAGE} AS builder
 COPY pnpm.tgz /tmp/pnpm.tgz

@@ -27,7 +27,11 @@ function inspect(directory) {
     const file = path.join(directory, entry.name);
     if (entry.isSymbolicLink()) {
       const link = fs.readlinkSync(file);
-      if (path.relative(app, file) === "node_modules/.pnpm/node_modules/server" && link === "../../../../app/server" && !fs.existsSync(file)) {
+      if (
+        path.relative(app, file) === "node_modules/.pnpm/node_modules/server" &&
+        ["../../../../app/server", "../../../../source/server"].includes(link) &&
+        !fs.existsSync(file)
+      ) {
         fs.unlinkSync(file);
         excluded.push(path.relative(app, file));
         continue;
