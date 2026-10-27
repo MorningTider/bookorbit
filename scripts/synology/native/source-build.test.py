@@ -64,6 +64,15 @@ class SourceBuildTests(unittest.TestCase):
         self.assertEqual(len(key), 16)
         with tarfile.open(archive) as tar: self.assertIn("v11/index.db", tar.getnames())
 
+    def test_preload_does_not_archive_host_project_links(self):
+        store, lock = self.make_preload()
+        (store / "v11/projects").mkdir()
+        (store / "v11/projects/host").symlink_to(self.repo)
+        archive = self.root / "preload.tgz"
+        source.preload(store, archive, {"preloadPackages": ["fixture@1.0.0"]}, lock)
+        with tarfile.open(archive) as tar:
+            self.assertFalse(any("projects" in name for name in tar.getnames()))
+
     def test_preload_rejects_extra_packages(self):
         store, lock = self.make_preload(extra=True)
         with self.assertRaisesRegex(ValueError, "exact pinned packages"):

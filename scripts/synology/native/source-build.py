@@ -55,7 +55,8 @@ def preload(store, archive, config, lockfile):
         return "none"
     store = pathlib.Path(store).resolve(strict=True)
     v11 = store / "v11"
-    if v11.is_symlink() or any(p.is_symlink() for p in v11.rglob("*")):
+    files = v11 / "files"
+    if v11.is_symlink() or (v11 / "index.db").is_symlink() or files.is_symlink() or any(p.is_symlink() for p in files.rglob("*")):
         raise ValueError("Preload cache links are forbidden")
     with sqlite3.connect((v11 / "index.db").as_uri() + "?immutable=1", uri=True) as index:
         actual = {row[0] for row in index.execute("SELECT key FROM package_index")}
