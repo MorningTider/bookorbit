@@ -75,7 +75,8 @@ def native_env(original,credentials):
 
 
 def package_python(code,timeout=600):
-    process=subprocess.run(['sudo','-u','postgresql18','python3','-'],input=code,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout)
+    guarded="import fcntl,pathlib\n_native_pg_lifecycle=(pathlib.Path('/volume1/database/pg/state')/'lifecycle.lock').open('a')\nfcntl.flock(_native_pg_lifecycle,fcntl.LOCK_EX|fcntl.LOCK_NB)\n"+code
+    process=subprocess.run(['sudo','-u','postgresql18','python3','-'],input=guarded,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout)
     if process.returncode:raise RuntimeError('Native PG preparation failed; production unchanged')
     return json.loads(process.stdout)
 
