@@ -46,3 +46,7 @@ Before commitment, initial startup failure restores the old environment/profile 
 The package remains BETA until production cutover and validation finish. Whole-NAS reboot acceptance is already passed for10019; do not report production migration as complete merely because a test client passed.
 
 The production container network was also tested directly: a temporary read-only Node/pg client inside the existing application container connected to the preflight DB at172.19.0.1:5433 with SCRAM; database identity and non-superuser restrictions passed. No application settings were changed. Private evidence: production-network-probe.json beside the other preflight reports. Native administration calls share the core lifecycle lock, so package upgrades and extension replacement cannot run concurrently with restore/configuration operations.
+
+## Executed production state
+
+The user-approved cutover completed on2026-10-27. Native database/rolebookorbit is live at172.19.0.1:5433; all167 latest snapshot table counts matched. The r21 image, JWT and mounts were retained; local/public health and real native connections passed. Old DB/application containers and all volumes remain stopped and retained. Evidence and final backup paths are recorded in SYNOLOGY_DEPLOYMENT.md. The production migration gate is passed; formal core10020 and vector10007 packages are built, with DSM installation awaiting a fresh authenticated session.

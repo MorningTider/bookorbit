@@ -341,3 +341,13 @@ r21用户确认后生产切换完成：`bookorbit-custom:v3.5.0-r21-20261026`，
 ### 2026-10-26：原生SPK运行时与图片依赖预验
 
 生产仍r21。对DSM宿主普通账号完成官方Node26.11.1及私有Debian libatomic运行验证，execPath、子进程和fork IPC通过；glibc为2.36，内核4.4.302+。Sharp0.35.5的glibc平台包与libvips8.18.7通过合成PNG、JPEG缩放、WebP旋转，全部运行在Docker外。原始musl显式加载器方案虽可启动，但execPath指向加载器，未采用为包入口。/tmp为noexec，测试改在卷内私有临时目录，未修改挂载选项。来源哈希、可复现工具和未完成项见SYNOLOGY_NATIVE.md。无SPK构建安装、无数据库迁移、无生产更新。
+
+## 2026-10-27 production database cutover completed
+
+User confirmed final backup and cutover. BookOrbit remains r21 with exact image ID45a14dca6227860dd71028da67856f11fc34f8f335ad1181193d71c85bdd30d7. It now connects to native PostgreSQL at172.19.0.1:5433, database/rolebookorbit. Role is non-superuser, cannot create roles/databases or replicate, and has24 connection allowance. Both local8184 and public8926 health returned200/ok; live native DB connections were confirmed.
+
+Final source snapshot and application archive: /volume1/database/pg/backups/bookorbit-cutover-20261027T121458Z. All167 restored table counts matched before application startup. Application-data archive235520 bytes, SHA256b5126027664ab803f2714040e27af9fad5f9aa773dc0404c7a3b10419ee5ec74; archive readable and database backup hashes verified. Original environment, compose, full container metadata and commitment receipt stay private in /volume1/database/pg/state/bookorbit-cutover-20261027T121458Z. No credentials were exported to the Mac.
+
+JWT, exact image and app/book mount sources/modes were preserved. Persistent .env and compose now target native PG and omit the postgres service/dependency. New app has the correct Compose project labels and unless-stopped policy. Old application bookorbit-app-pre-nativepg-20261027t121458z and old database bookorbit-db are stopped with autostart disabled. Both bind and anonymous PostgreSQL volumes were retained without deletion.
+
+Do not run the old container-only backup helper against stoppedbookorbit-db for future application releases. Use the native package-account pg_admin.py backup/verify-backup flow and protect its private globals/configuration files, plus the application/environment/compose backup. Preserve the native deployment profile during upstream merges. After commitment, reversing migration requires preserving new native DB writes; simply starting the old database is not a valid rollback.
