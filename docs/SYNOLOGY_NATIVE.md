@@ -98,3 +98,21 @@
 ## 2026-10-27 native PG formal installation completed
 
 DSM installed PostgreSQL18.6-10020 and independent pgvector0.8.7-10007, both beta=no.14 final native identity/data/role/configuration/extension checks passed; BookOrbit remained healthy locally and publicly on r21 with the native DB. The original Docker DB/application and every data volume remain stopped and retained. Full evidence and formal artifact hashes are in the separate postgresql-spk project. No additional NAS reboot was performed for these metadata-only formal upgrades.
+
+## 2026-10-27 原生应用构建输入
+
+数据库迁移已完成，生产r21使用原生PostgreSQL18.6-10020，应用容器继续提供服务。旧段落中的“独立数据库未完成”是历史状态。
+
+新增stage-application-payload.py：只读导出锁定r21镜像的/app程序，核验官方Node归档和可执行文件、libatomic及Sharp材料，使用新建私有目录，拒绝夹带环境文件，导出失败自动清理。容器仅用于提取构建材料，工具不创建或启动容器，不修改生产数据库和配置。输出明确标记application-only-not-distributable，不能当作已经完成SPK。
+
+新增payload-contract.py：供后续SPK构建前调用，校验完整文件哈希清单、x86_64 ELF、运行时来源锁、内部相对链接及媒体工具齐备；拒绝数据目录、环境文件、逃逸或绝对链接。每个文件必须归属于记录了版本、来源和许可证的组件；需要对应源代码的组件必须提供源代码材料。尚未收齐材料时拒绝构建，不把一次探针成功当作分发材料齐备。
+
+本机10项输入契约测试和10项材料准备测试通过。原生SPK生命周期、全部媒体及Python依赖清单、真实导入阅读、生产恢复演练及DSM安装尚未完成。不会将尚未验证的BookOrbit包标记为正式版。
+
+### 本轮群晖实际结果
+
+锁定r21程序导出成功，文件清单38572项。导出中发现并仅排除了.env.example、依赖.vscode/settings.json及node_modules/.pnpm/node_modules/server指向不存在构建目录的确切链接。原始运行环境配置仍被拒绝。修复DSM Python3.8缺少Path.readlink接口，以及root umask077导致包内目录700的问题，加入回归覆盖。
+
+本机和NAS各20项测试通过；前后端ESLint及本轮JSON/Markdown Prettier检查通过。真实普通用户UID1026运行官方Node26.11.1，process.execPath指向原生bin/node；Sharp0.35.5在内存生成16x12 PNG并读取尺寸成功。没有启动应用或连接生产数据库。
+
+材料目前位于/volume1/homes/MorningTider/.bookorbit-native-stage-20261027，清单与运行报告在/volume1/@tmp/bookorbit-native-stage-20261027.inventory.json和同前缀.runtime-check.json，均为NAS本地构建材料，不是已验收SPK。最初普通用户在@tmp执行被拒绝；移动后进一步定位并修复内部权限，最终通过。下一步整理完整媒体与Python运行时、来源和许可证，随后实现普通包用户的生命周期并做原生隔离业务验收。
