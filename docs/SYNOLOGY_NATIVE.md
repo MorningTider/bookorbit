@@ -94,3 +94,7 @@
 ## 2026-10-27 PG整机重启验证
 
 已按用户授权重启NAS。原生PG10019先于Docker网桥启动的情况真实复现，受管监听随后自动恢复，无人工PG重启。隔离BookOrbit实际健康、11本查询、详情、8路并发、4096字节Range读取206及匿名401通过；PG集群/角色/扩展/167表保留，向量行与HNSW索引保持。生产应用最终健康200，仍连接原Docker数据库。PG整机重启门槛已通过；下一步为另行安排的一致备份与生产数据库切换，尚未执行。
+
+## 2026-10-27 native PG formal installation completed
+
+DSM installed PostgreSQL18.6-10020 and independent pgvector0.8.7-10007, both beta=no.14 final native identity/data/role/configuration/extension checks passed; BookOrbit remained healthy locally and publicly on r21 with the native DB. The original Docker DB/application and every data volume remain stopped and retained. Full evidence and formal artifact hashes are in the separate postgresql-spk project. No additional NAS reboot was performed for these metadata-only formal upgrades.

@@ -50,3 +50,7 @@ The production container network was also tested directly: a temporary read-only
 ## Executed production state
 
 The user-approved cutover completed on2026-10-27. Native database/rolebookorbit is live at172.19.0.1:5433; all167 latest snapshot table counts matched. The r21 image, JWT and mounts were retained; local/public health and real native connections passed. Old DB/application containers and all volumes remain stopped and retained. Evidence and final backup paths are recorded in SYNOLOGY_DEPLOYMENT.md. The production migration gate is passed; formal core10020 and vector10007 packages are built, with DSM installation awaiting a fresh authenticated session.
+
+## 2026-10-27 native PG formal installation completed
+
+DSM installed PostgreSQL18.6-10020 and independent pgvector0.8.7-10007, both beta=no.14 final native identity/data/role/configuration/extension checks passed; BookOrbit remained healthy locally and publicly on r21 with the native DB. The original Docker DB/application and every data volume remain stopped and retained. Full evidence and formal artifact hashes are in the separate postgresql-spk project. No additional NAS reboot was performed for these metadata-only formal upgrades.

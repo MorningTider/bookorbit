@@ -351,3 +351,7 @@ Final source snapshot and application archive: /volume1/database/pg/backups/book
 JWT, exact image and app/book mount sources/modes were preserved. Persistent .env and compose now target native PG and omit the postgres service/dependency. New app has the correct Compose project labels and unless-stopped policy. Old application bookorbit-app-pre-nativepg-20261027t121458z and old database bookorbit-db are stopped with autostart disabled. Both bind and anonymous PostgreSQL volumes were retained without deletion.
 
 Do not run the old container-only backup helper against stoppedbookorbit-db for future application releases. Use the native package-account pg_admin.py backup/verify-backup flow and protect its private globals/configuration files, plus the application/environment/compose backup. Preserve the native deployment profile during upstream merges. After commitment, reversing migration requires preserving new native DB writes; simply starting the old database is not a valid rollback.
+
+## 2026-10-27 native PG formal installation completed
+
+DSM installed PostgreSQL18.6-10020 and independent pgvector0.8.7-10007, both beta=no.14 final native identity/data/role/configuration/extension checks passed; BookOrbit remained healthy locally and publicly on r21 with the native DB. The original Docker DB/application and every data volume remain stopped and retained. Full evidence and formal artifact hashes are in the separate postgresql-spk project. No additional NAS reboot was performed for these metadata-only formal upgrades.
