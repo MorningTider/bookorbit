@@ -52,7 +52,8 @@
     "db:seed": "bash ./scripts/db/seed-baseline.sh",
     "e2e:db:prepare": "bash ./scripts/e2e/prepare-db.sh",
     "e2e:db:migrate": "pnpm --filter server e2e:db:migrate",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:synology-native-pg": "python3 scripts/synology/native/prepare-native-pg-migration.test.py && python3 scripts/synology/native/apply-native-pg-migration.test.py"
   },
   "engines": {
     "node": ">=24",
