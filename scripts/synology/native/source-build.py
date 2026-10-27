@@ -7,6 +7,8 @@ import json
 import pathlib
 import re
 import shutil
+import sqlite3
+import tarfile
 import subprocess
 import tempfile
 import urllib.request
@@ -38,7 +40,34 @@ def plan(root):
             "lockfileSha256": digest(root / "pnpm-lock.yaml").hex(), "status": "application-only-not-distributable"}, build
 
 
-def build(root, output, cache, docker="docker"):
+def preload(store, archive, config, lockfile):
+    expected = set()
+    text = pathlib.Path(lockfile).read_text()
+    for selector in config.get("preloadPackages", []):
+        quoted = re.escape("'" + selector + "'" if selector.startswith("@") else selector)
+        match = re.search(r"\n  " + quoted + r":\n    resolution: \{integrity: (sha512-[^} ]+)\}", text)
+        if not match:
+            raise ValueError("Preload package is not pinned in the dependency lock")
+        expected.add(match.group(1) + "\t" + selector)
+    if store is None:
+        with tarfile.open(archive, "w:gz"):
+            pass
+        return "none"
+    store = pathlib.Path(store).resolve(strict=True)
+    v11 = store / "v11"
+    if v11.is_symlink() or any(p.is_symlink() for p in v11.rglob("*")):
+        raise ValueError("Preload cache links are forbidden")
+    with sqlite3.connect((v11 / "index.db").as_uri() + "?immutable=1", uri=True) as index:
+        actual = {row[0] for row in index.execute("SELECT key FROM package_index")}
+    if not expected or actual != expected:
+        raise ValueError("Preload cache does not match the exact pinned packages")
+    with tarfile.open(archive, "w:gz") as tar:
+        tar.add(v11 / "index.db", arcname="v11/index.db")
+        tar.add(v11 / "files", arcname="v11/files")
+    return hashlib.sha256("\n".join(sorted(actual)).encode()).hexdigest()[:16]
+
+
+def build(root, output, cache, docker="docker", preload_store=None):
     root = pathlib.Path(root).resolve(strict=True)
     output = pathlib.Path(output).absolute()
     cache = pathlib.Path(cache).absolute()
@@ -74,9 +103,13 @@ def build(root, output, cache, docker="docker"):
         shutil.copyfile(manager, context / "pnpm.tgz")
         shutil.copyfile(root / "scripts/synology/native/Source.Dockerfile", context / "Dockerfile")
         # Export into the private context first; never leave a partial requested output.
+        preload_key = preload(preload_store, context / "preload-store.tgz", config, root / "pnpm-lock.yaml")
+        report["preloadCacheKey"] = preload_key
+        (context / "source-build.json").write_text(json.dumps(report, indent=2))
         artifact = context / "artifact"
         subprocess.run([docker, "buildx", "build", "--platform", config["platform"],
-                        "--build-arg", "BUILD_IMAGE=" + config["image"], "--target", "artifact",
+                        "--build-arg", "BUILD_IMAGE=" + config["image"],
+                        "--build-arg", "STORE_CACHE=bookorbit-native-source-v11-" + preload_key, "--target", "artifact",
                         "--output", "type=local,dest=" + str(artifact), "--progress=plain", str(context)], check=True)
         generated = json.loads((artifact / "source-build.json").read_text())
         if generated.get("sourceCommit") != report["sourceCommit"] or not generated.get("sharpNativeCheck"):
@@ -93,5 +126,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True)
     parser.add_argument("--cache", required=True)
     parser.add_argument("--docker", default="docker")
+    parser.add_argument("--preload-store")
     args = parser.parse_args()
-    print(json.dumps(build(args.repo, args.output, args.cache, args.docker)))
+    print(json.dumps(build(args.repo, args.output, args.cache, args.docker, args.preload_store)))

@@ -6,7 +6,9 @@ ENV PATH="/opt/pnpm/bin:${PATH}"
 ENV npm_config_verify_deps_before_run=false
 WORKDIR /source
 ADD source.tar /source/
-RUN --mount=type=cache,id=bookorbit-native-pnpm-v11-amd64,target=/pnpm/store pnpm install --frozen-lockfile --store-dir /pnpm/store --fetch-timeout 300000 --network-concurrency 8
+COPY preload-store.tgz /tmp/preload-store.tgz
+ARG STORE_CACHE=bookorbit-native-source-v11-none
+RUN --mount=type=cache,id=${STORE_CACHE},target=/pnpm/store,sharing=locked if [ ! -f /pnpm/store/v11/index.db ]; then tar -xzf /tmp/preload-store.tgz -C /pnpm/store; fi && pnpm install --frozen-lockfile --store-dir /pnpm/store --fetch-timeout 300000 --network-concurrency 8
 RUN pnpm --filter client run build-only
 RUN pnpm --filter server run build
 RUN pnpm --config.allow-unused-patches=true --filter server deploy --prod --legacy /out/app

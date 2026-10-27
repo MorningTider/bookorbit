@@ -132,3 +132,20 @@ python3 scripts/synology/native/source-build.py \
 ```
 
 构建失败不保留半成品输出，已有输出拒绝覆盖。8项测试覆盖提交追溯、脏源码、包管理器与镜像锁、下载缓存篡改、未跟踪凭据不入归档、失败清理及已有产物保护。实际源码编译结果在后续记录补充，不将单元测试当作已完成Linux编译。
+
+### 可选大包缓存预填充
+
+实际Linux构建中少数大字体归档和ECharts在容器网络重复断线；Mac访问相同官方npm归档已通过与pnpm锁文件一致的SHA512校验。可在Mac使用同版本pnpm11.22.0的store add填充专用缓存，仅包含sourceBuild.preloadPackages列出的两个包，然后使用store status核验。不复制本机node_modules。
+
+```sh
+pnpm --config.registry=https://registry.npmjs.org store add \
+  echarts@6.1.0 @embedpdf/fonts-sc@1.0.0 \
+  --store-dir "$PWD/local/synology-native/preload-store"
+pnpm store status --store-dir "$PWD/local/synology-native/preload-store"
+python3 scripts/synology/native/source-build.py \
+  --output "$PWD/local/synology-native/source-builds/NEW_BUILD" \
+  --cache "$PWD/local/synology-native/cache" \
+  --preload-store "$PWD/local/synology-native/preload-store"
+```
+
+构建前只读核对标准v11索引的完整性键和包名，必须与现有锁文件精确一致，拒绝额外包及链接。只归档索引和内容文件，不修改SQLite记录；新的BuildKit缓存初始化后继续由pnpm按frozen-lockfile正常校验和安装。缓存标识绑定这组包的锁值，已有缓存不覆盖。pnpm版本或缓存格式升级须重新验证，不能直接沿用旧格式假设。源码构建测试现为12项。

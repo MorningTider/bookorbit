@@ -5,6 +5,7 @@ import importlib.util
 import json
 import pathlib
 import shutil
+import sqlite3
 import subprocess
 import tarfile
 import tempfile
@@ -43,6 +44,41 @@ class SourceBuildTests(unittest.TestCase):
         self.git("add", ".")
         self.git("-c", "user.name=Build test", "-c", "user.email=build@example.test", "-c", "core.hooksPath=/dev/null",
                  "-c", "commit.gpgsign=false", "commit", "-qm", "fixture")
+
+    def make_preload(self, extra=False):
+        folder = self.root / "preload/v11"
+        (folder / "files").mkdir(parents=True)
+        index = sqlite3.connect(folder / "index.db")
+        index.execute("CREATE TABLE package_index (key TEXT PRIMARY KEY, data BLOB)")
+        index.execute("INSERT INTO package_index VALUES (?, ?)", ("sha512-fixture\tfixture@1.0.0", b"{}"))
+        if extra: index.execute("INSERT INTO package_index VALUES (?, ?)", ("unexpected", b"{}"))
+        index.commit();index.close()
+        lock = self.root / "preload-lock.yaml"
+        lock.write_text("packages:\n  fixture@1.0.0:\n    resolution: {integrity: sha512-fixture}\n")
+        return folder.parent, lock
+
+    def test_preload_requires_exact_pinned_identity(self):
+        store, lock = self.make_preload()
+        archive = self.root / "preload.tgz"
+        key = source.preload(store, archive, {"preloadPackages": ["fixture@1.0.0"]}, lock)
+        self.assertEqual(len(key), 16)
+        with tarfile.open(archive) as tar: self.assertIn("v11/index.db", tar.getnames())
+
+    def test_preload_rejects_extra_packages(self):
+        store, lock = self.make_preload(extra=True)
+        with self.assertRaisesRegex(ValueError, "exact pinned packages"):
+            source.preload(store, self.root / "bad.tgz", {"preloadPackages": ["fixture@1.0.0"]}, lock)
+
+    def test_preload_rejects_unlocked_package(self):
+        store, lock = self.make_preload()
+        with self.assertRaisesRegex(ValueError, "not pinned"):
+            source.preload(store, self.root / "bad.tgz", {"preloadPackages": ["absent@1.0.0"]}, lock)
+
+    def test_preload_rejects_links(self):
+        store, lock = self.make_preload()
+        (store / "v11/files/link").symlink_to(lock)
+        with self.assertRaisesRegex(ValueError, "links are forbidden"):
+            source.preload(store, self.root / "bad.tgz", {"preloadPackages": ["fixture@1.0.0"]}, lock)
 
     def test_plan_records_exact_commit(self):
         report, _ = source.plan(self.repo)
