@@ -81,11 +81,11 @@ def main():
         if mount['Destination']=='/data':binds.append(str(app)+':/data:rw')
         elif mount['Destination'].startswith('/books'):binds.append(mount['Source']+':'+mount['Destination']+':ro')
         else:raise ValueError('Unreviewed production application mount')
-    host.update({'Binds':binds,'NetworkMode':network_name,'PortBindings':{port+'/tcp':[{'HostIp':'127.0.0.1','HostPort':'18185'}]},'RestartPolicy':{'Name':'no','MaximumRetryCount':0},'Memory':1024*1024*1024,'NanoCpus':0,'CpuShares':0,'CpuPeriod':0,'CpuQuota':0,'AutoRemove':False})
+    host.update({'Binds':binds,'NetworkMode':network_name,'PortBindings':{},'RestartPolicy':{'Name':'no','MaximumRetryCount':0},'Memory':1024*1024*1024,'NanoCpus':0,'CpuShares':0,'CpuPeriod':0,'CpuQuota':0,'AutoRemove':False})
     config['HostConfig']=host
     name='bookorbit-nativepg-acceptance'
     created=docker('POST','/containers/create?name='+name,config)
-    receipt={'container':name,'containerId':created['Id'],'network':network_name,'networkId':network['Id'],'subnet':str(subnet),'nativeGateway':'172.30.77.1','database':credentials['database'],'stageRoot':str(stage),'port':18185,'sourceImage':source['Config']['Image'],'noInternet':True,'readOnlyBooks':True,'productionContainerUnchanged':True,'schedulingPriority':'nice10','memoryLimitMiB':1024}
+    receipt={'container':name,'containerId':created['Id'],'network':network_name,'networkId':network['Id'],'subnet':str(subnet),'nativeGateway':'172.30.77.1','database':credentials['database'],'stageRoot':str(stage),'containerPort':int(port),'publishedPort':None,'accessMethod':'NAS host to isolated container IP','sourceImage':source['Config']['Image'],'noInternet':True,'readOnlyBooks':True,'productionContainerUnchanged':True,'schedulingPriority':'nice10','memoryLimitMiB':1024}
     path=stage/'receipt.json';path.write_text(json.dumps(receipt,indent=2));path.chmod(0o600)
     print(json.dumps(receipt))
     print('Configure native PG for 172.30.77.0/24 at 172.30.77.1 and restart its DSM package before starting this acceptance application.')
