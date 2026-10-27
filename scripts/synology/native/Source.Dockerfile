@@ -1,7 +1,7 @@
-ARG BUILD_IMAGE
+ARG BUILD_IMAGE=node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567
 FROM ${BUILD_IMAGE} AS builder
 COPY pnpm.tgz /tmp/pnpm.tgz
-RUN mkdir /opt/pnpm && tar -xzf /tmp/pnpm.tgz -C /opt/pnpm --strip-components=1 && rm /tmp/pnpm.tgz
+RUN mkdir /opt/pnpm && tar -xzf /tmp/pnpm.tgz -C /opt/pnpm --strip-components=1 && rm /tmp/pnpm.tgz && ln -s /opt/pnpm/bin/pnpm.cjs /usr/local/bin/pnpm && pnpm --version
 ENV PATH="/opt/pnpm/bin:${PATH}"
 ENV npm_config_verify_deps_before_run=false
 WORKDIR /source
