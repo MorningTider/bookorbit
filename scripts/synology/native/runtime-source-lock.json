@@ -55,5 +55,14 @@
       ]
     },
     "distributionGate": "Record all transitive media component versions, licenses and required source offers before distributing an SPK."
+  },
+  "sourceBuild": {
+    "image": "node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567",
+    "platform": "linux/amd64",
+    "pnpm": {
+      "version": "11.22.0",
+      "url": "https://registry.npmjs.org/pnpm/-/pnpm-11.22.0.tgz",
+      "integrity": "sha512-H/hwxMYTPf2I+yr8Rt0T1H8JyXlLQ4xv20fKmMrzvBY4HuC+k6CRuOOCTPAfiJ9G19niCRD7C+GrD7W6qA3WIQ=="
+    }
   }
 }

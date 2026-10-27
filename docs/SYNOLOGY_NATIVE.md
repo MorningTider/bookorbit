@@ -116,3 +116,19 @@ DSM installed PostgreSQL18.6-10020 and independent pgvector0.8.7-10007, both bet
 本机和NAS各20项测试通过；前后端ESLint及本轮JSON/Markdown Prettier检查通过。真实普通用户UID1026运行官方Node26.11.1，process.execPath指向原生bin/node；Sharp0.35.5在内存生成16x12 PNG并读取尺寸成功。没有启动应用或连接生产数据库。
 
 材料目前位于/volume1/homes/MorningTider/.bookorbit-native-stage-20261027，清单与运行报告在/volume1/@tmp/bookorbit-native-stage-20261027.inventory.json和同前缀.runtime-check.json，均为NAS本地构建材料，不是已验收SPK。最初普通用户在@tmp执行被拒绝；移动后进一步定位并修复内部权限，最终通过。下一步整理完整媒体与Python运行时、来源和许可证，随后实现普通包用户的生命周期并做原生隔离业务验收。
+
+## 源码构建作为正式入口
+
+按用户要求，正式BookOrbit SPK程序从当前Git提交和pnpm锁文件构建，不再从线上容器提取。stage-application-payload.py保留为r21兼容性对照工具，不作为正式程序来源。
+
+source-build.py要求受跟踪文件已提交，使用git archive导出指定HEAD，不复制本机node_modules、未跟踪文件和本地配置。编译仅在Mac的固定Linux x86_64环境执行，基础镜像摘要、pnpm版本与SHA512锁定；依赖安装使用frozen-lockfile，前后端及共享包均从源码编译，生产依赖在Linux下裁剪。最终SPK不包含或依赖Docker运行服务。
+
+Source.Dockerfile导出程序、迁移文件、静态页面、Kepubify、KOReader插件及应用许可证，并携带同次构建对应的源码归档。finalize-source-build.mjs在Linux内真实生成和读取Sharp图片，并拒绝不便迁移的链接及运行配置。source-build.json记录源码提交、源码归档与锁文件哈希、构建镜像、Node和Sharp版本。此输出仍是应用构建产物，不代表完整SPK或全部组件许可证已齐备。
+
+```sh
+python3 scripts/synology/native/source-build.py \
+  --output "$PWD/local/synology-native/source-builds/NEW_BUILD" \
+  --cache "$PWD/local/synology-native/cache"
+```
+
+构建失败不保留半成品输出，已有输出拒绝覆盖。8项测试覆盖提交追溯、脏源码、包管理器与镜像锁、下载缓存篡改、未跟踪凭据不入归档、失败清理及已有产物保护。实际源码编译结果在后续记录补充，不将单元测试当作已完成Linux编译。

@@ -38,3 +38,5 @@
 Production migration is now complete, not pending: r21 uses the shared native PG. For BO-C10, future upstream synchronization must preserve the native compose profile, use native PG backups, retain connection-pool limits and avoid accidentally recreating the retired postgres service. The8 migration boundary tests and live NAS acceptance passed.
 
 2026-10-27 BO-C09补充：原生应用材料准备与构建输入契约位于scripts/synology/native/stage-application-payload.py、payload-contract.py，合计20项测试。上游升级须更新runtime-source-lock.json、冻结应用来源和可执行文件哈希，复验Sharp平台依赖、媒体与Python集成，不从新镜像直接覆盖已验证的原生输入。组件来源、许可证及需要的对应源代码必须覆盖整个文件清单。
+
+BO-C09正式入口补充：source-build.py、Source.Dockerfile和finalize-source-build.mjs从Git提交及pnpm锁文件构建程序，构建环境固定为Linux x86_64。原容器导出工具仅作兼容性对照。上游升级须复核pnpm版本、deploy行为、前后端构建命令、迁移文件、Kepubify及KOReader资源路径。
