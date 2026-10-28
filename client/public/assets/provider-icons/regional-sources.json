@@ -1,0 +1,43 @@
+{
+  "icons": [
+    {
+      "provider": "baiduBaike",
+      "source": "https://baike.baidu.com/favicon.ico",
+      "sha256": "c70088079fe9441a726c66ce0e73ae38315ec80051d3dd542c41b82fa0a1993a",
+      "bytes": 16958,
+      "mime": "image/x-icon",
+      "file": "baiduBaike.ico"
+    },
+    {
+      "provider": "qidian",
+      "source": "https://www.qidian.com/favicon.ico",
+      "sha256": "5ad005ba7983e3203f8e629d969b23fa11429932652de338b9765336e16d3860",
+      "bytes": 4286,
+      "mime": "image/x-icon",
+      "file": "qidian.ico"
+    },
+    {
+      "provider": "douban",
+      "source": "https://book.douban.com/favicon.ico",
+      "sha256": "14ad1b885c1103123e17d16ed68986e3e9fb911a1ca411d03a9e90f58dd0ba39",
+      "bytes": 5686,
+      "mime": "image/x-icon",
+      "file": "douban.ico"
+    },
+    {
+      "provider": "qimao",
+      "source": "https://cdn-front-global.wtzw.com/static/images/favicon.ico",
+      "file": "qimao.ico",
+      "sha256": "b58cf89fda10ceac88259bbd3982642f05fe7327911c7d1796bca571776a8882",
+      "bytes": 4286
+    },
+    {
+      "provider": "fanqie",
+      "source": "https://p1-tt.byteimg.com/origin/novel-static/a3621391ca2e537045168afda6722ee9",
+      "file": "fanqie.png",
+      "sha256": "7aa086c2ca56b66ed53259ec05f5cf55f1b0b03a960978fcb01edb353629d3a7",
+      "bytes": 6940
+    }
+  ],
+  "purpose": "Identify metadata providers; original platform branding retained."
+}

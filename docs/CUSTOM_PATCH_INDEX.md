@@ -48,3 +48,5 @@ BO-C09正式入口补充：source-build.py、Source.Dockerfile和finalize-source
 2026-10-29 BO-C08补充：统计配置元信息使用labelKey，元数据字段共用metadata-field-label.ts，表格列在useTableColumns组合层翻译而不改持久ID；动态提示、来源、星期、引导、画像和错误兜底统一国际化。审计入口scripts/audit-ui-localization.cjs扩展TypeScript脚本UI候选检查，候选并非均为漏译。合并上游时保留这层适配和en/zh资源，复验统计热力图与表格切换语言而不重建页面、用户自定义列不变。全前端741文件8336项测试通过；具体上线版本须另查部署记录，不能把本机通过当作现网已更新。
 
 BO-C08上线确认：2026-10-29由原生10004交付，应用源码77afa4e5；115类固定通知/错误、31类HTTP提示及13类实体错误均用国际化资源。浏览器回归脚本verify-localization-browser.cjs已纳入仓库。上游合并时运行语言资源校验、全前端测试、静态及脚本UI候选审计，并核对统计和表格的即时语言切换；不要以构建成功代替实机前端资源与API验收。
+
+区域元数据来源展示补充：五个国内来源使用client/public/assets/provider-icons中的官网图标，通过provider-icons.ts统一映射，来源及SHA256保存在regional-sources.json；不依赖浏览器访问官网图标地址。七个区域来源说明通过en/zh资源维护，描述元数据补充用途，不把下载能力说明混入元数据开关。后续同步上游须保留映射、静态素材和对应语言键。

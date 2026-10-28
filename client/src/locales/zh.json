@@ -2015,13 +2015,13 @@
           "librofm": "无 DRM 的有声书目录元数据。使用未公开的 Libro.fm 端点，此功能默认禁用。",
           "comicvine": "来自ComicVine的漫画书元数据。需要免费的 API 密钥从 comicvine.gamespot.com。",
           "ranobedb": "来自RanobeDB的日光新元数据。无需设置。",
-          "lubimyczytac": "Polish book catalog (lubimyczytac.pl). Scrapes public book pages. 无需设置。",
-          "aladin": "来自Aladin的韩文书元数据(从二分之一到二分之一)。需要从 aladin.co.kr 的TTB 密钥。",
-          "douban": "搜索豆瓣公开书目，获取中文书名、作者、年份与封面。访问受限时会显示错误。",
-          "fanqie": "搜索番茄公开书目，获取书名、作者、简介、分类与封面。",
-          "baiduBaike": "公开网页元数据来源，访问验证或限流时会报告错误，不提供付费正文下载。",
-          "qimao": "公开网页元数据来源，访问验证或限流时会报告错误，不提供付费正文下载。",
-          "qidian": "公开网页元数据来源，访问验证或限流时会报告错误，不提供付费正文下载。"
+          "lubimyczytac": "检索波兰语图书目录，补充书籍信息与封面，无需额外配置。",
+          "aladin": "检索韩国 Aladin 图书目录，补充书籍信息与封面，需配置 TTB 密钥。",
+          "douban": "通过豆瓣读书补充图书作者、出版信息、简介与封面。",
+          "fanqie": "检索番茄小说书目，补充书名、作者、简介、分类与封面。",
+          "baiduBaike": "通过百度百科补充图书简介、作者与出版信息。",
+          "qimao": "检索七猫小说书目，补充书名、作者、简介与封面。",
+          "qidian": "检索起点中文网书目，补充书名、作者、简介与封面。"
         },
         "blocked": {
           "google": "Google Books 需要一个 API 密钥才能启用",

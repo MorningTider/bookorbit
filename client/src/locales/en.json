@@ -2015,13 +2015,13 @@
           "librofm": "DRM-free audiobook catalog metadata. Uses an undocumented Libro.fm endpoint and is disabled by default.",
           "comicvine": "Comic book metadata from ComicVine. A free API key is required from comicvine.gamespot.com.",
           "ranobedb": "Japanese light novel metadata from RanobeDB. No setup required.",
-          "lubimyczytac": "Polish book catalog (lubimyczytac.pl). Scrapes public book pages. No setup required.",
-          "aladin": "Korean book metadata from Aladin (알라딘). A TTB Key from aladin.co.kr is required.",
-          "douban": "Search the public Douban book catalog for title, author, year and cover.",
-          "fanqie": "Search the public Fanqie catalog for title, author, description, genre and cover.",
-          "baiduBaike": "Public page metadata. Access challenges are reported as errors. Paid text downloads are not supported.",
-          "qimao": "Public page metadata. Access challenges are reported as errors. Paid text downloads are not supported.",
-          "qidian": "Public page metadata. Access challenges are reported as errors. Paid text downloads are not supported."
+          "lubimyczytac": "Find Polish book metadata and covers. No additional configuration required.",
+          "aladin": "Find Korean book metadata and covers from Aladin. A TTB key is required.",
+          "douban": "Enrich authors, publication details, descriptions and covers from Douban Books.",
+          "fanqie": "Find Fanqie titles, authors, descriptions, genres and covers.",
+          "baiduBaike": "Enrich book descriptions, authors and publication details from Baidu Baike.",
+          "qimao": "Find Qimao titles, authors, descriptions and covers.",
+          "qidian": "Find Qidian titles, authors, descriptions and covers."
         },
         "blocked": {
           "google": "Google Books requires an API key before it can be enabled",

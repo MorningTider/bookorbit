@@ -1,6 +1,12 @@
 const PROVIDER_ICON_BASE_PATH = '/assets/provider-icons'
 
 const PROVIDER_ICON_PATHS = {
+  baiduBaike: `${PROVIDER_ICON_BASE_PATH}/baiduBaike.ico`,
+  qidian: `${PROVIDER_ICON_BASE_PATH}/qidian.ico`,
+  douban: `${PROVIDER_ICON_BASE_PATH}/douban.ico`,
+  qimao: `${PROVIDER_ICON_BASE_PATH}/qimao.ico`,
+  fanqie: `${PROVIDER_ICON_BASE_PATH}/fanqie.png`,
+
   google: `${PROVIDER_ICON_BASE_PATH}/google.svg`,
   goodreads: `${PROVIDER_ICON_BASE_PATH}/goodreads.svg`,
   amazon: `${PROVIDER_ICON_BASE_PATH}/amazon.svg`,
