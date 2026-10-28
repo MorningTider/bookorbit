@@ -272,3 +272,13 @@ probe-installed-native.py 实测9项全部通过：数据库健康、副本11本
 verify-tomato-runtime.py以专用UID217211验证5项全部通过：认证回环状态、仅回环监听、匿名拒绝、普通身份、进程停止，未执行书籍下载，临时数据已清理。首次从/tmp执行被拒绝，改为套件私有临时目录内的同哈希副本进行验证，没有改变系统挂载限制。报告/volume1/@appdata/bookorbit-native/auxiliary-bootstrap.json。下版控制器只自动选择包内bin/tomato-downloader，配置不能替换成任意外部程序；依赖后续SPK升级才会在已安装实例中生效。
 
 本轮控制器策略测试扩为14项，验证器策略4项，候选装配5项，辅助装配4项均通过；公共Redistribution组件审计门槛仍保留。生产Docker依然运行，未修改生产路径或切换生产数据库连接。
+
+## 2026-10-28 DSM 上传升级及升级后服务重启
+
+从已提交的ab717e36构建隔离候选3.5.0-10001，源应用仍来自仓库9c41f580，支持阶段为support-with-auxiliary。SPK SHA256为7c2b476db54575604b0f99ddc1213fec1a502ffde7cc78ee68abb744637919fc，外层INFO的payload MD5校验通过。通过已登录DSM套件中心手动上传并确认升级，由10000升级为10001，没有使用SSH安装套件。
+
+实际安装版本10001、专用UID217211保持不变。配置SHA256在升级前后均为e6fa36e001fa44ba1148257242dd7a4aca97f5edfbe6f871472654365c7c4ce2，升级配置备份与当前配置相同，迁移指纹一致。安装后的控制器SHA256为f16db693916d5727666e61ab2fbe1101f2f8f91e94f93670b0ee1f3aa52cb9ef。原生进程环境已自动选择包内下载助手，并使用包版本隔离的私有Python缓存。
+
+升级后9项只读API验收全部通过。随后通过套件服务控制停止、启动，均返回success=true。重启后的验收扩为10项，新增书源状态接口确认fanqie.configured=true，所有检查通过；同时验证11本复制图书可查询、详情、并行详情、宿主路径Range字节一致、前端、匿名拒绝、专用账号原生进程及8184生产健康。收据位于NAS私有审计目录installed-api-10001.json和installed-api-10001-after-restart.json。验收器从已安装元数据读取版本，避免报告硬编码旧版本。测试令牌只在NAS内存使用。
+
+上述是隔离安装和同schema直接上传升级验收，不是生产替换或整机重启验收。生产仍为Docker r21；本候选productionEnabled=false。后续需完成受保护的生产配置/路径迁移入口、最终停写备份和生产切换，再验收真实访问。完整公开再分发组件审计仍待完成，不能宣布正式公开发行。

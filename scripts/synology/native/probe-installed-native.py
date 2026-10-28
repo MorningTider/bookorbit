@@ -44,6 +44,8 @@ def probe(output):
     assert query['items'],'No representative book'
     book=int(query['items'][0]['id']);status,body,_=request('/books/'+str(book));detail=json.loads(body)
     checks['bookDetail']=status==200 and bool(detail['files'])
+    status,body,_=request('/book-sources/status');sources=json.loads(body)
+    checks['bundledDownloaderConfigured']=status==200 and sources.get('fanqie',{}).get('configured') is True
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         checks['fourParallelDetails']=list(pool.map(lambda _:request('/books/'+str(book))[0],range(4)))==[200]*4
     file=next(f for f in detail['files'] if f.get('format') not in ['mp3','m4a','m4b','flac','ogg','opus','wav'])
@@ -64,7 +66,7 @@ def probe(output):
         except OSError:continue
     checks['dedicatedNativeProcess']=matched==[217211]
     with urllib.request.urlopen('http://127.0.0.1:8184/api/v1/health',timeout=10) as response:checks['productionStillHealthy']=response.status==200 and json.load(response)['status']=='ok'
-    report={'kind':'installed-native-isolated-api','database':database,'packageVersion':'3.5.0-10000','checks':checks,'passed':all(checks.values()),'bookTotal':query['total'],'tokensTransferred':False,'readOnlyApiRequests':True}
+    report={'kind':'installed-native-isolated-api','database':database,'packageVersion':json.loads((root/'acceptance-build.json').read_text())['packageVersion'],'checks':checks,'passed':all(checks.values()),'bookTotal':query['total'],'tokensTransferred':False,'readOnlyApiRequests':True}
     fd=os.open(output,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as target:json.dump(report,target,indent=2)
     print(json.dumps(report))
