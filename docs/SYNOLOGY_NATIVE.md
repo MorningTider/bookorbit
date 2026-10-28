@@ -224,3 +224,15 @@ collect-support-sources.py 通过认证 APT 索引按对应源版本收集169组
 生产切换授权已获得：原生SPK验收完成后，先最终备份再停旧应用容器并启动SPK，保留旧容器和数据。当前尚未执行切换。生产挂载为 /data 对应 /volume1/docker/bookorbit/data/app、/books 对应 /volume1/library（只读）、/books/ebook 对应 /volume1/library/ebook（读写）。原生迁移须处理持久数据库路径和群晖ACL，不能只复制容器环境变量或给整座书库递归放开写权限。DSM套件生命周期、原生PG上的完整应用验收、路径与权限迁移及最终切换仍待完成。
 
 生产只读路径审计发现：book_files.absolute_path 有6468行、books.folder_path 有11行、library_dir_scan_state.dir_path 有14行、library_folders.path 有2行使用 /books 前缀。该查询只返回计数，没有修改记录；正式迁移必须对这些记录和额外JSON配置做完整预检及隔离回放，不能只改11本书的主记录。
+
+## 2026-10-28 生产路径只读审计与原生PG副本事务回放
+
+新增 audit-native-paths.cjs、path-migration-plan.py 与 replay-path-plan.cjs。审计在 REPEATABLE READ、READ ONLY 事务内扫描 public 下573个文本/JSON字段，逐语句设置5秒超时并限制schema规模；JSON中的绝对旧路径会作为未审查字段阻塞，不自动递归替换。scalar记录按完整路径分组，检查目标是否已存在。计划绑定完整审计与精确映射，使用最长路径前缀，拒绝非规范路径、目录边界误匹配、合并碰撞、未知字段、缺失碰撞证据与映射漂移。15项Python测试通过；两份CJS使用ESLint recommended及Node globals检查，无警告，Prettier通过。
+
+实际生产审计完成，6495组匹配均来自四个已审查字段：book_files.absolute_path6468、books.folder_path11、library_dir_scan_state.dir_path14、library_folders.path2，无JSON匹配、未知字段或目标碰撞。审计和计划存于NAS私有目录 /volume1/homes/MorningTider/.bookorbit-native-migration-audit-20261028，未将真实路径快照或凭据传回Mac。映射为 /books 到 /volume1/library、/data 到现有 /volume1/docker/bookorbit/data/app；本轮不迁移存储目录。
+
+通过原生PG套件Admin完成一致备份与独立恢复，测试数据库 bookorbit_spk_pathcheck_20261028a 使用非超级用户、8连接额度。初始直接连接被原生PG按应用隔离规则拒绝，随后仅为该副本角色登记127.0.0.1/32的SCRAM访问；没有新增外部监听，也没有重启数据库。隔离连接凭据仅保留在NAS0600文件，副本及其loopback规则暂为后续原生服务验收保留，完成后需清理测试角色与规则，保留备份。
+
+回放器只接受 bookorbit_spk_pathcheck_ 前缀的数据库身份，先检查 current_database()，再开始事务。每个字段加表锁，使用参数化UNNEST批量更新，逐组核对原计数与目标碰撞，改写后复核，任一步失败则ROLLBACK。实际注入第二组books计数错误，先前book_files更新也完全回滚，全部6495组原路径保留；正确计划全部更新成功，573字段复审旧路径为0；再次执行旧计划被拒绝。回放器另在生产连接上实测于identity阶段拒绝、未开始事务；此检查仅执行数据库身份查询。replay-receipt.json保存副本回放证据。
+
+以原容器UID1026/GID101核验映射后的6468个文件：missing=0、notRegular=0、unreadable=0、outsideLibrary=0，报告host-path-access.json。此结果只证明原容器身份可访问，不能当作新SPK账号的ACL验收。生产8184健康仍status=ok，生产路径未改写，容器未停止。下一步仍需套件生命周期、新账号最小ACL和原生应用在该副本上的整体验证，不能把路径回放通过扩大为SPK可切换。
