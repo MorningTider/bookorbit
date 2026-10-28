@@ -89,6 +89,19 @@ class SourceBuildTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "links are forbidden"):
             source.preload(store, self.root / "bad.tgz", {"preloadPackages": ["fixture@1.0.0"]}, lock)
 
+    def test_dependency_archive_is_stable_across_source_only_commits(self):
+        first = self.root / "first.tar";second = self.root / "second.tar"
+        commit = self.git("rev-parse", "HEAD").decode().strip()
+        source.dependency_archive(self.repo, commit, first)
+        (self.repo / "README.md").write_text("Source-only change")
+        self.commit()
+        source.dependency_archive(self.repo, self.git("rev-parse", "HEAD").decode().strip(), second)
+        self.assertEqual(first.read_bytes(), second.read_bytes())
+        (self.repo / "pnpm-lock.yaml").write_text("changed")
+        self.commit()
+        source.dependency_archive(self.repo, self.git("rev-parse", "HEAD").decode().strip(), second)
+        self.assertNotEqual(first.read_bytes(), second.read_bytes())
+
     def test_plan_records_exact_commit(self):
         report, _ = source.plan(self.repo)
         self.assertEqual(report["sourceCommit"], self.git("rev-parse", "HEAD").decode().strip())
@@ -128,7 +141,7 @@ class SourceBuildTests(unittest.TestCase):
             with tarfile.open(context / "source.tar") as archive:
                 self.assertNotIn(".env", archive.getnames())
                 self.assertNotIn("node_modules/host-native.node", archive.getnames())
-            result = json.loads((context / "source-build.json").read_text());result["sharpNativeCheck"] = True
+            result = json.loads((context / "source-build.json").read_text());result["sharpNativeCheck"] = True;result["workspacePackagesChecked"] = ["@bookorbit/types", "@bookorbit/plugin-api"]
             artifact = context / "artifact";(artifact / "sources").mkdir(parents=True)
             shutil.copyfile(context / "source.tar", artifact / "sources/bookorbit-source.tar")
             (artifact / "source-build.json").write_text(json.dumps(result))

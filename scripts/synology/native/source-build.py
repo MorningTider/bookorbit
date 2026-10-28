@@ -3,6 +3,7 @@
 import argparse
 import base64
 import hashlib
+import io
 import json
 import pathlib
 import re
@@ -38,6 +39,20 @@ def plan(root):
     return {"schemaVersion": 1, "sourceCommit": commit, "buildImage": build["image"],
             "platform": build["platform"], "pnpmVersion": build["pnpm"]["version"],
             "lockfileSha256": digest(root / "pnpm-lock.yaml").hex(), "status": "application-only-not-distributable"}, build
+
+
+def dependency_archive(root, commit, output):
+    paths = subprocess.check_output(["git", "ls-tree", "-r", "-z", "--name-only", commit], cwd=root).decode().split("\0")
+    selected = [name for name in paths if name in {
+        "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs", "pnpmfile.cjs"
+    } or name.startswith("patches/") or re.fullmatch(r"(?:client|server|packages/[^/]+)/package.json", name)]
+    with tarfile.open(output, "w") as tar:
+        for name in sorted(selected):
+            data = subprocess.check_output(["git", "show", commit + ":" + name], cwd=root)
+            entry = tarfile.TarInfo(name)
+            entry.size = len(data)
+            entry.mode = 0o644
+            tar.addfile(entry, io.BytesIO(data))
 
 
 def preload(store, archive, config, lockfile):
@@ -100,11 +115,16 @@ def build(root, output, cache, docker="docker", preload_store=None):
         archive = context / "source.tar"
         subprocess.run(["git", "archive", "--format=tar", "--output=" + str(archive), report["sourceCommit"]], cwd=root, check=True)
         report["sourceArchiveSha256"] = digest(archive).hex()
+        dependency_archive(root, report["sourceCommit"], context / "dependencies.tar")
+        report["dependencyInputsSha256"] = digest(context / "dependencies.tar").hex()
         (context / "source-build.json").write_text(json.dumps(report, indent=2))
         shutil.copyfile(manager, context / "pnpm.tgz")
-        shutil.copyfile(root / "scripts/synology/native/Source.Dockerfile", context / "Dockerfile")
+        (context / "Dockerfile").write_bytes(subprocess.check_output([
+            "git", "show", report["sourceCommit"] + ":scripts/synology/native/Source.Dockerfile"], cwd=root))
         # Export into the private context first; never leave a partial requested output.
-        preload_key = preload(preload_store, context / "preload-store.tgz", config, root / "pnpm-lock.yaml")
+        (context / "locked-pnpm.yaml").write_bytes(subprocess.check_output([
+            "git", "show", report["sourceCommit"] + ":pnpm-lock.yaml"], cwd=root))
+        preload_key = preload(preload_store, context / "preload-store.tgz", config, context / "locked-pnpm.yaml")
         report["preloadCacheKey"] = preload_key
         (context / "source-build.json").write_text(json.dumps(report, indent=2))
         artifact = context / "artifact"
@@ -113,7 +133,8 @@ def build(root, output, cache, docker="docker", preload_store=None):
                         "--build-arg", "STORE_CACHE=bookorbit-native-source-v11-" + preload_key, "--target", "artifact",
                         "--output", "type=local,dest=" + str(artifact), "--progress=plain", str(context)], check=True)
         generated = json.loads((artifact / "source-build.json").read_text())
-        if generated.get("sourceCommit") != report["sourceCommit"] or not generated.get("sharpNativeCheck"):
+        if (generated.get("sourceCommit") != report["sourceCommit"] or not generated.get("sharpNativeCheck")
+                or generated.get("workspacePackagesChecked") != ["@bookorbit/types", "@bookorbit/plugin-api"]):
             raise ValueError("Source build provenance or native dependency check failed")
         if digest(artifact / "sources/bookorbit-source.tar").hex() != report["sourceArchiveSha256"]:
             raise ValueError("Corresponding source archive mismatch")

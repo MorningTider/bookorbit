@@ -8,6 +8,14 @@ const require = createRequire(path.join(app, "package.json"));
 if (process.platform !== "linux" || process.arch !== "x64") {
   throw new Error("Native application assets must be built on Linux x86_64");
 }
+const workspacePackagesChecked = ["@bookorbit/types", "@bookorbit/plugin-api"];
+for (const name of workspacePackagesChecked) {
+  const relative = path.relative(app, fs.realpathSync(require.resolve(name)));
+  if (relative === ".." || relative.startsWith("../") || path.isAbsolute(relative)) {
+    throw new Error(`Workspace package is outside the deploy tree: ${name}`);
+  }
+  require(name);
+}
 const sharp = require("sharp");
 const image = await sharp({
   create: { width: 16, height: 12, channels: 3, background: "#336699" },
@@ -39,7 +47,7 @@ function inspect(directory) {
       const resolved = fs.realpathSync(file);
       const relative = path.relative(app, resolved);
       if (path.isAbsolute(link) || relative === ".." || relative.startsWith("../")) {
-        throw new Error("Non-relocatable dependency link");
+        throw new Error(`Non-relocatable dependency link: ${path.relative(app, file)} -> ${link}`);
       }
     } else if (entry.isDirectory()) {
       inspect(file);
@@ -58,6 +66,7 @@ Object.assign(report, {
   nodeVersion: process.version,
   sharpVersion: sharp.versions.sharp,
   sharpNativeCheck: true,
+  workspacePackagesChecked,
   excludedDevelopmentFiles: excluded.sort(),
 });
 fs.writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`);
