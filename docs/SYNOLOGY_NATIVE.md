@@ -149,3 +149,32 @@ python3 scripts/synology/native/source-build.py \
 ```
 
 构建前只读核对标准v11索引的完整性键和包名，必须与现有锁文件精确一致，拒绝额外包及链接。只归档索引和内容文件，不修改SQLite记录；新的BuildKit缓存初始化后继续由pnpm按frozen-lockfile正常校验和安装。缓存标识绑定这组包的锁值，已有缓存不覆盖。pnpm版本或缓存格式升级须重新验证，不能直接沿用旧格式假设。源码构建测试现为12项。
+
+## 2026-10-28 源码构建实际通过
+
+源码提交9c41f5806489ac513b5c4f708ddf33ca101b33ca的Linux x86_64构建完成，未从生产容器复制程序。前端、后端、共享类型及插件API、冻结生产依赖安装、Sharp生成与读取图片、全部依赖链接的可迁移检查均通过。生产依赖307项全部复用已校验缓存，无重新下载；两个共享模块必须从产物目录内部解析和加载。
+
+pnpm11的legacy deploy内部关闭冻结锁文件，因此正式入口已移除legacy，改用基于现有共享锁的冻结部署路径。依赖输入使用稳定清单归档，源码或文档变更不会迫使依赖层重新安装。Dockerfile和验证用锁文件均从同一个Git提交读取，避免构建时混入随后修改的工作文件。源码构建辅助测试14项通过。
+
+产物位于忽略目录local/synology-native/source-builds/9c41f580，包含source-build.json及对应源码归档。记录值如下：
+
+- pnpm锁文件SHA256：505b9051086f213f801700b2bb0406493ef3a5247c9ee35f8df2a42a62dac303。
+- 对应源码归档SHA256：712c186a6b607280f1a7b5b5c9fbf2291418897ab40fd2e8585439c1b7a670ec。
+- Node26.11.1、Sharp0.35.5，构建镜像摘要86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567。
+
+原生装配入口新增互斥的--source-build选项，检查源码提交、对应源码归档、构建环境和原生验证记录，再装配官方独立Node和libatomic。该路径不调用Docker导出，也不覆盖源码构建产生的Sharp依赖。与原输入契约合计38项测试：14项源码构建、14项装配及10项输入契约。实际装配清单36576项；输出仍标记application-only-not-distributable，媒体、Python、完整许可证材料、生命周期及应用业务验收仍需完成。
+
+```sh
+python3 scripts/synology/native/stage-application-payload.py \
+  --source-build "$PWD/local/synology-native/source-builds/9c41f580" \
+  --materials "$PWD/local/synology-native/cache" \
+  --output "$PWD/local/synology-native/stages/NEW_STAGE"
+```
+
+### 源码装配产物的DSM普通用户复验
+
+通过100.86.77.124连接DSM，以普通用户UID1026解包并运行源码装配产物；本轮没有sudo或root进程。Node26.11.1、Sharp0.35.5、两个共享模块内部解析与加载、16x12 PNG生成和尺寸读取全部通过。源码提交仍为9c41f5806489ac513b5c4f708ddf33ca101b33ca。
+
+群晖验证目录为/volume1/homes/MorningTider/.bookorbit-native-source-9c41f580，报告verification-runtime.json。为本轮普通用户检查传输的运行归档未包含完整对应源码归档，不是可分发SPK；完整对应源码和全文件清单保留在Mac装配目录，正式打包仍需通过组件来源和许可证门槛。运行归档SHA256为17644887e117af72f6767dc12f0ec23ee6cdc4f4ba2b5232f4f0b3b45ae71488，NAS解包前已核对。
+
+本轮只运行模块及图片检查，没有启动新的BookOrbit主服务或访问生产数据库。原生产8184健康检查HTTP200、status=ok。完整媒体/Python运行时、SPK生命周期、实际导入与阅读、数据库恢复演练及DSM安装尚未完成，不扩大为完整原生业务验收。

@@ -100,6 +100,48 @@ class StagingTests(unittest.TestCase):
         self.assertEqual((self.output / "lib/libatomic.so.1").stat().st_mode & 0o777, 0o644)
         self.assertEqual(self.output.stat().st_mode & 0o777, 0o700)
 
+    def source_fixture(self):
+        self.lock["sourceBuild"] = {"image": "node:26@sha256:" + "a" * 64, "pnpm": {"version": "11.22.0"}}
+        build = self.root / "source-build"
+        (build / "app").mkdir(parents=True);(build / "sources").mkdir()
+        (build / "app/compiled.txt").write_text("from source")
+        archive = build / "sources/bookorbit-source.tar";archive.write_bytes(b"source snapshot")
+        record = {"schemaVersion": 1, "platform": "linux/amd64", "nodeVersion": "v26.11.1",
+                  "pnpmVersion": "11.22.0", "buildImage": self.lock["sourceBuild"]["image"],
+                  "sharpNativeCheck": True, "workspacePackagesChecked": ["@bookorbit/types", "@bookorbit/plugin-api"],
+                  "sourceCommit": "c" * 40, "sourceArchiveSha256": stage.sha(archive)}
+        (build / "source-build.json").write_text(json.dumps(record))
+        return build, record
+
+    def test_source_build_does_not_export_container_or_overlay_old_sharp(self):
+        build, _ = self.source_fixture()
+        (self.materials / "sharp-native-probe-20261026.tgz").unlink()
+        stage.stage(None, self.materials, self.output, "docker", build)
+        self.export.assert_not_called();self.inspect.assert_not_called()
+        self.assertEqual((self.output / "app/compiled.txt").read_text(), "from source")
+        report = json.loads(self.output.with_name("payload.inventory.json").read_text())
+        self.assertEqual(report["applicationSource"], "git-source-build")
+        self.assertEqual(report["sourceCommit"], "c" * 40)
+
+    def test_source_archive_tampering_rejected(self):
+        build, _ = self.source_fixture()
+        (build / "sources/bookorbit-source.tar").write_bytes(b"changed")
+        with self.assertRaisesRegex(ValueError, "archive does not match"):
+            stage.stage(None, self.materials, self.output, "docker", build)
+        self.assertFalse(self.output.exists())
+
+    def test_source_build_requires_completed_native_checks(self):
+        build, record = self.source_fixture();record["sharpNativeCheck"] = False
+        (build / "source-build.json").write_text(json.dumps(record))
+        with self.assertRaisesRegex(ValueError, "native checks"):
+            stage.stage(None, self.materials, self.output, "docker", build)
+
+    def test_source_build_environment_must_match_lock(self):
+        build, record = self.source_fixture();record["pnpmVersion"] = "12.0.0"
+        (build / "source-build.json").write_text(json.dumps(record))
+        with self.assertRaisesRegex(ValueError, "environment does not match"):
+            stage.stage(None, self.materials, self.output, "docker", build)
+
     def test_wrong_image_rejected_before_export(self):
         self.inspect.return_value = "sha256:" + "b" * 64
         with self.assertRaisesRegex(ValueError, "source lock"): self.run_stage()
