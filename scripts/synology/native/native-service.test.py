@@ -58,6 +58,28 @@ class ServicePolicyTests(unittest.TestCase):
         second=m.environment(root,self.state,m.configuration(self.state))['PYTHONPYCACHEPREFIX']
         self.assertNotEqual(first,second)
         self.assertTrue(first.startswith(str(self.state/'home/.cache/python')))
+    def production_root(self):
+        root=self.state/'package';root.mkdir()
+        (root/'acceptance-build.json').write_text(json.dumps({'productionEnabled':True}))
+        self.config.update(mode='production',port=8184)
+        self.config['environment']['DATABASE_URL']='postgres://role:pass@127.0.0.1:5433/bookorbit_prod_native'
+        self.save();return root
+    def test_production_requires_package_capability(self):
+        root=self.production_root()
+        (root/'acceptance-build.json').write_text('{"productionEnabled":false}')
+        with self.assertRaisesRegex(ValueError,'does not enable'):m.configuration(self.state,root)
+    def test_production_accepted_only_with_reviewed_identity(self):
+        root=self.production_root()
+        config=m.configuration(self.state,root)
+        self.assertEqual(m.environment(root,self.state,config)['HOST'],'0.0.0.0')
+        self.config['environment']['DATABASE_URL']='postgres://role:pass@127.0.0.1:5433/postgres';self.save()
+        with self.assertRaisesRegex(ValueError,'reviewed production'):m.configuration(self.state,root)
+    def test_production_ports_are_fixed(self):
+        root=self.production_root();self.config['port']=18185;self.save()
+        with self.assertRaisesRegex(ValueError,'reviewed application'):m.configuration(self.state,root)
+    def test_production_rejects_external_database(self):
+        root=self.production_root();self.config['environment']['DATABASE_URL']=self.config['environment']['DATABASE_URL'].replace('127.0.0.1','172.19.0.1');self.save()
+        with self.assertRaisesRegex(ValueError,'loopback'):m.configuration(self.state,root)
     def test_stale_pid_rejected(self):
         (self.state/'service.pid.json').write_text(json.dumps({'pid':os.getpid(),'startTicks':'invalid'}))
         self.assertFalse(m.alive(self.state))

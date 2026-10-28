@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ordinary-account lifecycle for an isolated native BookOrbit candidate."""
+"""Ordinary-account lifecycle for native BookOrbit."""
 import argparse
 import ctypes
 import fcntl
@@ -18,14 +18,18 @@ import urllib.request
 ALLOWED = set('DATABASE_URL JWT_SECRET JWT_EXPIRES_IN JWT_REFRESH_EXPIRES_IN SETUP_BOOTSTRAP_TOKEN PODCAST_ENCRYPTION_KEY BOOK_REQUEST_ENCRYPTION_KEY EMAIL_ENCRYPTION_KEY MIGRATION_ENCRYPTION_KEY DISABLE_LOCAL_AUTH APP_URL CLIENT_URL TZ LOG_LEVEL BOOK_DOCK_PATH LIBRARY_BROWSE_ROOT COVER_SLOTS_BACKFILL_MODE'.split())
 
 
-def configuration(state):
+def configuration(state, root=None):
     path = state / 'service.json'
     info = path.stat()
     if info.st_uid != os.geteuid() or info.st_mode & 0o077 or path.is_symlink():
         raise ValueError('Service configuration must be an owned private regular file')
     value = json.loads(path.read_text())
-    if value.get('schemaVersion') != 1 or value.get('mode') != 'isolated':
-        raise ValueError('Only isolated acceptance is enabled in this candidate')
+    if value.get('schemaVersion') != 1 or value.get('mode') not in ('isolated', 'production'):
+        raise ValueError('A supported service mode is required')
+    production = value['mode'] == 'production'
+    if production:
+        if root is None or json.loads((root/'acceptance-build.json').read_text()).get('productionEnabled') is not True:
+            raise ValueError('This package does not enable production')
     port = value.get('port')
     if isinstance(port, bool) or not isinstance(port, int) or not 1024 < port < 65536:
         raise ValueError('An unprivileged TCP port is required')
@@ -36,8 +40,11 @@ def configuration(state):
         if key not in ALLOWED or not isinstance(item, str) or '\x00' in item:
             raise ValueError('Unsupported service environment entry')
     url = urllib.parse.urlsplit(environment['DATABASE_URL'])
-    if url.scheme not in ('postgres', 'postgresql') or not re.fullmatch(r'/bookorbit_spk_pathcheck_[a-z0-9_]+', url.path):
-        raise ValueError('An isolated database identity is required')
+    pattern = r'/bookorbit(?:_prod[a-z0-9_]*)?' if production else r'/bookorbit_spk_pathcheck_[a-z0-9_]+'
+    if url.scheme not in ('postgres', 'postgresql') or not re.fullmatch(pattern, url.path):
+        raise ValueError('A reviewed production database is required' if production else 'An isolated database identity is required')
+    if production and (port != 8184 or url.port != 5433):
+        raise ValueError('Production requires reviewed application and database ports')
     if url.hostname != '127.0.0.1':
         raise ValueError('Isolation database must use loopback')
     if len(environment['SETUP_BOOTSTRAP_TOKEN']) < 32:
@@ -111,7 +118,7 @@ def environment(root, state, config):
     metadata=root/'acceptance-build.json'
     cache_key=hashlib.sha256(metadata.read_bytes()).hexdigest() if metadata.is_file() else 'unpackaged'
     env = {**config['environment'], 'PATH': str(root / 'bin') + ':/usr/bin:/bin', 'HOME': str(home),
-           'TMPDIR': str(temporary), 'PYTHONPYCACHEPREFIX':str(home/'.cache/python'/cache_key), 'NODE_ENV': 'production', 'HOST': '127.0.0.1', 'PORT': str(config['port']),
+           'TMPDIR': str(temporary), 'PYTHONPYCACHEPREFIX':str(home/'.cache/python'/cache_key), 'NODE_ENV': 'production', 'HOST': '0.0.0.0' if config['mode']=='production' else '127.0.0.1', 'PORT': str(config['port']),
            'APP_DATA_PATH': str(data), 'BOOK_DOCK_PATH': str(data / 'bookdock'), 'LD_LIBRARY_PATH': str(root / 'lib'),
            'FFMPEG_PATH': str(root / 'bin/ffmpeg'), 'FFPROBE_PATH': str(root / 'bin/ffprobe'),
            'KOBO_CLOUDSCRAPER_PYTHON': str(root / 'bin/python3'),
@@ -128,7 +135,7 @@ def child_setup(parent):
 
 
 def supervise(root, state):
-    config = configuration(state)
+    config = configuration(state, root)
     stopped = [False]
     signal.signal(signal.SIGTERM, lambda *_: stopped.__setitem__(0, True))
     signal.signal(signal.SIGINT, lambda *_: stopped.__setitem__(0, True))
@@ -179,14 +186,14 @@ def control(action, root, state):
                 if not alive(state):stop_orphan(root,state);return 0
                 time.sleep(0.25)
             raise RuntimeError('Supervisor did not stop within the deadline')
-        config = configuration(state)
+        config = configuration(state, root)
         if alive(state):return 0 if child_identity(root,state) is not None and healthy(config['port']) else 1
         stop_orphan(root,state)
         # Never mistake another application listening on this port for our service.
         import socket
         with socket.socket() as probe:
             probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            probe.bind(('127.0.0.1', config['port']))
+            probe.bind(('0.0.0.0' if config['mode']=='production' else '127.0.0.1', config['port']))
         (state / 'last-exit.json').unlink(missing_ok=True)
         (state / 'tmp').mkdir(exist_ok=True, mode=0o700)
         log = os.open(str(state / 'supervisor.log'), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
@@ -210,4 +217,4 @@ if __name__ == '__main__':
     root=pathlib.Path(args.root).resolve(strict=True);state=pathlib.Path(args.state).resolve(strict=True)
     if state.stat().st_uid != os.geteuid() or state.stat().st_mode & 0o077:raise SystemExit('Owned private state directory required')
     try:raise SystemExit(control(args.action, root, state))
-    except (OSError, ValueError, RuntimeError):raise SystemExit('Native lifecycle failed; production was not selected by this isolated candidate')
+    except (OSError, ValueError, RuntimeError):raise SystemExit('Native lifecycle failed; inspect private configuration and service logs')

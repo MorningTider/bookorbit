@@ -37,7 +37,18 @@ def member(tar,path,name):
     else:tar.addfile(item)
 
 
-def build(stage,report,output,revision=10000):
+def production_acceptance(path):
+    value=json.loads(pathlib.Path(path).read_text())
+    required={'databaseHealthy','copiedBooksQueryable','bookDetail','bundledDownloaderConfigured','fourParallelDetails','nativeHostPathAndRange','frontendServed','anonymousRejected','dedicatedNativeProcess','productionStillHealthy'}
+    if (value.get('kind')!='installed-native-isolated-api' or value.get('passed') is not True
+        or value.get('packageVersion')!='3.5.0-10001' or value.get('tokensTransferred') is not False
+        or value.get('readOnlyApiRequests') is not True
+        or any(value.get('checks',{}).get(name) is not True for name in required)):
+        raise ValueError('Installed native upgrade acceptance is required for production capability')
+    return digest(pathlib.Path(path))
+
+
+def build(stage,report,output,revision=10000,production_report=None):
     here=pathlib.Path(__file__).resolve().parent
     repo=here.parents[2]
     stage=pathlib.Path(stage).resolve(strict=True);output=pathlib.Path(output).absolute()
@@ -63,6 +74,8 @@ def build(stage,report,output,revision=10000):
     if digest(stage/'bin/node')!=runtime_lock['node']['binarySha256'] or digest(stage/'lib/libatomic.so.1')!=runtime_lock['libatomic']['binarySha256']:raise ValueError('Core runtime identity differs from lock')
     if (stage/'native-service.py').exists() or (stage/'acceptance-build.json').exists():raise ValueError('Reserved lifecycle destination already exists')
     metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packageVersion':'3.5.0-'+str(revision),'payloadInventorySha256':digest(stage.with_name(stage.name+'.inventory.json')),'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
+    if production_report:
+        metadata.update(status='private-production-migration-candidate-not-public-release',productionEnabled=True,installedUpgradeAcceptanceSha256=production_acceptance(production_report))
     with tempfile.TemporaryDirectory(prefix='bookorbit-spk-') as directory:
         work=pathlib.Path(directory);outer=work/'outer';outer.mkdir()
         with (outer/'package.tgz').open('wb') as stream:
@@ -76,16 +89,18 @@ def build(stage,report,output,revision=10000):
         for path in (outer/'scripts').iterdir():path.chmod(0o755)
         version='3.5.0-'+str(revision)
         fields={'package':'bookorbit-native','version':version,'arch':'x86_64','os_min_ver':'7.4.1-90080','displayname':'BookOrbit 原生验收','maintainer':'MorningTider','description':'Private native installation acceptance. Isolated database only. Production mode disabled.','description_chs':'BookOrbit 原生安装验收候选，仅允许隔离数据库，尚未启用生产模式。','thirdparty':'yes','startable':'yes','precheckstartstop':'yes','install_dep_packages':'postgresql18>=18.6-10020','beta':'yes','checksum':hashlib.md5((outer/'package.tgz').read_bytes()).hexdigest()}
+        if production_report:
+            fields.update(displayname='BookOrbit',description='Private native production migration candidate. Requires explicit production configuration.',description_chs='BookOrbit 原生生产迁移候选，需显式生产配置。')
         (outer/'INFO').write_text(''.join(key+'='+json.dumps(value,ensure_ascii=False)+'\n' for key,value in fields.items()))
         for name in ['PACKAGE_ICON.PNG','PACKAGE_ICON_256.PNG']:shutil.copyfile(repo/'docs/images/bookorbit-icon.png',outer/name)
         output.mkdir(parents=True)
         destination=output/('bookorbit-native_x86_64_'+version+'.spk')
         with tarfile.open(destination,'w',format=tarfile.PAX_FORMAT) as tar:
             for path in sorted(outer.rglob('*')):member(tar,path,path.relative_to(outer).as_posix())
-    result={'path':str(destination),'sha256':digest(destination),'status':metadata['status'],'productionEnabled':False}
+    result={'path':str(destination),'sha256':digest(destination),'status':metadata['status'],'productionEnabled':metadata['productionEnabled']}
     (output/'acceptance-build.json').write_text(json.dumps({**metadata,**result},indent=2)+'\n')
     print(json.dumps(result))
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--stage',required=True);parser.add_argument('--lifecycle-report',required=True);parser.add_argument('--output',required=True);parser.add_argument('--revision',type=int,default=10000);a=parser.parse_args();build(a.stage,a.lifecycle_report,a.output,a.revision)
+    parser=argparse.ArgumentParser();parser.add_argument('--stage',required=True);parser.add_argument('--lifecycle-report',required=True);parser.add_argument('--output',required=True);parser.add_argument('--revision',type=int,default=10000);parser.add_argument('--production-acceptance-report');a=parser.parse_args();build(a.stage,a.lifecycle_report,a.output,a.revision,a.production_acceptance_report)
