@@ -178,3 +178,19 @@ python3 scripts/synology/native/stage-application-payload.py \
 群晖验证目录为/volume1/homes/MorningTider/.bookorbit-native-source-9c41f580，报告verification-runtime.json。为本轮普通用户检查传输的运行归档未包含完整对应源码归档，不是可分发SPK；完整对应源码和全文件清单保留在Mac装配目录，正式打包仍需通过组件来源和许可证门槛。运行归档SHA256为17644887e117af72f6767dc12f0ec23ee6cdc4f4ba2b5232f4f0b3b45ae71488，NAS解包前已核对。
 
 本轮只运行模块及图片检查，没有启动新的BookOrbit主服务或访问生产数据库。原生产8184健康检查HTTP200、status=ok。完整媒体/Python运行时、SPK生命周期、实际导入与阅读、数据库恢复演练及DSM安装尚未完成，不扩大为完整原生业务验收。
+
+## 2026-10-28 媒体与 Python 私有运行库候选
+
+新增 Support.Dockerfile、prepare-support.sh、collect-support.py 和 attach-support.py，将 FFmpeg、Poppler、DjVu、中文字体、Python 3.11 及 cloudscraper 依赖收集到独立 support 目录。Docker 仅为 Mac 构建环境，NAS 直接执行 ELF。构建清单记录 Debian 包版本、库哈希、版权与 APT 元数据；对应源码和全部依赖锁定仍需补齐，候选明确禁止作为正式包发布。
+
+DSM 虽报告 glibc 2.36，实际缺少 arc4random 系列符号。仅调整 Expat 仍不能满足其他依赖，因此媒体/Python 使用配套私有 libc 和显式私有加载器。启动器清除继承的 LD_PRELOAD、LD_LIBRARY_PATH，不向主 Node 或系统命令注入私有 libc；Python 子进程重新进入自己的启动器。系统库不做替换。
+
+Poppler 的原始固定数据路径使中文 PDF 无法正确提取文字。构建时从对应 Debian 源码增加 BOOKORBIT_POPPLER_DATADIR 支持，保留原有显式参数和默认路径语义，保存补丁、源码与哈希。验收使用无 ToUnicode 的中文测试 PDF，避免仅用内嵌字符表掩盖缺失 CMap。
+
+本机 Linux 只读、无外网、UID501 六组检查通过：私有运行库符号、AAC 标签与音频、私有中文字体、中文 PDF 提取及渲染、DjVu 文本及解码、Python HTTPS 与子进程。HTTPS 使用临时本地证书及 localhost 解析，不等同于外部书源验收。共53项辅助单元测试通过，临时样本自动删除。NAS 候选归档 SHA256：6c61df76ad7ccd3b7bd864caddf170d593bd2f716b9950740520601d41d3041e，上传后已核对一致。
+
+### DSM 私有运行库实际验收
+
+普通用户 UID1026 在 /volume1/homes/MorningTider/.bookorbit-native-private-libc-9c41f580 执行相同六组检查全部通过。verification-support.json 记录 missingRuntimeSymbols 为空、实际加载器位于候选 support/private-lib、Python 子进程入口为候选 bin/python3；Python3.11.2、OpenSSL3.0.22、cryptography50.0.2。临时证书和样本已删除。生产8184健康检查 status=ok、database=up。
+
+本轮验证仅覆盖合成媒体与运行库，不代表完整 BookOrbit 业务或 SPK 验收。仍需锁定 APT/Python 全部输入、补齐组件对应源码、实现安装升级与权限脚本，完成独立数据库上的导入、阅读、任务恢复及 DSM 套件验收后再切换生产。
