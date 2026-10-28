@@ -326,3 +326,13 @@ audit-release-gaps.py只盘点许可证证据，不自动作法律许可判断�
 已从npm精确版本元数据定位上游提交，取得Drizzle0.45.4与@nodable/entities3.1.0许可证、sharp-libvips1.3.4对应提交的第三方声明，以及9c41f580中的BookOrbit仓库许可证。release-notice-lock.json固定5个组件证据的来源/提交/SHA256，collect-reviewed-notices.py实际收集5项并逐项校验通过。sharp构建仓库Apache许可证不能代替所含库的许可证。
 
 collect-sharp-sources.py按已安装versions.json和固定sharp配方收集28个库的源码归档，28/28下载完成并验证可识别为tar归档，保留来源与内容哈希；不执行远程配方，限定并发、大小与时长，解析保护测试5项通过。收据位于local/synology-native/release-evidence/sharp-sources/receipt.json。独立上游校验值、补丁身份及递归依赖/版权审查尚未完成，不能把28/28下载成功写成公开发行已批准。abstract-logging作者许可证端点503、boolbase1.0.0没有发行标签，未把新提交许可证冒充旧版本证据。上述材料保留，用户反馈的全前端漏译正在优先修复。
+
+## 2026-10-29 当前10006发行材料复核
+
+以auxiliary-0ded7f49实际payload重新盘点，754个npm包实例，14个实例缺包内完整许可文本，仍涉及7个组件。固定上游材料不能改变包内缺失计数，应与外部补充材料分别记录。
+
+boolbase1.0.0补齐上游2015-10-14追加的ISC文本，固定提交be0bcd8a4e917a0a5895e95b523fbbed05a64871，许可SHA256 cdf4d87ae0a6c160227263bf4e39a0a10e30e89ae7256e0f7ac7bde0836552c6。2014初始提交9837d5bf4f30390ac6384a6bc605ca2d69ade4bf、追加许可提交及实际安装版本的index.js字节完全一致，SHA256 c62510fca8738c7444cdf5012bdd0ce214a1b6f7eaff7facb3a919e4656d7341。该证据是上游补充许可且代码未变，不冒称1.0.0压缩包原带LICENSE。release-notice-lock.json已记录区别，六项固定材料全部重新下载并核验通过，收据local/synology-native/release-evidence/notices-six-20261029/receipt.json。
+
+abstract-logging2.0.1固定提交80dfaef91ee87008f4ed2b6e78921d383bccd406没有LICENSE，Readme.md链接原作者MIT许可站。固定README与实际安装文件一致，SHA256 e1a86711fb5055c0e66901276b7d2c843554bf5f1dab218c069c8b9d17148e81。作者HTTPS页面本轮已成功访问，保存原HTML及SHA256 0315813ad87e9e4338ff5c9494ef2d6663be85703d032bee2fa35bcd605340bc；页面显示动态2026版权年份，作为作者链接证据单独保留，未冒充2020固定发行材料。目录local/synology-native/release-evidence/abstract-logging-author-20261029。
+
+公开发行仍需完成abstract-logging固定许可材料复核、sharp对应源码独立校验及补丁/依赖审查，以及全部payload组件绑定。没有改变线上服务或移除Beta标识。

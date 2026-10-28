@@ -44,6 +44,18 @@
       "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
       "evidenceKind": "workspace-source-license",
       "notSourceCompletenessApproval": true
+    },
+    {
+      "component": "boolbase",
+      "version": "1.0.0",
+      "commit": "be0bcd8a4e917a0a5895e95b523fbbed05a64871",
+      "url": "https://raw.githubusercontent.com/fb55/boolbase/be0bcd8a4e917a0a5895e95b523fbbed05a64871/LICENSE",
+      "sha256": "cdf4d87ae0a6c160227263bf4e39a0a10e30e89ae7256e0f7ac7bde0836552c6",
+      "evidenceKind": "upstream-added-license-with-identical-release-code",
+      "releaseSourceCommit": "9837d5bf4f30390ac6384a6bc605ca2d69ade4bf",
+      "releaseCodeFile": "index.js",
+      "releaseCodeSha256": "c62510fca8738c7444cdf5012bdd0ce214a1b6f7eaff7facb3a919e4656d7341",
+      "notSourceCompletenessApproval": true
     }
   ]
 }
