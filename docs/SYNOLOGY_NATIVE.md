@@ -312,3 +312,9 @@ DSM已由10001升级10002，程序来自仓库源码9c41f580，打包提交2e953
 166张public表的行数比对中164张完全一致，book_files6468、books11。auth_sessions由7到6、refresh_tokens由165到117；逐条ID比对确认缺失的1个会话及48个刷新令牌全部已过期，缺失有效记录0。该变化符合server/src/modules/seed/cleanup.service.ts启动时清理过期认证记录的逻辑，不能宣称166表数量逐项完全相同。比较收据data-comparison.json保存在私有切换目录。
 
 真实浏览器通过100.86.77.124:8184与https://jch2w.com:8926访问原生服务，返回200并渲染“登录 · BookOrbit”页面；生产令牌仅在NAS内存使用，没有转移到Mac。后续公开组件审计、正式包与整机重启验收仍应分别处理；Android实机与七猫正文边界不因此完成。
+
+## 2026-10-28 正式发行证据缺口清单
+
+audit-release-gaps.py只盘点许可证证据，不自动作法律许可判断。对10002支持阶段盘点754个npm包实例，5个实例缺声明（passport-strategy、pause），26个实例未找到包根目录许可证或NOTICE；计数包含多依赖实例，不等于独立组件数量。清单包括BookOrbit两个工作区包、sharp-libvips及若干小依赖。根目录未发现不代表上游没有许可，仍需核对嵌套版权文件和对应源码材料。完整报告位于忽略的local/synology-native/reports/release-gaps-10002.json。
+
+正式公开发行仍须补齐逐组件许可文本、必要对应源码，并将全部payload文件绑定到已审查组件后通过payload-contract。不能用package.json的license字段代替完整审计。本轮仅新增审计工具与记录，未改现网服务或重启NAS。
