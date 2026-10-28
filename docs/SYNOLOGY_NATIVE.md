@@ -346,3 +346,19 @@ abstract-logging2.0.1固定提交80dfaef91ee87008f4ed2b6e78921d383bccd406没有L
 应用继续使用0ded7f49构建产物，本次仅更新包内控制器。SPK3.5.0-10007，SHA256 178e8b41a7197e707216b536b740eee4c687d607411f47a85013d6aec067f52e。配置备份及完整PG备份核验通过，升级审计目录/volume1/database/pg/backups/bookorbit-spk-upgrade-10007-20261029，PG备份/volume1/database/pg/backups/logical-20261028T205419Z-89c790c1。
 
 DSM从10006升级10007成功，日志04:59:12开始启动，04:59:27启动返回0，实际约15秒，synopkg status为running。已安装控制器指纹与上述收据相同；配置SHA256 e7a939f13b786ea0819172f7ea77f0687f6574549de307604e05738768303a32保持不变。12项生产API全部通过，11本图书可查、详情并发和文件Range正常，收据production-api-10007.json位于NAS私有升级目录。真实公网前端5个图标解码和19项说明验收通过，接口数据为合成，报告local/synology-native/reports/browser-provider-branding-10007-public.json。未重启NAS；十分钟仍是有界上限，不承诺任意存储故障都能成功启动。公开发行组件审查仍未完成，保留Beta。
+
+## 2026-10-29 Sharp来源及构建材料核对完成一轮
+
+新增verify-sharp-sources.py与sharp-source-evidence-lock.json，固定28个归档、构建配方/版本清单摘要、不可变提交/发布资产身份及3个外部补丁。校验器只读取归档，不执行第三方配方或源码；验证文件内容、类型与执行位，不把完整性盘点自动变成公开发行许可。上游身份或归档变化须更新锁并重新复核。
+
+最终锁定收据local/synology-native/release-evidence/sharp-upstream-locked-20261029/receipt.json：28项都有上游对照，其中14项匹配官方SHA256/SHA512，12项匹配固定GitHub/GitLab提交的Git对象，2项仅匹配官方Google对象的尺寸及MD5。这2项明确记录weakChecksumAlgorithm=MD5、strongIndependentChecksumVerified=false，不计入强摘要14项。
+
+TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF；仅在已核对的根.gitattributes明确声明对应文件为text/eol=crlf、没有未知子目录覆盖且还原后Git对象完全一致时接受，并记录转换。没有一概忽略空白或换行变化。完整与截断Git树、路径逃逸、内容篡改、执行位、符号链接、分页、摘要歧义、弱校验、属性覆盖及锁漂移17项测试通过；全部原生Python回归168项通过。
+
+另外补齐zlib-ng、mozjpeg及fontconfig导出归档省略的57个文件，每个文件与固定提交Git对象一致，存于sharp-export-supplements-20261029。sharp-libvips构建仓库ebb95f8add54eee8bed840e3fb587e4cbec857d7完整归档63个Git文件全部核对，SHA256 65fdb633c2d97626352a3771b7a0ce30b6a89af03d2a1238491c8b068e6b8dad，配方与最初收集来源时使用的posix.sh完全一致。
+
+构建仓库引用的GLib、mozjpeg、librsvg三项固定补丁已保存并记录SHA256；对7、9、4个原始文件执行git apply --check全部成功，未实际应用或执行补丁。三项摘要保存在sharp-source-evidence-lock.json，实际材料与dry-run-receipt.json位于sharp-patches-20261029。
+
+后续公开再分发审查仍应覆盖librsvg配方中的cargo update --workspace所涉及实际Rust依赖、相应声明及整个payload组件绑定；当前资料不能直接声称公开发行已批准。公开发行准备与用户群晖自用的运行验收分开记录。上述工作仅在Mac收集材料与运行测试，没有重新打包或改动线上10007。
+
+复核入口：python3 scripts/synology/native/verify-sharp-sources.py --receipt ACQUISITION_RECEIPT --output NEW_OUTPUT_DIRECTORY；默认读取同目录sharp-source-evidence-lock.json，必要时用--lock显式指定审查版本。输出目录必须全新，失败项保留原因，不静默改写原有归档或批准状态。
