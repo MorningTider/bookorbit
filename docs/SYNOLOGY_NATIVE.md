@@ -353,7 +353,7 @@ DSM从10006升级10007成功，日志04:59:12开始启动，04:59:27启动返回
 
 最终锁定收据local/synology-native/release-evidence/sharp-upstream-locked-20261029/receipt.json：28项都有上游对照，其中14项匹配官方SHA256/SHA512，12项匹配固定GitHub/GitLab提交的Git对象，2项仅匹配官方Google对象的尺寸及MD5。这2项明确记录weakChecksumAlgorithm=MD5、strongIndependentChecksumVerified=false，不计入强摘要14项。
 
-TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF；仅在已核对的根.gitattributes明确声明对应文件为text/eol=crlf、没有未知子目录覆盖且还原后Git对象完全一致时接受，并记录转换。没有一概忽略空白或换行变化。完整与截断Git树、路径逃逸、内容篡改、执行位、符号链接、分页、摘要歧义、弱校验、属性覆盖及锁漂移17项测试通过；全部原生Python回归168项通过。
+TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF；仅在已核对的根.gitattributes明确声明对应文件为text/eol=crlf、没有未知子目录覆盖且还原后Git对象完全一致时接受，并记录转换。没有一概忽略空白或换行变化。完整与截断Git树、路径逃逸、内容篡改、执行位、符号链接、分页、摘要歧义、弱校验、属性覆盖及锁漂移、空证据拒绝与失败CLI退出19项测试通过；全部原生Python回归170项通过。
 
 另外补齐zlib-ng、mozjpeg及fontconfig导出归档省略的57个文件，每个文件与固定提交Git对象一致，存于sharp-export-supplements-20261029。sharp-libvips构建仓库ebb95f8add54eee8bed840e3fb587e4cbec857d7完整归档63个Git文件全部核对，SHA256 65fdb633c2d97626352a3771b7a0ce30b6a89af03d2a1238491c8b068e6b8dad，配方与最初收集来源时使用的posix.sh完全一致。
 
@@ -362,3 +362,5 @@ TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF
 后续公开再分发审查仍应覆盖librsvg配方中的cargo update --workspace所涉及实际Rust依赖、相应声明及整个payload组件绑定；当前资料不能直接声称公开发行已批准。公开发行准备与用户群晖自用的运行验收分开记录。上述工作仅在Mac收集材料与运行测试，没有重新打包或改动线上10007。
 
 复核入口：python3 scripts/synology/native/verify-sharp-sources.py --receipt ACQUISITION_RECEIPT --output NEW_OUTPUT_DIRECTORY；默认读取同目录sharp-source-evidence-lock.json，必要时用--lock显式指定审查版本。输出目录必须全新，失败项保留原因，不静默改写原有归档或批准状态。
+
+来源验证器退出语义补充：存在未核对通过的来源时返回非零退出码，同时保留详细失败收据；不接受空来源集合。此前28项上游对照的结果不因此改写，公开批准字段仍为false。

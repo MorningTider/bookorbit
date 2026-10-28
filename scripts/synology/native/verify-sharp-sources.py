@@ -202,7 +202,7 @@ def validate_lock(report,lock):
         raise ValueError('Acquisition recipe or installed versions differ from reviewed lock')
     expected={x['name']:(x['url'],x['sha256']) for x in lock['sourceArchives']}
     actual={x['name']:(x['url'],x['sha256']) for x in report['archives']}
-    if len(expected)!=len(lock['sourceArchives']) or len(actual)!=len(report['archives']) or expected!=actual:
+    if not expected or len(expected)!=len(lock['sourceArchives']) or len(actual)!=len(report['archives']) or expected!=actual:
         raise ValueError('Source acquisition differs from reviewed lock')
 
 
@@ -229,7 +229,8 @@ def verify(receipt,output,lock_path=None):
              'remaining':['Review patches, omitted files and recursive build dependencies','Bind source and license evidence to all installed payload components']}
     (output/'receipt.json').write_text(json.dumps(summary,indent=2)+'\n')
     print(json.dumps({k:v for k,v in summary.items() if k!='archives'}))
+    return summary
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--receipt',required=True);p.add_argument('--output',required=True);p.add_argument('--lock');a=p.parse_args();verify(a.receipt,a.output,a.lock)
+    p=argparse.ArgumentParser();p.add_argument('--receipt',required=True);p.add_argument('--output',required=True);p.add_argument('--lock');a=p.parse_args();result=verify(a.receipt,a.output,a.lock);raise SystemExit(0 if result['upstreamIdentityVerified']==result['sources'] else 1)

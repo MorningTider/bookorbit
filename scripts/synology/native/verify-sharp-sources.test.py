@@ -110,5 +110,20 @@ class SourceIdentityTests(unittest.TestCase):
         lock={'schemaVersion':1,'recipeSha256':'recipe','versionsSha256':'versions','sourceArchives':[row]}
         with self.assertRaisesRegex(ValueError,'reviewed lock'):m.validate_lock(report,lock)
 
+    def test_empty_evidence_cannot_pass(self):
+        report={'recipeSha256':'r','versionsSha256':'v','archives':[]}
+        lock={'schemaVersion':1,'recipeSha256':'r','versionsSha256':'v','sourceArchives':[]}
+        with self.assertRaisesRegex(ValueError,'reviewed lock'):m.validate_lock(report,lock)
+    def test_cli_returns_failure_and_preserves_incomplete_report(self):
+        import json,subprocess,sys
+        source=self.archive.parent/'unknown.source';source.write_bytes(b'source')
+        row={'name':'unknown','path':source.name,'url':'https://example.org/unknown.tar.gz','sha256':hashlib.sha256(b'source').hexdigest()}
+        receipt=self.archive.parent/'receipt.json';receipt.write_text(json.dumps({'kind':'sharp-source-acquisition','allArchivesCollected':True,'recipeSha256':'r','versionsSha256':'v','archives':[row]}))
+        lock=self.archive.parent/'lock.json';lock.write_text(json.dumps({'schemaVersion':1,'recipeSha256':'r','versionsSha256':'v','sourceArchives':[row]}))
+        output=self.archive.parent/'result'
+        result=subprocess.run([sys.executable,str(pathlib.Path(m.__file__).resolve()),'--receipt',str(receipt),'--lock',str(lock),'--output',str(output)],capture_output=True,timeout=10)
+        self.assertEqual(result.returncode,1)
+        self.assertEqual(json.loads((output/'receipt.json').read_text())['upstreamIdentityVerified'],0)
+
 
 if __name__=='__main__':unittest.main()
