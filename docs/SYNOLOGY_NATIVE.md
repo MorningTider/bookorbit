@@ -248,3 +248,27 @@ NAS普通用户UID1026用已验证候选Node重复8项检查全部通过，未�
 spk/脚本使用专用bookorbit-native账号，不执行Docker。初次安装只初始化私有目录和无真实凭据的配置样例；管理员需将已准备的隔离连接配置交给该账号。升级先备份配置和旧迁移指纹，再停服务；postupgrade拒绝未经验证的数据库迁移变化，保留持久目录。上述升级脚本尚需通过DSM实际验收，不能声明一键升级完成。Supervisor本身被SIGKILL时的孤儿恢复尚未验收，正式发布前仍需覆盖。
 
 build-acceptance-spk.py 是私有安装验收入口，严格验证现有源码/支持组件文件清单、核心文件、专用账号、匹配的控制器进程测试哈希，并要求代码已提交。只生成Beta隔离安装候选，productionEnabled=false。正式可分发构建仍须通过原有payload-contract完整组件审计；本入口不宣布该门槛已通过。候选装配测试5项通过。专用账号ACL、原生PG上的完整服务、DSM安装/升级与生产切换仍未完成。
+
+## 2026-10-28 DSM初次安装、专用账号及原生应用实际运行
+
+已从已提交的3667baa0构建并经DSM套件中心安装bookorbit-native3.5.0-10000隔离Beta，SPK SHA256为074830e72c0af88ccb3be2bf2b2be8d7ca3166c3a18d2c2525bfef423b315851。归档42783项，DSM包校验MD5一致，Node、主程序、前端和控制器哈希与输入一致，专用账号配置无root覆盖。安装时关闭自动启动，后续配置就绪才启动；程序直接运行于/volume1/@appstore/bookorbit-native。
+
+DSM创建bookorbit-native UID/GID217211，附加synopkgs组。安装后的状态目录/volume1/@appdata/bookorbit-native归该账号所有、权限0700。给/volume1/library新增该账号的只读继承ACE，修改前ACL保留在NAS私有审计目录acl-library-before.txt；没有递归放开写权限，也未修改其他账号ACE。专用账号实测6468个文件全部存在、可读、不可写、无路径越界。隔离连接和随机JWT密钥保存在该账号0600的service.json；生产应用数据228K复制至独立data目录，原数据不变。
+
+首次启动因隔离配置漏SETUP_BOOTSTRAP_TOKEN而失败，已补独立随机值，控制器和样例增加提前检查，避免重复等待启动超时。修正后通过DSM服务控制启动成功。原生PG隔离角色连接额度由路径回放时的8调整为24，匹配应用最大20连接池；原生PG全局40连接不变，调整前观测总连接13。角色仅允许127.0.0.1/32的认证访问，没有开放外部地址。
+
+probe-installed-native.py 实测9项全部通过：数据库健康、副本11本书查询、详情、4个并发详情、原生主机路径的Range内容与磁盘字节一致、前端、匿名拒绝、专用UID217211的原生Node进程、生产8184健康。测试JWT仅在NAS内存使用，没有传回Mac；结果保存私有审计目录installed-api.json。DSM内核未提供/proc/PID/task/PID/children，验收器改用/proc/stat的PPID识别，避免把内核接口缺失误报为服务故障。
+
+专用账号的媒体首轮在40秒测试预算下有音频和Python组合超时，ABI、字体、PDF、DjVu通过；后续单独诊断工具可正常启动。改用显式120秒的有界预算、私有临时Python字节码缓存并记录耗时后六组全部通过：4.11/20.69/2.21/8.90/0.61/8.58秒，报告media-acceptance-cached.json。网络请求自身5秒超时不变；这不代表冷启动性能已优化完成。控制器新增按包元数据哈希隔离的持久私有Python缓存，避免只读安装目录不能写pyc及跨版本缓存误用。
+
+异常恢复补测发现启动就绪与子进程记录写入之间有时序窗口。控制器现在要求可信子进程身份和HTTP健康同时就绪，并在exec前设置父进程死亡信号、重置信号处理器。最新控制器在NAS普通账号完成9项，包括管理进程SIGKILL后的回收及再次启动，全部通过；新收据cache-helper-controller.json绑定f16db693916d5727666e61ab2fbe1101f2f8f91e94f93670b0ee1f3aa52cb9ef。旧失败合成测试留下的一个已删除目录中的测试Node已按专用测试目录、UID1026、PID组与exe/cwd联合限定清理，生产UID217211未选中。生产中安装的10000控制器仍为前一版，修正将通过下次SPK升级交付。
+
+新增verify-native-upgrade.py合成验证5项通过：私有配置备份、同schema接受、未知schema变化拒绝、数据/配置保留、缺少证据拒绝。仍需实际DSM上传升级确认。下一候选INFO增加postgresql18>=18.6-10020依赖；[Synology SDK说明](https://help.synology.com/developer-guide/synology_package/INFO_optional_fields.html)该字段同时影响包启停顺序。未重启NAS，不能声称已完成整机重启验收。
+
+## 2026-10-28 原生下载辅助程序
+
+官方GitHub网页资产与资产API下载均发生超时，未接受不完整文件。随后从历史部署材料bookorbit-release-20261023.tar.gz的独立tomato-downloader条目取得发行件，10469040字节、SHA256 d9db872448e3cda78a18eaa3c7ee162ce631251ed51eb789f8e6676abe118722，与现有代码和官方v2.4.15固定值完全一致；作为可追溯缓存，不替换BookOrbit仓库源码构建。通过既有安装器再次校验并连同MIT/NOTICE纳入全新support-with-auxiliary阶段，39206项，旧阶段保持不变。运行锁记录版本、URL、提交与版权文本哈希；装配器拒绝改动、错误架构及链接，4项测试通过。
+
+verify-tomato-runtime.py以专用UID217211验证5项全部通过：认证回环状态、仅回环监听、匿名拒绝、普通身份、进程停止，未执行书籍下载，临时数据已清理。首次从/tmp执行被拒绝，改为套件私有临时目录内的同哈希副本进行验证，没有改变系统挂载限制。报告/volume1/@appdata/bookorbit-native/auxiliary-bootstrap.json。下版控制器只自动选择包内bin/tomato-downloader，配置不能替换成任意外部程序；依赖后续SPK升级才会在已安装实例中生效。
+
+本轮控制器策略测试扩为14项，验证器策略4项，候选装配5项，辅助装配4项均通过；公共Redistribution组件审计门槛仍保留。生产Docker依然运行，未修改生产路径或切换生产数据库连接。

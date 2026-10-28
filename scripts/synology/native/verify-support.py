@@ -10,6 +10,7 @@ import subprocess
 import ssl
 import tempfile
 import threading
+import time
 import wave
 
 
@@ -31,18 +32,19 @@ def chinese_pdf():
     return bytes(data), text
 
 
-def verify(candidate, output, work_parent):
+def verify(candidate, output, work_parent, tool_timeout=40):
+    if not 10<=tool_timeout<=180:raise ValueError('Bounded tool timeout required')
     if os.geteuid() == 0: raise ValueError("Support acceptance must run as an ordinary user")
     candidate = pathlib.Path(candidate).resolve(strict=True);output = pathlib.Path(output).absolute()
     if output.exists() or output.is_symlink(): raise ValueError("Report must be new")
-    report = {"uid": os.geteuid(), "checks": {}, "kind": "synthetic-support-runtime"}
+    report = {"uid": os.geteuid(), "checks": {}, "kind": "synthetic-support-runtime", "toolTimeoutSeconds":tool_timeout}
     with tempfile.TemporaryDirectory(prefix="bookorbit-support-check-", dir=work_parent) as temporary:
         work = pathlib.Path(temporary)
         environment = {"PATH": str(candidate / "bin") + ":/usr/bin:/bin", "HOME": str(work), "LANG": "C.UTF-8",
-                       "XDG_CACHE_HOME": str(work / "cache"), "LD_LIBRARY_PATH": str(candidate / "lib")}
+                       "TMPDIR":str(work), "PYTHONPYCACHEPREFIX":str(work/"python-cache"), "XDG_CACHE_HOME": str(work / "cache"), "LD_LIBRARY_PATH": str(candidate / "lib")}
         def run(tool, arguments, cwd=None):
             result = subprocess.run([str(candidate / "bin" / tool)] + arguments, cwd=str(cwd or work), env=environment,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=40)
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=tool_timeout)
             if result.returncode: raise RuntimeError(tool + ": " + result.stderr.decode(errors="replace")[-500:])
             return result.stdout
         def runtime_abi():
@@ -99,8 +101,10 @@ def verify(candidate, output, work_parent):
                 finally: server.shutdown();thread.join(timeout=2)
         for name, operation in [("privateLibcAbi", runtime_abi), ("audioTagsEncodeProbe", audio), ("privateCjkFonts", fonts), ("chinesePdfTextAndRender", pdf),
                                 ("djvuTextAndDecode", djvu), ("pythonTlsCloudscraperAndChild", python)]:
+            started=time.monotonic()
             try: operation();report["checks"][name] = {"passed": True}
             except Exception as error: report["checks"][name] = {"passed": False, "errorClass": type(error).__name__, "error": str(error)[:700]}
+            report["checks"][name]["durationSeconds"]=round(time.monotonic()-started,2)
             print(name, report["checks"][name]["passed"], flush=True)
     report["temporarySamplesRemoved"] = not pathlib.Path(temporary).exists()
     report["passed"] = all(item["passed"] for item in report["checks"].values()) and report["temporarySamplesRemoved"]
@@ -111,5 +115,5 @@ def verify(candidate, output, work_parent):
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser();p.add_argument("--candidate", required=True);p.add_argument("--output", required=True);p.add_argument("--work-parent", required=True)
-    a = p.parse_args();raise SystemExit(0 if verify(a.candidate, a.output, a.work_parent)["passed"] else 1)
+    p = argparse.ArgumentParser();p.add_argument("--candidate", required=True);p.add_argument("--output", required=True);p.add_argument("--work-parent", required=True);p.add_argument("--tool-timeout",type=int,default=40)
+    a = p.parse_args();raise SystemExit(0 if verify(a.candidate, a.output, a.work_parent,a.tool_timeout)["passed"] else 1)

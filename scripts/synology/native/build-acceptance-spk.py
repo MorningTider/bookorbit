@@ -59,8 +59,10 @@ def build(stage,report,output,revision=10000):
     if not source.get('sharpNativeCheck'):raise ValueError('Verified source build required')
     for name in module.REQUIRED:
         if not (stage/name).is_file():raise ValueError('Missing application input')
+    runtime_lock=json.loads((here/'runtime-source-lock.json').read_text())
+    if digest(stage/'bin/node')!=runtime_lock['node']['binarySha256'] or digest(stage/'lib/libatomic.so.1')!=runtime_lock['libatomic']['binarySha256']:raise ValueError('Core runtime identity differs from lock')
     if (stage/'native-service.py').exists() or (stage/'acceptance-build.json').exists():raise ValueError('Reserved lifecycle destination already exists')
-    metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
+    metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packageVersion':'3.5.0-'+str(revision),'payloadInventorySha256':digest(stage.with_name(stage.name+'.inventory.json')),'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
     with tempfile.TemporaryDirectory(prefix='bookorbit-spk-') as directory:
         work=pathlib.Path(directory);outer=work/'outer';outer.mkdir()
         with (outer/'package.tgz').open('wb') as stream:
@@ -73,7 +75,7 @@ def build(stage,report,output,revision=10000):
         shutil.copytree(here/'spk/conf',outer/'conf');shutil.copytree(here/'spk/scripts',outer/'scripts')
         for path in (outer/'scripts').iterdir():path.chmod(0o755)
         version='3.5.0-'+str(revision)
-        fields={'package':'bookorbit-native','version':version,'arch':'x86_64','os_min_ver':'7.4.1-90080','displayname':'BookOrbit 原生验收','maintainer':'MorningTider','description':'Private native installation acceptance. Isolated database only. Production mode disabled.','description_chs':'BookOrbit 原生安装验收候选，仅允许隔离数据库，尚未启用生产模式。','thirdparty':'yes','startable':'yes','precheckstartstop':'yes','beta':'yes','checksum':hashlib.md5((outer/'package.tgz').read_bytes()).hexdigest()}
+        fields={'package':'bookorbit-native','version':version,'arch':'x86_64','os_min_ver':'7.4.1-90080','displayname':'BookOrbit 原生验收','maintainer':'MorningTider','description':'Private native installation acceptance. Isolated database only. Production mode disabled.','description_chs':'BookOrbit 原生安装验收候选，仅允许隔离数据库，尚未启用生产模式。','thirdparty':'yes','startable':'yes','precheckstartstop':'yes','install_dep_packages':'postgresql18>=18.6-10020','beta':'yes','checksum':hashlib.md5((outer/'package.tgz').read_bytes()).hexdigest()}
         (outer/'INFO').write_text(''.join(key+'='+json.dumps(value,ensure_ascii=False)+'\n' for key,value in fields.items()))
         for name in ['PACKAGE_ICON.PNG','PACKAGE_ICON_256.PNG']:shutil.copyfile(repo/'docs/images/bookorbit-icon.png',outer/name)
         output.mkdir(parents=True)

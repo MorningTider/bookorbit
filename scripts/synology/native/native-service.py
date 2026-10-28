@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Ordinary-account lifecycle for an isolated native BookOrbit candidate."""
 import argparse
+import ctypes
 import fcntl
+import hashlib
 import json
 import os
 import pathlib
@@ -28,7 +30,7 @@ def configuration(state):
     if isinstance(port, bool) or not isinstance(port, int) or not 1024 < port < 65536:
         raise ValueError('An unprivileged TCP port is required')
     environment = value.get('environment', {})
-    if not isinstance(environment, dict) or not {'DATABASE_URL', 'JWT_SECRET'} <= environment.keys():
+    if not isinstance(environment, dict) or not {'DATABASE_URL', 'JWT_SECRET', 'SETUP_BOOTSTRAP_TOKEN'} <= environment.keys():
         raise ValueError('Database and authentication configuration required')
     for key, item in environment.items():
         if key not in ALLOWED or not isinstance(item, str) or '\x00' in item:
@@ -38,6 +40,8 @@ def configuration(state):
         raise ValueError('An isolated database identity is required')
     if url.hostname != '127.0.0.1':
         raise ValueError('Isolation database must use loopback')
+    if len(environment['SETUP_BOOTSTRAP_TOKEN']) < 32:
+        raise ValueError('Use a strong isolated setup bootstrap token')
     if len(environment['JWT_SECRET']) < 32:
         raise ValueError('Use a strong isolated signing key')
     return value
@@ -72,17 +76,55 @@ def alive(state):
     except (OSError, ValueError, KeyError, TypeError):return False
 
 
+def child_identity(root, state):
+    try:
+        value=json.loads((state/'child.pid.json').read_text());pid=value['pid']
+        if not isinstance(pid,int) or pid<2:return None
+        proc=pathlib.Path('/proc')/str(pid)
+        if proc.stat().st_uid!=os.geteuid() or ticks(pid)!=value['startTicks']:return None
+        if (proc/'exe').resolve(strict=True)!=(root/'bin/node').resolve(strict=True):return None
+        if (proc/'cwd').resolve(strict=True)!=(root/'app').resolve(strict=True):return None
+        if b'dist/main.js' not in (proc/'cmdline').read_bytes().split(b'\0') or os.getpgid(pid)!=pid:return None
+        return pid
+    except (OSError,ValueError,KeyError,TypeError):return None
+
+
+def stop_orphan(root, state):
+    pid=child_identity(root,state)
+    if pid is not None:
+        try:os.killpg(pid,signal.SIGTERM)
+        except ProcessLookupError:pass
+        deadline=time.monotonic()+15
+        while child_identity(root,state)==pid and time.monotonic()<deadline:time.sleep(0.1)
+        if child_identity(root,state)==pid:
+            os.killpg(pid,signal.SIGKILL)
+            deadline=time.monotonic()+5
+            while child_identity(root,state)==pid and time.monotonic()<deadline:time.sleep(0.1)
+        if child_identity(root,state)==pid:raise RuntimeError('An owned orphan child did not stop')
+    (state/'child.pid.json').unlink(missing_ok=True)
+
+
 def environment(root, state, config):
     home = state / 'home';home.mkdir(exist_ok=True, mode=0o700)
     data = state / 'data';data.mkdir(exist_ok=True, mode=0o700)
     temporary = state / 'tmp';temporary.mkdir(exist_ok=True, mode=0o700)
+    metadata=root/'acceptance-build.json'
+    cache_key=hashlib.sha256(metadata.read_bytes()).hexdigest() if metadata.is_file() else 'unpackaged'
     env = {**config['environment'], 'PATH': str(root / 'bin') + ':/usr/bin:/bin', 'HOME': str(home),
-           'TMPDIR': str(temporary), 'NODE_ENV': 'production', 'HOST': '127.0.0.1', 'PORT': str(config['port']),
+           'TMPDIR': str(temporary), 'PYTHONPYCACHEPREFIX':str(home/'.cache/python'/cache_key), 'NODE_ENV': 'production', 'HOST': '127.0.0.1', 'PORT': str(config['port']),
            'APP_DATA_PATH': str(data), 'BOOK_DOCK_PATH': str(data / 'bookdock'), 'LD_LIBRARY_PATH': str(root / 'lib'),
            'FFMPEG_PATH': str(root / 'bin/ffmpeg'), 'FFPROBE_PATH': str(root / 'bin/ffprobe'),
            'KOBO_CLOUDSCRAPER_PYTHON': str(root / 'bin/python3'),
            'KOREADER_PLUGIN_PATH': str(root / 'app/koreader-plugin/bookorbit.koplugin')}
+    if (root/'bin/tomato-downloader').is_file():env['TOMATO_DOWNLOADER_PATH']=str(root/'bin/tomato-downloader')
     return env
+
+
+def child_setup(parent):
+    signal.signal(signal.SIGTERM,signal.SIG_DFL)
+    signal.signal(signal.SIGINT,signal.SIG_DFL)
+    libc=ctypes.CDLL(None,use_errno=True)
+    if libc.prctl(1,signal.SIGTERM,0,0,0)!=0 or os.getppid()!=parent:os._exit(125)
 
 
 def supervise(root, state):
@@ -94,16 +136,19 @@ def supervise(root, state):
     env = environment(root, state, config)
     try:
         with (state / 'application.log').open('ab', buffering=0) as output:
+            parent_pid=os.getpid()
             for attempt in range(4):
                 if stopped[0]:break
-                child = subprocess.Popen([str(root / 'bin/node'), '--max-old-space-size=512', 'dist/main.js'], cwd=str(root / 'app'), env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+                child = subprocess.Popen([str(root / 'bin/node'), '--max-old-space-size=512', 'dist/main.js'], cwd=str(root / 'app'), env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=lambda:child_setup(parent_pid))
                 try:
+                    atomic(state/'child.pid.json',{'pid':child.pid,'startTicks':ticks(child.pid)})
                     while child.poll() is None and not stopped[0]:time.sleep(0.25)
                 finally:
                     if child.poll() is None:
                         os.killpg(child.pid, signal.SIGTERM)
                         try:child.wait(timeout=15)
                         except subprocess.TimeoutExpired:os.killpg(child.pid, signal.SIGKILL);child.wait(timeout=5)
+                (state/'child.pid.json').unlink(missing_ok=True)
                 if stopped[0]:break
                 atomic(state / 'last-exit.json', {'attempt': attempt + 1, 'code': child.returncode})
                 for _ in range(min(2 ** attempt, 8) * 4):
@@ -127,15 +172,16 @@ def control(action, root, state):
         fcntl.flock(lock, fcntl.LOCK_EX)
         if action == 'status':return 0 if alive(state) else 1
         if action == 'stop':
-            if not alive(state):return 0
+            if not alive(state):stop_orphan(root,state);return 0
             pid = json.loads((state / 'service.pid.json').read_text())['pid']
             os.kill(pid, signal.SIGTERM)
             for _ in range(100):
-                if not alive(state):return 0
+                if not alive(state):stop_orphan(root,state);return 0
                 time.sleep(0.25)
             raise RuntimeError('Supervisor did not stop within the deadline')
         config = configuration(state)
-        if alive(state):return 0 if healthy(config['port']) else 1
+        if alive(state):return 0 if child_identity(root,state) is not None and healthy(config['port']) else 1
+        stop_orphan(root,state)
         # Never mistake another application listening on this port for our service.
         import socket
         with socket.socket() as probe:
@@ -149,7 +195,7 @@ def control(action, root, state):
         finally:os.close(log)
         deadline = time.monotonic() + 180
         while time.monotonic() < deadline:
-            if alive(state) and healthy(config['port']):return 0
+            if alive(state) and child_identity(root,state) is not None and healthy(config['port']):return 0
             if (state / 'last-exit.json').exists() and not alive(state):break
             time.sleep(0.5)
         if alive(state):os.kill(json.loads((state / 'service.pid.json').read_text())['pid'], signal.SIGTERM)

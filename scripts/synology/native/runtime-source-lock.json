@@ -65,5 +65,18 @@
       "integrity": "sha512-H/hwxMYTPf2I+yr8Rt0T1H8JyXlLQ4xv20fKmMrzvBY4HuC+k6CRuOOCTPAfiJ9G19niCRD7C+GrD7W6qA3WIQ=="
     },
     "preloadPackages": ["echarts@6.1.0", "@embedpdf/fonts-sc@1.0.0"]
+  },
+  "auxiliary": {
+    "tomato": {
+      "version": "2.4.15",
+      "sha256": "d9db872448e3cda78a18eaa3c7ee162ce631251ed51eb789f8e6676abe118722",
+      "bytes": 10469040,
+      "url": "https://github.com/zhongbai2333/Tomato-Novel-Downloader/releases/download/v2.4.15/TomatoNovelDownloader-Linux_musl_amd64-v2.4.15",
+      "sourceCommit": "e2197970c366180bb566b8acfbda67cc1331a1ef",
+      "licenses": {
+        "licenses/tomato-novel-downloader-MIT.txt": "92ab54a6184189f9010453a567be196caa7956b337607c528663812e22d13abc",
+        "licenses/tomato-novel-downloader-NOTICE.md": "e1f7d2e4e3f39835ecb2172e0828eb7d0a801ebefce6c9bec3d746e8ac632d1b"
+      }
+    }
   }
 }

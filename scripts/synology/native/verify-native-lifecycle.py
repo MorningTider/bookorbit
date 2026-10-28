@@ -31,7 +31,7 @@ def verify(root, output, node_root=None):
         shutil.copyfile(source/'bin/node' if source else '/usr/local/bin/node',package/'bin/node');(package/'bin/node').chmod(0o755)
         (package/'app/dist/main.js').write_text("const fs=require('fs'),http=require('http');const p=process.env.APP_DATA_PATH+'/boots.json';let count=0;try{count=JSON.parse(fs.readFileSync(p)).count}catch{}fs.writeFileSync(p,JSON.stringify({pid:process.pid,count:count+1}));http.createServer((q,r)=>{r.setHeader('content-type','application/json');r.end(JSON.stringify({status:'ok'}))}).listen(Number(process.env.PORT),process.env.HOST);")
         with socket.socket() as probe:probe.bind(('127.0.0.1',0));port=probe.getsockname()[1]
-        config={'schemaVersion':1,'mode':'isolated','port':port,'environment':{'DATABASE_URL':'postgres://unused:unused@127.0.0.1:5433/bookorbit_spk_pathcheck_synthetic','JWT_SECRET':'test-isolation-'+'a'*40}}
+        config={'schemaVersion':1,'mode':'isolated','port':port,'environment':{'DATABASE_URL':'postgres://unused:unused@127.0.0.1:5433/bookorbit_spk_pathcheck_synthetic','JWT_SECRET':'test-isolation-'+'a'*40,'SETUP_BOOTSTRAP_TOKEN':'test-bootstrap-'+'b'*40}}
         (state/'service.json').write_text(json.dumps(config));(state/'service.json').chmod(0o600)
         def control(action,timeout=30):
             return subprocess.run([sys.executable,str(script),action,'--root',str(package),'--state',str(state)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout)
@@ -63,6 +63,14 @@ def verify(root, output, node_root=None):
             checks['duplicateStopIdempotent']=True
             assert control('start').returncode==0 and control('stop').returncode==0
             checks['stoppedServiceRestartsOnSamePort']=True
+            assert control('start').returncode==0
+            supervisor=json.loads((state/'service.pid.json').read_text())['pid']
+            os.kill(supervisor,signal.SIGKILL)
+            deadline=time.monotonic()+10
+            while control('status').returncode==0 and time.monotonic()<deadline:time.sleep(0.1)
+            assert control('stop').returncode==0
+            assert control('start').returncode==0 and control('stop').returncode==0
+            checks['killedSupervisorOrphanRecovered']=True
             # Reusing our unrelated live PID must never allow the controller to signal us.
             token=pathlib.Path('/proc/self/stat').read_text().rsplit(')',1)[1].split()[19]
             (state/'service.pid.json').write_text(json.dumps({'pid':os.getpid(),'startTicks':token}))
