@@ -194,3 +194,17 @@ Poppler 的原始固定数据路径使中文 PDF 无法正确提取文字。构�
 普通用户 UID1026 在 /volume1/homes/MorningTider/.bookorbit-native-private-libc-9c41f580 执行相同六组检查全部通过。verification-support.json 记录 missingRuntimeSymbols 为空、实际加载器位于候选 support/private-lib、Python 子进程入口为候选 bin/python3；Python3.11.2、OpenSSL3.0.22、cryptography50.0.2。临时证书和样本已删除。生产8184健康检查 status=ok、database=up。
 
 本轮验证仅覆盖合成媒体与运行库，不代表完整 BookOrbit 业务或 SPK 验收。仍需锁定 APT/Python 全部输入、补齐组件对应源码、实现安装升级与权限脚本，完成独立数据库上的导入、阅读、任务恢复及 DSM 套件验收后再切换生产。
+
+## 2026-10-28 运行依赖精确清单
+
+lock-support-inputs.py 从已通过 DSM 普通用户验收的私有运行库收据生成 support-runtime-lock.json：218个 Debian 包、20个 Python 分发，逐项记录精确版本和 SHA256。Debian 同时记录二进制版本与对应源包版本，不能用二进制修订号代替源包版本；Python 记录 files.pythonhosted.org 的精确 HTTPS 地址，拒绝凭据、查询参数和非预期主机。生成器拒绝重复包、歧义 APT 记录、版本不匹配、缺失哈希及路径越界，8项测试通过。
+
+其中 pyjsparser2.7.1 使用源码分发，清单显式标记 sdist；其构建工具链仍需冻结。该清单目前是运行输入记录，不是完整构建锁：尚未接入强制锁定重建，APT 仓库快照及构建工具链还未固定，对应源码也未完整下载。后续必须验证精确制品可获取、离线哈希校验及锁定重建，不允许因旧版本不可用而静默换成最新版。
+
+复核命令（输出必须是新文件）：
+
+```sh
+python3 scripts/synology/native/lock-support-inputs.py \
+  --artifact local/synology-native/support-private-libc \
+  --output /private/tmp/bookorbit-support-lock-new.json
+```
