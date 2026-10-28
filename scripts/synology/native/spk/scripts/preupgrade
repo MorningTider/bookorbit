@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+umask 077
+/usr/bin/python3 - "${SYNOPKG_PKGDEST:?}" "${SYNOPKG_PKGVAR:?}" <<'PY'
+import datetime,json,pathlib,shutil,sys
+root,state=map(pathlib.Path,sys.argv[1:])
+meta=json.loads((root/'acceptance-build.json').read_text())
+backup=state/'backups'/datetime.datetime.utcnow().strftime('%Y%m%dT%H%M%S%fZ')
+backup.mkdir(parents=True,mode=0o700)
+for name in ['service.json']:
+ if (state/name).exists():shutil.copyfile(state/name,backup/name);(backup/name).chmod(0o600)
+with (state/'upgrade-guard.json').open('w') as target:json.dump({'oldMigrationSha256':meta['applicationMigrationSha256'],'configurationBackup':str(backup)},target)
+(state/'upgrade-guard.json').chmod(0o600)
+PY
+exec /usr/bin/python3 "$SYNOPKG_PKGDEST/native-service.py" stop --root "$SYNOPKG_PKGDEST" --state "$SYNOPKG_PKGVAR"

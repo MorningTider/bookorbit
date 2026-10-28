@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+umask 077
+exec /usr/bin/python3 - "${SYNOPKG_PKGVAR:?}" <<'PY'
+import json,os,pathlib,sys
+state=pathlib.Path(sys.argv[1]);state.mkdir(exist_ok=True);state.chmod(0o700)
+for name in ['data','home','tmp']:(state/name).mkdir(mode=0o700,exist_ok=True)
+example=state/'service.example.json'
+if not example.exists():
+ with example.open('x') as target:json.dump({'schemaVersion':1,'mode':'isolated','port':18185,'environment':{'DATABASE_URL':'postgres://isolation:configure-before-start@127.0.0.1:5433/bookorbit_spk_pathcheck_configure','JWT_SECRET':'replace-with-a-random-isolated-signing-key','LIBRARY_BROWSE_ROOT':'/volume1/library','COVER_SLOTS_BACKFILL_MODE':'skip'}},target,indent=2)
+ example.chmod(0o600)
+print('Installed in isolated acceptance mode. Private service.json and scoped library permissions must be configured before starting. Production is not selected.')
+PY

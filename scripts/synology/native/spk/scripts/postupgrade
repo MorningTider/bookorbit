@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+exec /usr/bin/python3 - "${SYNOPKG_PKGDEST:?}" "${SYNOPKG_PKGVAR:?}" <<'PY'
+import json,pathlib,sys
+root,state=map(pathlib.Path,sys.argv[1:])
+guard=json.loads((state/'upgrade-guard.json').read_text())
+new=json.loads((root/'acceptance-build.json').read_text())
+if guard['oldMigrationSha256']!=new['applicationMigrationSha256']:raise SystemExit('Database schema changed; this isolated candidate does not apply unverified migrations')
+PY

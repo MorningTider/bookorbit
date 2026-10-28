@@ -236,3 +236,15 @@ collect-support-sources.py 通过认证 APT 索引按对应源版本收集169组
 回放器只接受 bookorbit_spk_pathcheck_ 前缀的数据库身份，先检查 current_database()，再开始事务。每个字段加表锁，使用参数化UNNEST批量更新，逐组核对原计数与目标碰撞，改写后复核，任一步失败则ROLLBACK。实际注入第二组books计数错误，先前book_files更新也完全回滚，全部6495组原路径保留；正确计划全部更新成功，573字段复审旧路径为0；再次执行旧计划被拒绝。回放器另在生产连接上实测于identity阶段拒绝、未开始事务；此检查仅执行数据库身份查询。replay-receipt.json保存副本回放证据。
 
 以原容器UID1026/GID101核验映射后的6468个文件：missing=0、notRegular=0、unreadable=0、outsideLibrary=0，报告host-path-access.json。此结果只证明原容器身份可访问，不能当作新SPK账号的ACL验收。生产8184健康仍status=ok，生产路径未改写，容器未停止。下一步仍需套件生命周期、新账号最小ACL和原生应用在该副本上的整体验证，不能把路径回放通过扩大为SPK可切换。
+
+## 2026-10-28 原生进程生命周期及安装候选入口
+
+native-service.py 新增普通账号控制器：启动、停止、状态、子进程最多4次启动、有界退避、停止时回收子进程组。服务配置必须由当前账号持有且权限0600，状态目录0700；PID由进程启动tick、UID、脚本及状态目录共同验证，不向复用或无关PID发送信号。数据库仅允许127.0.0.1上的 bookorbit_spk_pathcheck_ 隔离库；生产模式明确拒绝。关键路径、PATH、Node选项、私有lib、Python和媒体工具由控制器指定，配置不能注入NODE_OPTIONS；BookDock与临时目录固定在私有状态目录内。
+
+10项策略单测通过。verify-native-lifecycle.py 使用合成Node HTTP程序，在Linux只读根目录、无外网、UID501完成8项进程检查：启停及状态、重复启动、子进程崩溃恢复、停止后无子进程、重复停止、同端口再启动、无关活动PID拒绝、占用端口拒绝。初次只读容器运行发现临时目录不可写，改为套件私有TMPDIR，并在仿真环境提供专用tmpfs；同端口探测使用SO_REUSEADDR以允许TIME_WAIT后再次启动。修改后全部通过。
+
+NAS普通用户UID1026用已验证候选Node重复8项检查全部通过，未连接数据库；合成目录已清理，报告 /volume1/homes/MorningTider/.bookorbit-native-lifecycle-20261028/acceptance.json。NAS控制器SHA256与本机一致，为f1e662efbc0e62921decea48ef5fd94a4b0d04082730888cb41ef71328bab288。本机新收据绑定相同控制器哈希。不能把这个普通用户进程检查写成DSM专用账号或完整套件验收。
+
+spk/脚本使用专用bookorbit-native账号，不执行Docker。初次安装只初始化私有目录和无真实凭据的配置样例；管理员需将已准备的隔离连接配置交给该账号。升级先备份配置和旧迁移指纹，再停服务；postupgrade拒绝未经验证的数据库迁移变化，保留持久目录。上述升级脚本尚需通过DSM实际验收，不能声明一键升级完成。Supervisor本身被SIGKILL时的孤儿恢复尚未验收，正式发布前仍需覆盖。
+
+build-acceptance-spk.py 是私有安装验收入口，严格验证现有源码/支持组件文件清单、核心文件、专用账号、匹配的控制器进程测试哈希，并要求代码已提交。只生成Beta隔离安装候选，productionEnabled=false。正式可分发构建仍须通过原有payload-contract完整组件审计；本入口不宣布该门槛已通过。候选装配测试5项通过。专用账号ACL、原生PG上的完整服务、DSM安装/升级与生产切换仍未完成。

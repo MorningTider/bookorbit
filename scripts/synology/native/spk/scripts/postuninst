@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+# Shared libraries and database copies are never deleted by package uninstall.
+exit 0

@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Assemble a private DSM installation candidate. This is never a stable release entry."""
+import argparse
+import gzip
+import hashlib
+import importlib.util
+import io
+import json
+import pathlib
+import subprocess
+import tarfile
+import tempfile
+
+
+def digest(path):
+    result=hashlib.sha256()
+    with path.open('rb') as stream:
+        for chunk in iter(lambda:stream.read(1024*1024),b''):result.update(chunk)
+    return result.hexdigest()
+
+
+def migration_digest(root):
+    result=hashlib.sha256()
+    files=sorted((root/'app/migrations').rglob('*'))
+    if not files:raise ValueError('Migration input is missing')
+    for path in files:
+        if path.is_file():result.update(path.relative_to(root).as_posix().encode()+b'\0'+bytes.fromhex(digest(path)))
+    return result.hexdigest()
+
+
+def member(tar,path,name):
+    item=tar.gettarinfo(str(path),arcname=name)
+    item.uid=item.gid=0;item.uname=item.gname='root';item.mtime=0
+    item.mode=0o755 if path.is_dir() or path.stat().st_mode&0o111 else 0o644
+    if item.isfile():
+        with path.open('rb') as stream:tar.addfile(item,stream)
+    else:tar.addfile(item)
+
+
+def build(stage,report,output,revision=10000):
+    here=pathlib.Path(__file__).resolve().parent
+    repo=here.parents[2]
+    stage=pathlib.Path(stage).resolve(strict=True);output=pathlib.Path(output).absolute()
+    if output.exists():raise ValueError('SPK output directory must be new')
+    if not 10000<=revision<=19999:raise ValueError('Unsupported acceptance revision')
+    subprocess.run(['git','diff-index','--quiet','HEAD','--'],cwd=repo,check=True)
+    subprocess.run(['git','ls-files','--error-unmatch','scripts/synology/native/native-service.py'],cwd=repo,stdout=subprocess.PIPE,check=True)
+    privilege=json.loads((here/'spk/conf/privilege').read_text())
+    if privilege != {'defaults':{'run-as':'package'},'username':'bookorbit-native','groupname':'bookorbit-native'}:raise ValueError('A dedicated ordinary package identity is required')
+    proof=json.loads(pathlib.Path(report).read_text())
+    controller=here/'native-service.py'
+    if proof.get('kind')!='synthetic-process-lifecycle' or proof.get('passed') is not True or proof.get('uid')==0 or proof.get('controllerSha256')!=digest(controller) or len(proof.get('checks',{}))<8 or not all(proof['checks'].values()):
+        raise ValueError('Controller requires matching ordinary-account lifecycle acceptance')
+    spec=importlib.util.spec_from_file_location('payload',here/'payload-contract.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    receipt=json.loads(stage.with_name(stage.name+'.inventory.json').read_text())
+    if receipt.get('status')!='support-candidate-not-release' or module.inventory(stage)!=receipt.get('files'):
+        raise ValueError('Source/support candidate inventory changed')
+    source=json.loads((stage/'provenance/source-build.json').read_text())
+    if not source.get('sharpNativeCheck'):raise ValueError('Verified source build required')
+    for name in module.REQUIRED:
+        if not (stage/name).is_file():raise ValueError('Missing application input')
+    if (stage/'native-service.py').exists() or (stage/'acceptance-build.json').exists():raise ValueError('Reserved lifecycle destination already exists')
+    metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
+    with tempfile.TemporaryDirectory(prefix='bookorbit-spk-') as directory:
+        work=pathlib.Path(directory);outer=work/'outer';outer.mkdir()
+        with (outer/'package.tgz').open('wb') as stream:
+            with gzip.GzipFile(fileobj=stream,mode='wb',filename='',mtime=0) as zipped:
+                with tarfile.open(fileobj=zipped,mode='w|',format=tarfile.PAX_FORMAT) as tar:
+                    for path in sorted(stage.rglob('*')):member(tar,path,path.relative_to(stage).as_posix())
+                    member(tar,controller,'native-service.py')
+                    data=(json.dumps(metadata,indent=2)+'\n').encode();entry=tarfile.TarInfo('acceptance-build.json');entry.size=len(data);entry.mode=0o644;entry.mtime=0;tar.addfile(entry,io.BytesIO(data))
+        import shutil
+        shutil.copytree(here/'spk/conf',outer/'conf');shutil.copytree(here/'spk/scripts',outer/'scripts')
+        for path in (outer/'scripts').iterdir():path.chmod(0o755)
+        version='3.5.0-'+str(revision)
+        fields={'package':'bookorbit-native','version':version,'arch':'x86_64','os_min_ver':'7.4.1-90080','displayname':'BookOrbit 原生验收','maintainer':'MorningTider','description':'Private native installation acceptance. Isolated database only. Production mode disabled.','description_chs':'BookOrbit 原生安装验收候选，仅允许隔离数据库，尚未启用生产模式。','thirdparty':'yes','startable':'yes','precheckstartstop':'yes','beta':'yes','checksum':hashlib.md5((outer/'package.tgz').read_bytes()).hexdigest()}
+        (outer/'INFO').write_text(''.join(key+'='+json.dumps(value,ensure_ascii=False)+'\n' for key,value in fields.items()))
+        for name in ['PACKAGE_ICON.PNG','PACKAGE_ICON_256.PNG']:shutil.copyfile(repo/'docs/images/bookorbit-icon.png',outer/name)
+        output.mkdir(parents=True)
+        destination=output/('bookorbit-native_x86_64_'+version+'.spk')
+        with tarfile.open(destination,'w',format=tarfile.PAX_FORMAT) as tar:
+            for path in sorted(outer.rglob('*')):member(tar,path,path.relative_to(outer).as_posix())
+    result={'path':str(destination),'sha256':digest(destination),'status':metadata['status'],'productionEnabled':False}
+    (output/'acceptance-build.json').write_text(json.dumps({**metadata,**result},indent=2)+'\n')
+    print(json.dumps(result))
+
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser();parser.add_argument('--stage',required=True);parser.add_argument('--lifecycle-report',required=True);parser.add_argument('--output',required=True);parser.add_argument('--revision',type=int,default=10000);a=parser.parse_args();build(a.stage,a.lifecycle_report,a.output,a.revision)

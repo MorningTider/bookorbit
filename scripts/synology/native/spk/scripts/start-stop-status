@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+case "$1" in
+  prestart|prestop) exit 0 ;;
+  start|stop|status) exec /usr/bin/python3 "${SYNOPKG_PKGDEST:?}/native-service.py" "$1" --root "$SYNOPKG_PKGDEST" --state "${SYNOPKG_PKGVAR:?}" ;;
+  *) exit 1 ;;
+esac
