@@ -30,7 +30,7 @@
 - 前端14个文件133项通过。
 - 服务端与共享包生产构建通过，前端类型检查通过，25个语言目录11799英文键校验通过。
 - 正常提交钩子执行ESLint与Prettier，通过后提交；没有跳过钩子。
-- 未宣称Android实机、七猫正文、原生SPK完整迁移已完成，具体边界见剩余清单。
+- 未宣称Android实机、七猫正文、原生SPK公开正式发行及整机重启验收已完成，具体边界见剩余清单。
 - 缓存、凭据、用户书籍及数据库文件不入Git。运行报告位于忽略的local/目录，文档保留摘要和复现方式。
 
 2026-10-27补充：BO-C10包含迁移准备与显式切换工具、8项配置/回退边界测试、最新167表一致恢复及真实隔离应用验收。详见SYNOLOGY_PG_MIGRATION.md。上游合并需复核Compose配置格式、数据库环境变量、应用20连接池、鉴权会话字段及文件Range接口；不要覆盖NAS已生成的原生数据库部署profile。生产切换仍待单独确认。
@@ -42,3 +42,5 @@ Production migration is now complete, not pending: r21 uses the shared native PG
 BO-C09正式入口补充：source-build.py、Source.Dockerfile和finalize-source-build.mjs从Git提交及pnpm锁文件构建程序，构建环境固定为Linux x86_64。原容器导出工具仅作兼容性对照。上游升级须复核pnpm版本、deploy行为、前后端构建命令、迁移文件、Kepubify及KOReader资源路径。
 
 2026-10-28源码链路已实际通过：正式构建禁用legacy deploy，必须保留共享锁冻结部署、依赖层稳定归档和共享模块内部加载检查。stage-application-payload.py的--source-build路径承接编译产物，不再从线上容器导出或覆盖旧Sharp探针。打包回归合计38项；完整SPK验收仍未完成。
+
+2026-10-28 BO-C09生产原生迁移已完成：native-service.py、spk/scripts、build-acceptance-spk.py、cutover-native-app.py及probe-installed-native.py纳入上游同步回归。10002生产在专用UID217211运行，8184及公网8926可用；12项生产API在服务重启前后通过。迁移执行器是一次性从旧bookorbit容器/数据库转入新bookorbit_prod_spk副本的工具，不是日常升级入口；后续上传SPK升级保留现有私有service.json及新库。不要再次启用保留的旧Docker应用、覆盖新库为旧bookorbit，或用只改版本号的包跳过迁移指纹保护。公开组件审计和正式发行仍待完成。

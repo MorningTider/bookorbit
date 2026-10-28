@@ -298,3 +298,17 @@ cutover-native-app.py默认只读检查，显式--execute才执行。验证现�
 切换前失败会恢复隔离配置、隔离数据和原容器；健康确认后禁止自动重启旧容器，避免丢失新库写入。原容器及原库保留，不删除历史卷。11项测试覆盖源身份/挂载、密钥保留、路径替换、私有数据复制和符号链接拒绝，以及备份失败、复制失败、启动失败、健康后失败及成功路径。文件权限操作在非root测试中替身化，实际ACL另外实测。
 
 NAS已保存ebook目录原ACL到私有审计目录acl-ebook-before-write.txt，仅为/volume1/library/ebook新增bookorbit-native读写继承ACE。专用UID已完成新临时子目录和文件的创建、读取、删除，全部通过并删除测试文件；/volume1/library根仍只读。10002私有迁移候选SHA256为2ef926687e3b5b1bcce1f8805c84afb08463e65df1bcbb649401cb5331e11f1b，正通过DSM上传；尚未将生产Docker替换。
+
+## 2026-10-28 BookOrbit原生生产接管完成
+
+DSM已由10001升级10002，程序来自仓库源码9c41f580，打包提交2e953791。生产能力候选仍标Beta，不代表完整公开再分发审计已通过。上传升级后隔离10项API再次通过，默认只读迁移预检ready=true。执行器提交87636b4b，NAS脚本SHA256 c7a47d3481aced808978eba5148db17acc0b4924c8ba63a1134606c9d5b39fcb与仓库一致。
+
+按已有生产切换授权停止bookorbit-app，执行原生PG最终备份/校验及应用数据归档。完整逻辑备份位于/volume1/database/pg/backups/logical-20261028T094452Z-2ca42b96；应用归档、配置、源容器元数据、计划及验收收据位于/volume1/database/pg/backups/bookorbit-native-cutover-20261028094443，私有权限。由最终备份恢复全新bookorbit_spk_pathcheck_cutover_20261028094443，副本中完成事务路径改写和全字段旧路径清零复查，再提升为bookorbit_prod_spk_20261028094443。原bookorbit数据库未改写、未删除。
+
+新生产由bookorbit-native专用UID217211的包内Node直接运行，端口8184，非Docker运行时。配置mode=production，原JWT、bootstrap及四项加密密钥逐项一致。bookorbit-app容器40c8d300c4ff1e2b52dd6e1a539d5e89ffe0fd72f70b0704b6d2bfc31253d9e2已停止并设restart=no，原容器/数据卷/应用目录保留。健康后已禁用自动回退旧库策略；不能简单启动旧容器代替新库。
+
+12项生产只读API全部通过：数据库、11本图书查询、详情、包内下载助手配置、4路并发详情、文件Range与宿主字节一致、前端、匿名拒绝、专用原生进程、8184健康、旧容器停止、旧容器自动重启关闭。服务通过DSM套件控制停止/启动后相同12项再次通过，收据production-api.json和production-api-after-restart.json在私有切换目录。包systemd单元is-enabled为enabled；本轮未重启整机。
+
+166张public表的行数比对中164张完全一致，book_files6468、books11。auth_sessions由7到6、refresh_tokens由165到117；逐条ID比对确认缺失的1个会话及48个刷新令牌全部已过期，缺失有效记录0。该变化符合server/src/modules/seed/cleanup.service.ts启动时清理过期认证记录的逻辑，不能宣称166表数量逐项完全相同。比较收据data-comparison.json保存在私有切换目录。
+
+真实浏览器通过100.86.77.124:8184与https://jch2w.com:8926访问原生服务，返回200并渲染“登录 · BookOrbit”页面；生产令牌仅在NAS内存使用，没有转移到Mac。后续公开组件审计、正式包与整机重启验收仍应分别处理；Android实机与七猫正文边界不因此完成。

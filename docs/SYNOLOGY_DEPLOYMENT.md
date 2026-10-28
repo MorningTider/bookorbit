@@ -355,3 +355,11 @@ Do not run the old container-only backup helper against stoppedbookorbit-db for 
 ## 2026-10-27 native PG formal installation completed
 
 DSM installed PostgreSQL18.6-10020 and independent pgvector0.8.7-10007, both beta=no.14 final native identity/data/role/configuration/extension checks passed; BookOrbit remained healthy locally and publicly on r21 with the native DB. The original Docker DB/application and every data volume remain stopped and retained. Full evidence and formal artifact hashes are in the separate postgresql-spk project. No additional NAS reboot was performed for these metadata-only formal upgrades.
+
+## 2026-10-28 production application moved from Docker to native SPK
+
+BookOrbit native3.5.0-10002 now owns8184 using the package Node under UID217211. This is a native service, not a Docker wrapper. DSM manual upgrades10000 to10001 to10002 passed. The current package remains Beta pending public redistribution audit and formal release.
+
+Final native-PG backup: /volume1/database/pg/backups/logical-20261028T094452Z-2ca42b96. Private migration/data/configuration evidence: /volume1/database/pg/backups/bookorbit-native-cutover-20261028094443. A fresh restored copy had container paths transactionally rewritten, then becamebookorbit_prod_spk_20261028094443. Originalbookorbit DB and all old container data remain retained. Existing JWT and encryption settings were preserved. Oldbookorbit-app is stopped with restart=no; do not restart it as a rollback after new native writes.
+
+12 production API checks passed before and after a native service restart.6468 book file records and11 books remain.164 of166 public table counts match exactly; only expired auth records were removed by the application's normal startup cleanup, with no active records missing. Browser checks rendered the login page through both Tailscale8184 and public HTTPS8926. systemd package startup is enabled, but no whole-NAS reboot was performed for this app migration. Detailed limits and receipts are recorded inSYNOLOGY_NATIVE.md.

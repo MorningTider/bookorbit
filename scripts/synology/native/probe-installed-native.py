@@ -16,14 +16,15 @@ import urllib.error
 import urllib.parse
 
 
-def probe(output):
+def probe(output, production=False):
     if os.geteuid()!=0:raise ValueError('Local package configuration access requires administrator execution')
     root=pathlib.Path('/var/packages/bookorbit-native/target').resolve(strict=True)
     state=pathlib.Path('/volume1/@appdata/bookorbit-native')
     config=json.loads((state/'service.json').read_text())
-    assert config['mode']=='isolated'
+    assert config['mode']==('production' if production else 'isolated')
+    if production:assert config['port']==8184
     database=urllib.parse.urlsplit(config['environment']['DATABASE_URL']).path.lstrip('/')
-    assert re.fullmatch(r'bookorbit_spk_pathcheck_[a-z0-9_]+',database)
+    assert re.fullmatch(r'bookorbit_prod_spk_[0-9]+' if production else r'bookorbit_spk_pathcheck_[a-z0-9_]+',database)
     query="SELECT row_to_json(c) FROM (SELECT u.id AS sub,u.token_version AS ver,s.authentication_method AS amr,s.id AS sid FROM users u JOIN auth_sessions s ON s.user_id=u.id WHERE u.active AND u.is_superuser AND s.revoked_at IS NULL AND s.expires_at>now() AND s.token_version=u.token_version ORDER BY s.id DESC LIMIT 1)c"
     code="import sys;sys.path.insert(0,'/var/packages/postgresql18/target/bin');from pg_admin import Admin;print(Admin().sql("+repr(query)+","+repr(database)+"))"
     result=subprocess.run(['sudo','-u','postgresql18','python3','-'],input=code,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=30)
@@ -66,7 +67,11 @@ def probe(output):
         except OSError:continue
     checks['dedicatedNativeProcess']=matched==[217211]
     with urllib.request.urlopen('http://127.0.0.1:8184/api/v1/health',timeout=10) as response:checks['productionStillHealthy']=response.status==200 and json.load(response)['status']=='ok'
-    report={'kind':'installed-native-isolated-api','database':database,'packageVersion':json.loads((root/'acceptance-build.json').read_text())['packageVersion'],'checks':checks,'passed':all(checks.values()),'bookTotal':query['total'],'tokensTransferred':False,'readOnlyApiRequests':True}
+    if production:
+        source=json.loads(subprocess.check_output(['docker','inspect','bookorbit-app']))[0]
+        checks['oldContainerStopped']=source['State']['Running'] is False
+        checks['oldContainerRestartDisabled']=source['HostConfig']['RestartPolicy']['Name']=='no'
+    report={'kind':'installed-native-production-api' if production else 'installed-native-isolated-api','database':database,'packageVersion':json.loads((root/'acceptance-build.json').read_text())['packageVersion'],'checks':checks,'passed':all(checks.values()),'bookTotal':query['total'],'tokensTransferred':False,'readOnlyApiRequests':True}
     fd=os.open(output,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as target:json.dump(report,target,indent=2)
     print(json.dumps(report))
@@ -74,4 +79,4 @@ def probe(output):
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--output',required=True);args=parser.parse_args();probe(args.output)
+    parser=argparse.ArgumentParser();parser.add_argument('--output',required=True);parser.add_argument('--production',action='store_true');args=parser.parse_args();probe(args.output,args.production)
