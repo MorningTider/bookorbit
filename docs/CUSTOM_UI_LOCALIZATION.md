@@ -28,3 +28,13 @@ DSM套件中心从10002直接升级10004成功。最终备份/audit目录为/vol
 生产12项只读API检查全部通过，收据production-api-10004.json留在私有备份目录，生产令牌仅在NAS内存使用。verify-localization-browser.cjs对公网实际前端运行浏览器验证，通过配置名称、热力图SVG13个字段和脚本异常0检查；接口数据在新浏览器上下文中完全合成，没有使用生产账号或写入生产数据，不能把该浏览器验证描述为使用生产账号遍历所有页面。报告local/synology-native/reports/browser-localization-10004-public.json，截图/private/tmp/bookorbit-statistics-10004-public.png。
 
 后续可用BOOKORBIT_PLAYWRIGHT_MODULE指定Playwright模块，运行node scripts/synology/native/verify-localization-browser.cjs BASE_URL；只验证前端展示，真实API需单独跑NAS生产探针。访问已有页面时刷新加载新资源。当前仍是Beta包，公开再分发审计是另一个尚未完成事项。
+
+## 2026-10-29 来源图标与说明10006
+
+五个国内来源改用官网原始图标，本地托管并在regional-sources.json记录来源及SHA256；provider-icons.ts统一映射。整页19条来源说明使用en/zh资源，说明元数据用途及必要密钥，修正Hardcover与RanobeDB等误译。
+
+源码0ded7f49b02466ddd282ed570d3e3c079890d750，最终SPK3.5.0-10006，SHA256 b31b0548fe11d1b1d415861f88397954230208fabe491685d04683c30fa7b4d6。先前10005（768ebecb）已安装；同号重建候选未安装，完整说明更新以10006交付。DSM安装期间遇RAID同步及磁盘等待，三分钟启动超时；临时监督程序已结束，最终由DSM标准启动成功，synopkg status确认running。未调整RAID任务、数据库结构或持久配置。以后升级验收须等待就绪，不能以首次200或安装向导结束代替稳定状态。
+
+备份/audit目录/volume1/database/pg/backups/bookorbit-spk-upgrade-10005-20261028T192111Z，PG备份/volume1/database/pg/backups/logical-20261028T192114Z-ffb968d2。最终配置SHA256 e7a939f13b786ea0819172f7ea77f0687f6574549de307604e05738768303a32保持不变，迁移指纹65c90067bd91e7effb16b228d4d995604106d5a1d1bc2eb06e69fce9894eddc6未变。
+
+3文件20项提供商设置测试、25套语言资源校验、vue-tsc及映射ESLint通过。verify-provider-branding-browser.cjs对最终公网前端检查19条中文说明、5个图标解码及页面异常0，通过；其接口数据完全合成，不使用生产账号。另行NAS生产12项只读API检查全部通过，11本图书可查询，收据production-api-10006.json位于私有audit目录。公网index及5个图标SHA256与构建/官网原件一致。浏览器报告local/synology-native/reports/browser-provider-branding-10006-public.json，截图/private/tmp/bookorbit-provider-branding-10006-public.png。

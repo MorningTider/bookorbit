@@ -50,3 +50,5 @@ BO-C09正式入口补充：source-build.py、Source.Dockerfile和finalize-source
 BO-C08上线确认：2026-10-29由原生10004交付，应用源码77afa4e5；115类固定通知/错误、31类HTTP提示及13类实体错误均用国际化资源。浏览器回归脚本verify-localization-browser.cjs已纳入仓库。上游合并时运行语言资源校验、全前端测试、静态及脚本UI候选审计，并核对统计和表格的即时语言切换；不要以构建成功代替实机前端资源与API验收。
 
 区域元数据来源展示补充：五个国内来源使用client/public/assets/provider-icons中的官网图标，通过provider-icons.ts统一映射，来源及SHA256保存在regional-sources.json；不依赖浏览器访问官网图标地址。七个区域来源说明通过en/zh资源维护，描述元数据补充用途，不把下载能力说明混入元数据开关。后续同步上游须保留映射、静态素材和对应语言键。
+
+区域来源展示回归：整页19个来源说明统一使用en/zh hints，保留各自的密钥要求。verify-provider-branding-browser.cjs在合成接口上下文校验19条中文说明和5个图标解码，不读取生产凭据；真实生产接口由NAS探针单独验收。
