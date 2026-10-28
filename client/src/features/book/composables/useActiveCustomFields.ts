@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import type { CustomMetadataFieldSummary } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -13,7 +14,7 @@ async function doFetch(): Promise<void> {
   loading.value = true
   try {
     const res = await api('/api/v1/custom-metadata/fields/active')
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     fields.value = (await res.json()) as CustomMetadataFieldSummary[]
     initialized.value = true
   } catch {

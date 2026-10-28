@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CloudDownload, Loader2, Magnet, RefreshCw, ServerCog } from '@lucide/vue'
@@ -105,7 +107,7 @@ onMounted(fetchManagers)
 async function fetchManagers() {
   try {
     const res = await api(BASE_PATH)
-    if (!res.ok) throw new Error('load failed')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.loadFailed'))
     const result = (await res.json()) as IndexerManagerListResult
     managers.value = Array.isArray(result.managers) ? result.managers : []
     emit('configured', managers.value.length > 0)
@@ -228,7 +230,7 @@ async function removeCurrent() {
   busy.value = true
   try {
     const res = await api(`${BASE_PATH}/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('delete failed')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.deleteFailed'))
     closeEditor()
     await fetchManagers()
     toast.success(t('settings.system.requests.managers.deleted'))
@@ -292,7 +294,7 @@ async function updateSource(manager: IndexerManagerItem, sourceId: number, paylo
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!res.ok) throw new Error('toggle failed')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.toggleFailed'))
     const updated = (await res.json()) as IndexerManagerItem
     managers.value = managers.value.map((entry) => (entry.id === manager.id ? updated : entry))
   } catch {

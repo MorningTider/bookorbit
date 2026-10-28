@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type {
@@ -118,7 +119,7 @@ export function useAuditLog() {
         params.set('page', String(page.value))
         params.set('pageSize', String(AUDIT_PAGE_SIZE))
         const res = await api(`/api/v1/audit-log/sign-ins?${params.toString()}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
         const data: AuditSignInPage = await res.json()
         if (request !== listRequest) return
         signIns.value = data.data
@@ -128,7 +129,7 @@ export function useAuditLog() {
         params.set('page', String(page.value))
         params.set('pageSize', String(AUDIT_PAGE_SIZE))
         const res = await api(`/api/v1/audit-log?${params.toString()}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
         const data: AuditLogPage = await res.json()
         if (request !== listRequest) return
         entries.value = data.data

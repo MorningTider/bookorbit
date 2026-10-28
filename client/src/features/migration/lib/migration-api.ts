@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import type {
   MigrationRunState as SharedMigrationRunState,
@@ -166,7 +167,7 @@ export function listSourcePathPrefixes(sourceId: number) {
 
 export function listTargetLibraryFolders() {
   return api('/api/v1/libraries').then(async (res) => {
-    if (!res.ok) throw new Error('Failed to load libraries')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadLibraries'))
     const libs = (await res.json()) as Array<{ id: number; name: string; folders: Array<{ id: number; path: string }> }>
     return libs.flatMap((lib) => lib.folders.map((f) => ({ libraryName: lib.name, path: f.path })))
   })

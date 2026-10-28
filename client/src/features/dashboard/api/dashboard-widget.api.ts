@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import {
   DASHBOARD_WIDGET_BATCH_MAX,
   WIDGET_TYPE,
@@ -36,7 +37,7 @@ async function flushBatch(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (!response.ok) throw new Error('Dashboard widget batch failed')
+    if (!response.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.dashboardWidgetBatchFailed'))
 
     const payload: DashboardWidgetBatchResponse = await response.json()
     const resultsByType = new Map(payload.items.map((item) => [item.type, item]))

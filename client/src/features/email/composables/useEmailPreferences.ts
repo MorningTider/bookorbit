@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 
@@ -19,7 +20,7 @@ export function useEmailPreferences() {
     if (fetchPromise) return fetchPromise
     fetchPromise = api('/api/v1/email/preferences')
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load preferences')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadPreferences'))
         preferences.value = await res.json()
       })
       .finally(() => {

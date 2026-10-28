@@ -59,7 +59,7 @@ export function useTtsVoices() {
       previewAudio = null
     }
     const response = await ttsApi.previewVoice(providerId, voiceId)
-    if (!response.ok) throw new Error('Preview failed')
+    if (!response.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.previewFailed'))
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
     previewAudio = new Audio(url)

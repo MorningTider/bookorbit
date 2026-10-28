@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import { createCoalescedFetch, createRequestGeneration } from '@/lib/async'
@@ -15,9 +16,9 @@ const loadLibraries = createCoalescedFetch(async (): Promise<void> => {
   const generation = listGeneration.current()
   try {
     const res = await api('/api/v1/libraries')
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     const data: unknown = await res.json()
-    if (!Array.isArray(data)) throw new Error('Invalid library response')
+    if (!Array.isArray(data)) throw new Error(i18n.global.t('customUi.runtimeMessages.invalidLibraryResponse'))
     if (!listGeneration.isCurrent(generation)) return
     libraries.value = data as Library[]
     loaded.value = true
@@ -54,7 +55,7 @@ export function useLibraries() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order }),
     })
-    if (!res.ok) throw new Error('Failed to reorder libraries')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToReorderLibraries'))
   }
 
   return { libraries, loading, loaded, error, fetchLibraries, refreshLibraries, reorderLibraries }

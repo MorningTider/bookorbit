@@ -306,7 +306,7 @@ export function useTtsPlayer() {
       },
       signal,
     )
-    if (!res.ok) throw new Error(`Synthesis failed: ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.synthesisFailed', { status: res.status }))
     return res.blob()
   }
 

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { KoboSyncHistoryEntry } from '@bookorbit/types'
@@ -12,7 +13,7 @@ export function useKoboSyncHistory() {
     loading.value = true
     fetchPromise = api(`/api/v1/kobo/history?limit=${limit}`)
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to fetch Kobo sync history')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchKoboSyncHistory'))
         history.value = await res.json()
       })
       .finally(() => {

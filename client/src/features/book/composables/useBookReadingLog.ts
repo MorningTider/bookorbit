@@ -55,7 +55,7 @@ export function useBookReadingLog(bookIdRef: Ref<number>) {
     error.value = null
     try {
       const res = await api(`/api/v1/books/${bookId}/sessions?${buildParams().toString()}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data: BookReadingSessionListResponse = await res.json()
       if (append) {
         const seen = new Set(sessions.value.map((s) => s.id))
@@ -85,7 +85,7 @@ export function useBookReadingLog(bookIdRef: Ref<number>) {
     const bookId = bookIdRef.value
     try {
       const res = await api(`/api/v1/books/${bookId}/sessions?${buildParams({ page: 1, pageSize: 1 }).toString()}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data: BookReadingSessionListResponse = await res.json()
       total.value = data.total
       stats.value = data.stats
@@ -102,7 +102,7 @@ export function useBookReadingLog(bookIdRef: Ref<number>) {
     total.value = Math.max(0, total.value - 1)
     try {
       const res = await api(`/api/v1/books/${bookId}/sessions/${sessionId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       await refreshStats()
     } catch (e) {
       sessions.value = prev
@@ -146,7 +146,7 @@ export function useBookReadingLog(bookIdRef: Ref<number>) {
       params.set('sortBy', 'startedAt')
       params.set('sortDir', 'desc')
       const res = await api(`/api/v1/books/${bookId}/sessions?${params.toString()}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data: BookReadingSessionListResponse = await res.json()
       items.push(...data.items)
       expectedTotal = data.total

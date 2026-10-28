@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { computed, onUnmounted, ref } from 'vue'
 import { AlertCircle, Loader2, Pencil, Plus, RefreshCw, Square, Trash2, Volume2, X } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
@@ -153,7 +155,7 @@ async function handlePreview(voice: StaticVoiceConfig) {
   previewingVoiceId.value = voice.id
   try {
     const response = await ttsApi.previewVoice(String(props.provider.id), voice.id)
-    if (!response.ok) throw new Error('Preview failed')
+    if (!response.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.previewFailed'))
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
     const audio = new Audio(url)

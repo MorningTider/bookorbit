@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type {
@@ -58,7 +59,7 @@ export function useAutoFetchScopes() {
         api('/api/v1/book-metadata-fetch/config'),
         api('/api/v1/book-metadata-fetch/config/libraries'),
       ])
-      if (!configRes.ok || !librariesRes.ok) throw new Error('load failed')
+      if (!configRes.ok || !librariesRes.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.loadFailed'))
       const config: BookMetadataFetchConfig = await configRes.json()
       const entries: BookMetadataFetchLibraryConfigEntry[] = await librariesRes.json()
       savedGlobal.value = config

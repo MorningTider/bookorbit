@@ -13,7 +13,7 @@ export function useMagicLinks() {
     error.value = null
     try {
       const res = await api('/api/v1/auth/magic-links')
-      if (!res.ok) throw new Error('Failed to load magic links')
+      if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadMagicLinks'))
       tokens.value = await res.json()
     } catch (e) {
       error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoad')

@@ -15,7 +15,7 @@ export function useSetupStatus() {
     inFlight = (async () => {
       try {
         const res = await fetchWithAuthProxyRecovery('/api/v1/auth/setup-status', { credentials: 'include' })
-        if (!res.ok) throw new Error('Failed to load setup status')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadSetupStatus'))
         const data = (await res.json()) as { needsSetup?: boolean; allowRegistration?: boolean }
         setupStatusError.value = null
         needsSetup.value = data.needsSetup === true

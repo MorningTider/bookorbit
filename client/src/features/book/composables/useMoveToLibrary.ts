@@ -152,7 +152,7 @@ export function useMoveToLibrary() {
       })
 
       if (finalSummary) summary.value = finalSummary
-      if (!summary.value) throw new Error('The move ended unexpectedly')
+      if (!summary.value) throw new Error(i18n.global.t('customUi.runtimeMessages.theMoveEndedUnexpectedly'))
 
       step.value = 'done'
       return summary.value

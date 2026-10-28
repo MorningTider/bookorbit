@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import type { EmailSendLogEntry, EmailSendLogSummary } from '@bookorbit/types'
 export type { EmailSendLogEntry, EmailSendLogSummary } from '@bookorbit/types'
 import { ref } from 'vue'
@@ -47,7 +48,7 @@ export function useEmailSendLog() {
 
   async function deleteEntry(id: number): Promise<void> {
     const res = await api(`/api/v1/email/log/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to delete log entry')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDeleteLogEntry'))
     recent.value = recent.value.filter((e) => e.id !== id)
     attention.value = attention.value.filter((e) => e.id !== id)
   }

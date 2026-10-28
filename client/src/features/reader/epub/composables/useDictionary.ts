@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import type { DictionaryDefinition, DictionaryEntry, DictionaryResult } from '@bookorbit/types'
 
 const LANGUAGE_ALIASES: Record<string, string> = {
@@ -323,7 +324,7 @@ interface ProviderPayload {
 async function fetchFreeDictionaryPayload(word: string): Promise<ProviderPayload | null> {
   const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
   if (res.status === 404) return null
-  if (!res.ok) throw new Error(`Free Dictionary API error: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.freeDictionaryAPIError', { status: res.status }))
 
   const data: unknown = await res.json()
   if (!Array.isArray(data) || data.length === 0) return null
@@ -391,7 +392,7 @@ async function fetchWiktionaryPayload(word: string, lang: string): Promise<Provi
   // Only English Wiktionary serves this endpoint; its response includes other languages.
   const res = await fetch(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`)
   if (res.status === 404) return null
-  if (!res.ok) throw new Error(`Wiktionary API error: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.wiktionaryAPIError', { status: res.status }))
 
   const data: unknown = await res.json()
   if (!data || typeof data !== 'object') return null

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, reactive, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { BookDockFile, BookDockFilesPage, BookDockFileStatus } from '@bookorbit/types'
@@ -48,7 +49,7 @@ export function useBookDockFiles() {
       params.set('order', filters.order)
 
       const res = await api(`/api/v1/book-dock/files?${params}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
 
       const data: BookDockFilesPage = await res.json()
       if (reqId !== fetchReqSeq) return

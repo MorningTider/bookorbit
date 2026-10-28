@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { onScopeDispose, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { BookCard, BookDockFile, BookDockFilesPage, BookQuery, BooksPage } from '@bookorbit/types'
@@ -46,7 +47,7 @@ export function useFulfilmentPicker() {
           signal: requestController.signal,
         })
         if (gen !== generation) return
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
         const data = (await res.json()) as BooksPage
         if (gen !== generation) return
         books.value = data.items
@@ -54,7 +55,7 @@ export function useFulfilmentPicker() {
         const params = new URLSearchParams({ search: term, page: '1', limit: String(RESULT_LIMIT), sort: 'createdAt', order: 'desc' })
         const res = await api(`/api/v1/book-dock/files?${params}`, { signal: requestController.signal })
         if (gen !== generation) return
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
         const data = (await res.json()) as BookDockFilesPage
         if (gen !== generation) return
         dockFiles.value = data.items

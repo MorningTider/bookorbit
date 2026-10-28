@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RefreshCw, X } from '@lucide/vue'
@@ -24,7 +26,7 @@ async function load() {
   failed.value = false
   try {
     const res = await api(`/api/v1/scanner/libraries/${props.library.id}/scan-history?limit=${HISTORY_LIMIT}`)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     const data: unknown = await res.json()
     entries.value = Array.isArray(data) ? (data as LibraryScanHistoryEntry[]) : []
   } catch {

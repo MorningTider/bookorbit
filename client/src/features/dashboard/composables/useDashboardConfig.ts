@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, watch } from 'vue'
 
 import {
@@ -225,14 +226,14 @@ export function useDashboardConfig() {
     const nextLayout = normalizeShelfLayout(newShelfLayout)
     if (sync || syncAcrossSessions.value) {
       const currentUser = user.value
-      if (!currentUser) throw new Error('Sign in to sync dashboard shelves')
+      if (!currentUser) throw new Error(i18n.global.t('customUi.runtimeMessages.signInToSyncDashboardShelves'))
       const config: DashboardShelfConfig = { syncAcrossSessions: sync, scrollers: nextScrollers, shelfLayout: nextLayout }
       const response = await api('/api/v1/users/me/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: { dashboardShelfConfig: config } }),
       })
-      if (!response.ok) throw new Error(`Failed to save dashboard shelves: ${response.status}`)
+      if (!response.ok) throw new Error(i18n.global.t('customUi.httpMessages.failedToSaveDashboardShelves', { status: response.status }))
       if (user.value?.id !== currentUser.id) return
       user.value = { ...user.value, settings: { ...user.value.settings, dashboardShelfConfig: config } }
     }

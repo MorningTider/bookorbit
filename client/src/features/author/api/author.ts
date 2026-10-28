@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import type {
   AuthorsPage,
@@ -137,7 +138,7 @@ export async function fetchAuthors(params: ListAuthorsParams): Promise<AuthorsPa
   })
 
   const res = await api(`/api/v1/authors${query}`)
-  if (!res.ok) throw new Error('Failed to load authors')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadAuthors'))
   return res.json()
 }
 
@@ -162,14 +163,14 @@ export async function fetchAuthorJumpBuckets(
   const query = toQuery({ sort: params.sort, order: params.order, ...authorFilterQuery(params) })
 
   const res = await api(`/api/v1/authors/jump-buckets${query}`)
-  if (!res.ok) throw new Error('Failed to load author jump buckets')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadAuthorJumpBuckets'))
   return res.json()
 }
 
 export async function fetchAuthor(id: number): Promise<AuthorDetail | null> {
   const res = await api(`/api/v1/authors/${id}`)
   if (res.status === 404) return null
-  if (!res.ok) throw new Error('Failed to load author')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadAuthor'))
   return res.json()
 }
 
@@ -184,7 +185,7 @@ export async function fetchAuthorBooks(authorId: number, params: ListAuthorBooks
   })
 
   const res = await api(`/api/v1/authors/${authorId}/books${query}`)
-  if (!res.ok) throw new Error('Failed to load author books')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadAuthorBooks'))
   return res.json()
 }
 
@@ -194,16 +195,16 @@ export async function updateAuthor(authorId: number, payload: UpdateAuthorPayloa
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error('Failed to update author')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToUpdateAuthor'))
   return res.json()
 }
 
 export async function uploadAuthorImage(authorId: number, file: File): Promise<AuthorDetail> {
   if (!file.type.startsWith('image/')) {
-    throw new Error('File must be an image')
+    throw new Error(i18n.global.t('customUi.runtimeMessages.fileMustBeAnImage'))
   }
   if (file.size > MAX_AUTHOR_IMAGE_BYTES) {
-    throw new Error('Image exceeds 20 MB limit')
+    throw new Error(i18n.global.t('customUi.runtimeMessages.imageExceeds20MBLimit'))
   }
 
   const formData = new FormData()
@@ -236,7 +237,7 @@ export async function mergeAuthors(payload: MergeAuthorsPayload): Promise<MergeA
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error('Failed to merge authors')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToMergeAuthors'))
   return res.json()
 }
 
@@ -246,7 +247,7 @@ export async function deleteAuthors(payload: DeleteAuthorsPayload): Promise<{ de
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error('Failed to delete authors')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDeleteAuthors'))
   return res.json()
 }
 
@@ -264,7 +265,7 @@ export async function fetchAuthorMetadataCandidates(params: AuthorMetadataSearch
   const query = authorMetadataSearchQuery(params)
 
   const res = await api(`/api/v1/authors/metadata/search${query}`)
-  if (!res.ok) throw new Error('Failed to load author metadata')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadAuthorMetadata'))
   return res.json()
 }
 
@@ -277,7 +278,7 @@ export async function streamAuthorMetadataCandidates(
   const query = authorMetadataSearchQuery(params)
 
   const res = await api(`/api/v1/authors/metadata/stream${query}`, { signal })
-  if (!res.ok || !res.body) throw new Error('Failed to stream author metadata')
+  if (!res.ok || !res.body) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToStreamAuthorMetadata'))
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -318,7 +319,7 @@ export async function bulkRefreshAuthorsMetadata(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(withIgnoreCache({ authorIds }, options)),
   })
-  if (!res.ok || !res.body) throw new Error('Failed to refresh author metadata')
+  if (!res.ok || !res.body) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRefreshAuthorMetadata'))
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -401,6 +402,6 @@ export async function refreshAuthorMetadata(authorId: number): Promise<AuthorMet
   const res = await api(`/api/v1/authors/${authorId}/enrichment/refresh`, {
     method: 'POST',
   })
-  if (!res.ok) throw new Error('Failed to refresh author metadata')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRefreshAuthorMetadata'))
   return res.json()
 }

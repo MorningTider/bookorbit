@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type { FontScope, ServerFontUsageResponse, UserFont, UserFontUsageResponse } from '@bookorbit/types'
 import { FONT_FORMAT_EXTENSIONS, MAX_FONT_FILE_SIZE, fontCssFamilyGroupName } from '@bookorbit/types'
@@ -141,7 +142,7 @@ export function useFontLibrary(scope: FontScope, customFonts: ReturnType<typeof 
       const known = new Set(store.fonts.value.map((font) => font.familyName))
       try {
         const result = await store.uploadFont(file)
-        if (!result) throw new Error('Upload failed')
+        if (!result) throw new Error(i18n.global.t('customUi.runtimeMessages.uploadFailed'))
         const { familyName, weight, style } = result.font
         const newFamily = !known.has(familyName)
         if (newFamily) newFamilies.value = new Set([...newFamilies.value, familyName])

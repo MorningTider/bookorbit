@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Search, Loader2, Image as ImageIcon, Check } from '@lucide/vue'
@@ -78,7 +80,7 @@ async function performSearch() {
       provider: searchProvider.value,
     })
     const res = await fetch(`/api/v1/books/cover/search?${params}`)
-    if (!res.ok) throw new Error('Search failed')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.searchFailed'))
     searchResults.value = await res.json()
   } catch (err) {
     console.error('Search error:', err)

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { BOOK_METADATA_LOCK_FIELDS, type BookMetadataLockField } from '@bookorbit/types'
@@ -44,10 +45,10 @@ export function useTableLocks() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lockedFields: nextFields }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     } catch {
       state.fields = previousFields
-      toast.error('Failed to update locks')
+      toast.error(i18n.global.t('customUi.runtimeMessages.failedToUpdateLocks'))
     } finally {
       state.pending = false
     }

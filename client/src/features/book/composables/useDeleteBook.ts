@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import { toast } from 'vue-sonner'
@@ -25,11 +26,11 @@ export function useDeleteBook(onDeleted: (id: number) => void) {
         body: JSON.stringify({ bookIds: [id] }),
       })
       if (!res.ok) {
-        toast.error('Failed to delete book')
+        toast.error(i18n.global.t('customUi.runtimeMessages.failedToDeleteBook'))
         return
       }
       onDeleted(id)
-      toast.success('Book deleted')
+      toast.success(i18n.global.t('customUi.runtimeMessages.bookDeleted'))
     } finally {
       deleting.value = false
       pendingId.value = null

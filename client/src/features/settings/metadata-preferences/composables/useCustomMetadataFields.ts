@@ -44,7 +44,7 @@ export function useCustomMetadataFields() {
     loading.value = true
     try {
       const res = await api('/api/v1/custom-metadata/fields?includeArchived=true')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       fields.value = (await res.json()) as CustomMetadataFieldDefinition[]
       loaded.value = true
     } catch {
@@ -63,7 +63,7 @@ export function useCustomMetadataFields() {
         // After the last field, not at the active count: archiving leaves gaps, and a tie sorts by label.
         body: JSON.stringify({ ...payload, displayOrder: Math.max(-1, ...fields.value.map((field) => field.displayOrder)) + 1 }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const created = (await res.json()) as CustomMetadataFieldDefinition
       fields.value = [...fields.value, created]
       toast.success(i18n.global.t('settings.metadata.customFields.toasts.created', { label: created.label }))
@@ -85,7 +85,7 @@ export function useCustomMetadataFields() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const updated = (await res.json()) as CustomMetadataFieldDefinition
       replace(updated)
       toast.success(i18n.global.t('settings.metadata.customFields.toasts.saved', { label: updated.label }))
@@ -103,7 +103,7 @@ export function useCustomMetadataFields() {
     restoringId.value = field.id
     try {
       const res = await api(`/api/v1/custom-metadata/fields/${field.id}/restore`, { method: 'POST' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       fields.value = fields.value.map((item) => (item.id === field.id ? { ...item, archivedAt: null } : item))
       if (!quiet) toast.success(i18n.global.t('settings.metadata.customFields.toasts.restored', { label: field.label }))
       void refreshActiveFields()
@@ -121,7 +121,7 @@ export function useCustomMetadataFields() {
     archivingId.value = field.id
     try {
       const res = await api(`/api/v1/custom-metadata/fields/${field.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const now = new Date().toISOString()
       fields.value = fields.value.map((item) => (item.id === field.id ? { ...item, archivedAt: now } : item))
       toast.success(i18n.global.t('settings.metadata.customFields.toasts.archived', { label: field.label }), {
@@ -141,7 +141,7 @@ export function useCustomMetadataFields() {
     deletingPermanentlyId.value = field.id
     try {
       const res = await api(`/api/v1/custom-metadata/fields/${field.id}/permanent`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       fields.value = fields.value.filter((item) => item.id !== field.id)
       toast.success(i18n.global.t('settings.metadata.customFields.toasts.deleted', { label: field.label }))
       void refreshActiveFields()
@@ -162,7 +162,7 @@ export function useCustomMetadataFields() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderedIds }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const reordered = (await res.json()) as CustomMetadataFieldDefinition[]
       const archived = fields.value.filter((item) => item.archivedAt)
       fields.value = [...reordered, ...archived]

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type { LibraryOverviewEntry } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -22,9 +23,9 @@ export function useLibraryOverview() {
     inFlight = (async () => {
       try {
         const res = await api('/api/v1/libraries/overview')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
         const data: unknown = await res.json()
-        if (!Array.isArray(data)) throw new Error('Invalid overview response')
+        if (!Array.isArray(data)) throw new Error(i18n.global.t('customUi.runtimeMessages.invalidOverviewResponse'))
         entries.value = new Map((data as LibraryOverviewEntry[]).map((entry) => [entry.libraryId, entry]))
         loaded.value = true
         error.value = null

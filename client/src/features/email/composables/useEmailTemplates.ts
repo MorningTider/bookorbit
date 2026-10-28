@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 
@@ -34,7 +35,7 @@ export function useEmailTemplates() {
     if (fetchPromise) return fetchPromise
     fetchPromise = api('/api/v1/email/templates')
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load templates')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadTemplates'))
         templates.value = await res.json()
       })
       .finally(() => {
@@ -84,7 +85,7 @@ export function useEmailTemplates() {
 
   async function setDefaultTemplate(id: number): Promise<void> {
     const res = await api(`/api/v1/email/templates/${id}/default`, { method: 'PATCH' })
-    if (!res.ok) throw new Error('Failed to set default')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToSetDefault'))
     const updated: EmailTemplate = await res.json()
     templates.value = templates.value.map((t) => ({ ...t, isDefault: t.id === updated.id ? updated.isDefault : false }))
   }
@@ -95,7 +96,7 @@ export function useEmailTemplates() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookId }),
     })
-    if (!res.ok) throw new Error('Failed to preview template')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToPreviewTemplate'))
     return res.json()
   }
 
@@ -106,7 +107,7 @@ export function useEmailTemplates() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subject, bodyText, bookId }),
     })
-    if (!res.ok) throw new Error('Failed to preview template')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToPreviewTemplate'))
     return res.json()
   }
 

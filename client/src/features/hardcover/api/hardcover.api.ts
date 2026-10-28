@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import type {
   ApplyHardcoverImportPayload,
@@ -20,7 +21,7 @@ const BASE = '/api/v1/hardcover'
 
 export async function fetchHardcoverSettings(): Promise<HardcoverSettings> {
   const res = await api(`${BASE}/settings`)
-  if (!res.ok) throw new Error('Failed to fetch Hardcover settings')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchHardcoverSettings'))
   return res.json()
 }
 
@@ -39,7 +40,7 @@ export async function upsertHardcoverSettings(payload: UpsertHardcoverSettingsPa
 
 export async function disconnectHardcover(): Promise<void> {
   const res = await api(`${BASE}/settings`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to disconnect Hardcover')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDisconnectHardcover'))
 }
 
 export async function validateHardcoverToken(token?: string): Promise<HardcoverTokenValidationResult> {
@@ -48,7 +49,7 @@ export async function validateHardcoverToken(token?: string): Promise<HardcoverT
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(token ? { token } : {}),
   })
-  if (!res.ok) throw new Error('Failed to validate token')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToValidateToken'))
   return res.json()
 }
 
@@ -73,7 +74,7 @@ export async function fetchHardcoverSyncStatus(): Promise<HardcoverActiveSyncSta
 
 export async function streamHardcoverSyncStatus(onStatus: (status: HardcoverActiveSyncStatus | null) => void, signal?: AbortSignal): Promise<void> {
   const res = await api(`${BASE}/sync/stream`, { signal })
-  if (!res.ok || !res.body) throw new Error('Failed to stream Hardcover sync status')
+  if (!res.ok || !res.body) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToStreamHardcoverSyncStatus'))
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -108,7 +109,7 @@ export async function fetchHardcoverSyncPendingSummary(): Promise<HardcoverSyncP
 
 export async function fetchHardcoverBookSyncState(bookId: number): Promise<HardcoverBookSyncState> {
   const res = await api(`${BASE}/books/${bookId}/sync-state`)
-  if (!res.ok) throw new Error('Failed to fetch Hardcover book sync state')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchHardcoverBookSyncState'))
   return res.json()
 }
 
@@ -136,13 +137,13 @@ export async function startHardcoverBookSync(bookId: number): Promise<HardcoverB
 
 export async function fetchHardcoverLinkedBooks(): Promise<HardcoverLinkedBooksResult> {
   const res = await api(`${BASE}/books`)
-  if (!res.ok) throw new Error('Failed to fetch Hardcover linked books')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchHardcoverLinkedBooks'))
   return res.json()
 }
 
 export async function fetchHardcoverEditions(bookId: number): Promise<HardcoverEditionsResult> {
   const res = await api(`${BASE}/books/${bookId}/editions`)
-  if (!res.ok) throw new Error('Failed to fetch Hardcover editions')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchHardcoverEditions'))
   return res.json()
 }
 
@@ -152,7 +153,7 @@ export async function setHardcoverEdition(bookId: number, editionId: number): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ editionId }),
   })
-  if (!res.ok) throw new Error('Failed to set Hardcover edition')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToSetHardcoverEdition'))
   return res.json()
 }
 

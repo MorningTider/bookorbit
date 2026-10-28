@@ -44,7 +44,7 @@ export function useWhatsNew() {
   async function loadPrefs(): Promise<void> {
     if (prefsLoaded) return
     const res = await api('/api/v1/user-preferences/whats-new')
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     const data = (await res.json()) as { settings: WhatsNewPreferences }
     lastSeenVersion.value = data.settings.lastSeenVersion
     popupEnabled.value = data.settings.popupEnabled
@@ -86,7 +86,7 @@ export function useWhatsNew() {
       if (!isNewer(current, lastSeenVersion.value)) return
 
       const res = await api(`/api/v1/release-notes?since=${encodeURIComponent(lastSeenVersion.value)}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data = (await res.json()) as ReleaseNotesResponse
       releases.value = data.releases
       hasMore.value = data.hasMore
@@ -131,7 +131,7 @@ export function useWhatsNew() {
     const res = await persist({ popupEnabled: enabled })
     if (!res.ok) {
       popupEnabled.value = !enabled
-      throw new Error(`HTTP ${res.status}`)
+      throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     }
   }
 

@@ -19,7 +19,7 @@ export function useAppInfo() {
     error.value = null
     try {
       const res = await api('/api/v1/app-info')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data: AppInfoResponse = await res.json()
       version.value = data.version
       updateAvailable.value = data.updateAvailable

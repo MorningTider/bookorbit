@@ -68,7 +68,7 @@ export function useMetadataLocks(options: UseMetadataLocksOptions = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lockedFields: normalized }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const updated: BookDetail = await res.json()
       markPersisted(updated.lockedFields)
       return updated

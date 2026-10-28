@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import type { AuthUser, AuthResponse } from '@bookorbit/types'
 import {
@@ -92,7 +93,10 @@ setOnAuthFailure(() => {
 
 async function me(): Promise<void> {
   const res = await api('/api/v1/auth/me')
-  if (!res.ok) throw isServerUnavailableStatus(res.status) ? new NetworkError(`me answered ${res.status}`) : new Error('Failed to load user')
+  if (!res.ok)
+    throw isServerUnavailableStatus(res.status)
+      ? new NetworkError(`me answered ${res.status}`)
+      : new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadUser'))
   user.value = await res.json()
 }
 

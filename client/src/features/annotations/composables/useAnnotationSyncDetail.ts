@@ -14,7 +14,7 @@ export function useAnnotationSyncDetail() {
     error.value = null
     try {
       const res = await api(`/api/v1/annotations/${annotationId}/sync-detail`)
-      if (!res.ok) throw new Error('Failed to load sync detail')
+      if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadSyncDetail'))
       detail.value = (await res.json()) as AnnotationSyncDetail
     } catch (e) {
       error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSyncDetail')
@@ -32,7 +32,7 @@ export function useAnnotationSyncDetail() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ format }),
       })
-      if (!res.ok) throw new Error('Failed to retry position conversion')
+      if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRetryPositionConversion'))
       detail.value = (await res.json()) as AnnotationSyncDetail
     } catch (e) {
       error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToRetryPositionConversion')

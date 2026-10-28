@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
@@ -99,7 +100,7 @@ async function persist() {
       body: JSON.stringify({ settings: { statisticsConfig: payload } }),
     })
   } catch {
-    toast.error('Failed to save chart configuration')
+    toast.error(i18n.global.t('customUi.runtimeMessages.failedToSaveChartConfiguration'))
   }
 }
 

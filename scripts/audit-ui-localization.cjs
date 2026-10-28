@@ -117,6 +117,15 @@ function inspectScripts(directory) {
         if (/^[A-Z][A-Za-z ]{2,}$/.test(text) && !technical(text))
           scriptUiCandidates.push({ file: path.relative(root, file), property: node.name.getText(ast), text });
       }
+      if (
+        (ts.isNewExpression(node) && node.expression.getText(ast) === "Error") ||
+        (ts.isCallExpression(node) && /^toast\.(error|success|warning|info|message)$/.test(node.expression.getText(ast)))
+      ) {
+        const argument = node.arguments?.[0];
+        const text =
+          argument && ts.isStringLiteralLike(argument) ? argument.text : argument && ts.isTemplateExpression(argument) ? argument.head.text : "";
+        if (/[A-Za-z]{3}/.test(text)) scriptUiCandidates.push({ file: path.relative(root, file), property: "notification-or-error", text });
+      }
       ts.forEachChild(node, visit);
     }
     visit(ast);

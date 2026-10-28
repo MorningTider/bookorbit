@@ -12239,10 +12239,10 @@
     },
     "charts": {
       "acquisitionLag": {
-        "title": "获取标签"
+        "title": "入库延迟"
       },
       "booksAddedOverTime": {
-        "title": "书籍随时间添加",
+        "title": "图书入库趋势",
         "monthly": "每月的",
         "yearly": "每年一次",
         "allTime": "全部时间",
@@ -12253,85 +12253,85 @@
         "title": "格式分布"
       },
       "formatShareOverTime": {
-        "title": "随着时间的推移格式共享"
+        "title": "各格式占比变化"
       },
       "genreCooccurrence": {
-        "title": "体裁共现"
+        "title": "类型共现关系"
       },
       "genreDistribution": {
-        "title": "体裁分布"
+        "title": "类型分布"
       },
       "languageDistribution": {
         "title": "语言分布"
       },
       "largestBooks": {
-        "title": "前50本大书"
+        "title": "文件大小排行（前50本）"
       },
       "libraryIntegrity": {
-        "title": "库的完整性"
+        "title": "书库完整性"
       },
       "libraryMetadataCompleteness": {
-        "title": "库元数据的完整性"
+        "title": "各书库元数据完整度"
       },
       "metadataCompleteness": {
-        "title": "元数据完成度"
+        "title": "元数据完整度"
       },
       "metadataFreshness": {
-        "title": "元数据淡化"
+        "title": "元数据新鲜度"
       },
       "metadataScoreDistribution": {
-        "title": "元数据分数"
+        "title": "元数据评分分布"
       },
       "pageCountDistribution": {
-        "title": "页面计数分布"
+        "title": "页数分布"
       },
       "publicationDecade": {
-        "title": "出版十年"
+        "title": "出版年代分布"
       },
       "publicationYearTimeline": {
-        "title": "发布年时间表"
+        "title": "出版年份分布"
       },
       "storageByFormat": {
-        "title": "按格式存储"
+        "title": "各格式存储占用"
       },
       "topAuthors": {
-        "title": "前 25 位作者"
+        "title": "作者排行（前25名）"
       },
       "topSeries": {
-        "title": "前 50 个系列"
+        "title": "丛书排行（前50名）"
       },
       "booksCompleted": {
-        "title": "已完成的书",
+        "title": "完成阅读的图书",
         "notEnoughData": "至少需读完 {count} 本书才可生成该图表。"
       },
       "completionLatency": {
-        "title": "完成延迟",
+        "title": "阅读完成用时",
         "notEnoughData": "至少需读完 {count} 本书才可生成该图表。"
       },
       "completionTimeline": {
-        "title": "完成时间表",
+        "title": "阅读完成趋势",
         "notEnoughData": "至少需读完 {count} 本书才可生成该图表。"
       },
       "favoriteReadingDays": {
-        "title": "最喜欢的阅读日",
+        "title": "常用阅读日",
         "notEnoughData": "至少需要 {count} 条阅读记录才可生成该图表。"
       },
       "genreReadingTime": {
-        "title": "体裁阅读时长",
+        "title": "各类型阅读时长",
         "notEnoughData": "至少需要 {count} 类有阅读时长记录的书籍分类才可生成该图表。"
       },
       "goalTrajectory": {
-        "title": "比赛目标与目标",
+        "title": "阅读进度与年度目标",
         "noCompletedTitle": "还没有完成的书",
         "noCompletedDescription": "在此期间完成一本书，以比较您的速度和年度目标。",
         "notEnoughData": "至少需读完 {count} 本书才可生成该图表。"
       },
       "peakReadingHours": {
-        "title": "最高阅读时间",
+        "title": "阅读高峰时段",
         "notEnoughData": "至少需要 {count} 条阅读记录才可生成该图表。"
       },
       "progressFunnel": {
-        "title": "进步通道线",
+        "title": "阅读进度漏斗",
         "modePercent": "百分比",
         "modeCounts": "计数",
         "modeDropoff": "下拉列表",
@@ -12341,19 +12341,19 @@
         "noDropOffDescription": "在这段时间里，每一本已开始的书都在经过所有的通道阶段。"
       },
       "readingClock": {
-        "title": "读取时钟",
+        "title": "阅读时钟",
         "notEnoughData": "至少需要 {count} 次阅读时段记录才可生成该图表。"
       },
       "readingHeatmap": {
-        "title": "读取热图",
+        "title": "阅读热力图",
         "notEnoughData": "至少要有 {count} 天的阅读活动记录才可生成该图表。"
       },
       "readingPace": {
-        "title": "阅读路径",
+        "title": "阅读速度",
         "notEnoughData": "至少需要 {count} 条带进度的阅读时段记录才可生成该图表。"
       },
       "readingSessionTimeline": {
-        "title": "阅读会话时间表",
+        "title": "阅读会话时间线",
         "dragOn": "拖动：开启",
         "dragOff": "拖动：关闭",
         "prev": "上一个",
@@ -12366,10 +12366,10 @@
         "moveError": "无法移动会话"
       },
       "sessionArchetypes": {
-        "title": "会话原型"
+        "title": "阅读会话分布"
       },
       "sourceDistribution": {
-        "title": "您阅读的地方",
+        "title": "阅读来源",
         "emptyTitle": "尚无阅读活动",
         "emptyDescription": "在网页上阅读，KOReader，或Kobo，看看你的源代码分割。",
         "emptyDescriptionWithAppleClients": "在网页、iOS 应用、Apple Watch、KOReader 或 Kobo 上阅读，即可查看您的来源分布。",
@@ -12455,12 +12455,12 @@
       "kobo": "Kobo"
     },
     "units": {
-      "books": "本图书",
-      "minutes": "分钟",
-      "events": "次阅读"
+      "books": "{count, plural, other {本图书}}",
+      "minutes": "{count, plural, other {分钟}}",
+      "events": "{count, plural, other {次阅读}}"
     },
     "goalPerYear": "目标（每年 {count} 本）",
-    "sharedBooks": "{count} 本共同图书",
+    "sharedBooks": "{count, plural, other {# 本共同图书}}",
     "weekdays": {
       "0": "周日",
       "1": "周一",
@@ -14768,6 +14768,184 @@
       "fileSize": "文件大小",
       "updatedAt": "更新时间",
       "addedAt": "添加时间"
+    },
+    "runtimeMessages": {
+      "failedToSaveDisplayPreferences": "保存显示偏好失败",
+      "readerRequestFailed": "阅读器请求失败",
+      "invalidPageCount": "页数无效",
+      "settingsResetToDefaults": "设置已恢复默认值",
+      "djVuTextRequestFailed": "DjVu 文本请求失败",
+      "invalidDjVuTextResponse": "DjVu 文本响应无效",
+      "failedToLoadFoliateviewjs": "加载阅读器组件失败",
+      "failedToSaveChartConfiguration": "保存图表配置失败",
+      "loadFailed": "加载失败",
+      "deleteFailed": "删除失败",
+      "toggleFailed": "切换失败",
+      "managerLoadFailed": "加载管理器失败",
+      "failedToLoadMagicLinks": "加载快捷登录链接失败",
+      "failedToPause": "暂停失败",
+      "failedToResume": "恢复失败",
+      "failedToCancel": "取消失败",
+      "failedToRetry": "重试失败",
+      "failedToLoadLibraryDetail": "加载书库详情失败",
+      "invalidOverviewResponse": "概览响应无效",
+      "providerSettingsSaved": "来源设置已保存",
+      "uploadFailed": "上传失败",
+      "failedToFetchCollections": "获取书单失败",
+      "failedToCreateCollection": "创建书单失败",
+      "failedToUpdateCollection": "更新书单失败",
+      "failedToAddBooksToCollection": "添加图书到书单失败",
+      "failedToRemoveBooksFromCollection": "移除书单中的图书失败",
+      "failedToReorderCollections": "重新排序书单失败",
+      "failedToDeleteCollection": "删除书单失败",
+      "failedToFetchStoryGraphSettings": "获取StoryGraph 设置失败",
+      "failedToDisconnectStoryGraph": "断开StoryGraph失败",
+      "failedToValidateCookies": "验证Cookie失败",
+      "failedToStreamStoryGraphSyncStatus": "读取StoryGraph 同步状态失败",
+      "failedToFetchStoryGraphSyncFailures": "获取StoryGraph 同步失败记录失败",
+      "failedToRematchWithStoryGraph": "重新匹配StoryGraph 图书失败",
+      "failedToFetchStoryGraphSyncState": "获取StoryGraph 同步状态失败",
+      "failedToUpdateStoryGraphSyncState": "更新StoryGraph 同步状态失败",
+      "failedToSyncStoryGraphBook": "同步StoryGraph 图书失败",
+      "failedToLinkStoryGraphBook": "关联StoryGraph 图书失败",
+      "failedToSetStoryGraphEdition": "设置StoryGraph 版本失败",
+      "failedToFetchAchievements": "获取成就失败",
+      "failedToFetchAchievementHints": "获取成就提示失败",
+      "failedToLoadSigninOptions": "加载登录选项失败",
+      "fileMustBeAnImage": "文件必须是图片",
+      "imageExceeds5MBLimit": "图片超过 5 MB 限制",
+      "failedToLoadSetupStatus": "加载初始化状态失败",
+      "failedToLoadUser": "加载用户信息失败",
+      "failedToLoadAuthors": "加载作者失败",
+      "failedToLoadAuthorJumpBuckets": "加载作者索引失败",
+      "failedToLoadAuthor": "加载作者失败",
+      "failedToLoadAuthorBooks": "加载作者图书失败",
+      "failedToUpdateAuthor": "更新作者失败",
+      "imageExceeds20MBLimit": "图片超过 20 MB 限制",
+      "failedToMergeAuthors": "合并作者失败",
+      "failedToDeleteAuthors": "删除作者失败",
+      "failedToLoadAuthorMetadata": "加载作者元数据失败",
+      "failedToStreamAuthorMetadata": "读取作者元数据失败",
+      "failedToRefreshAuthorMetadata": "刷新作者元数据失败",
+      "invalidLibraryResponse": "书库响应无效",
+      "failedToReorderLibraries": "重新排序书库失败",
+      "noResponseBody": "响应内容为空",
+      "failedToTriggerRun": "触发任务失败",
+      "signInToSyncDashboardShelves": "请登录后同步首页书架",
+      "dashboardScrollerBatchFailed": "首页书架批量加载失败",
+      "dashboardScrollerBatchResultMissing": "首页书架批量结果缺失",
+      "dashboardWidgetBatchFailed": "首页组件批量加载失败",
+      "failedToLoadSyncDetail": "加载同步详情失败",
+      "failedToRetryPositionConversion": "重试位置转换失败",
+      "failedToLoadCustomIcons": "加载自定义图标失败",
+      "failedToLoadIcons": "加载图标失败",
+      "failedToLoadIconUsage": "加载图标使用情况失败",
+      "previewFailed": "预览失败",
+      "theMoveEndedUnexpectedly": "移动意外中断",
+      "allSelectedBooksHadLockedFieldsNoChangesApplied": "所选图书的字段均已锁定，未作修改",
+      "anUnexpectedErrorOccurredWhileSavingChanges": "保存更改时发生意外错误",
+      "failedToUpdateStatus": "更新状态失败",
+      "failedToUpdateRating": "更新评分失败",
+      "failedToDeleteBooks": "删除图书失败",
+      "failedToUpdateLocks": "更新锁定状态失败",
+      "failedToDeleteBook": "删除图书失败",
+      "bookDeleted": "图书已删除",
+      "searchFailed": "搜索失败",
+      "unableToLoadCoverArtwork": "无法加载封面",
+      "replacementRequestFailed": "替换请求失败",
+      "failedToFetchSyncStatus": "获取同步状态失败",
+      "failedToDeleteCredentials": "删除凭据失败",
+      "failedToFetchBookProgress": "获取图书进度失败",
+      "failedToFetchHardcoverSettings": "获取Hardcover 设置失败",
+      "failedToDisconnectHardcover": "断开Hardcover失败",
+      "failedToValidateToken": "验证令牌失败",
+      "failedToStreamHardcoverSyncStatus": "读取Hardcover 同步状态失败",
+      "failedToFetchHardcoverBookSyncState": "获取Hardcover 图书同步状态失败",
+      "failedToFetchHardcoverLinkedBooks": "获取Hardcover 已关联图书失败",
+      "failedToFetchHardcoverEditions": "获取Hardcover 版本失败",
+      "failedToSetHardcoverEdition": "设置Hardcover 版本失败",
+      "failedToLoadLibraries": "加载书库失败",
+      "failedToFetchSettings": "获取设置失败",
+      "failedToFetchDevices": "获取设备失败",
+      "failedToCreateDevice": "创建设备失败",
+      "failedToRenameDevice": "重命名设备失败",
+      "failedToRevokeDevice": "撤销设备失败",
+      "failedToFetchKoboSyncHistory": "获取Kobo 同步历史失败",
+      "failedToDeleteLogEntry": "删除日志条目失败",
+      "failedToLoadPreferences": "加载偏好设置失败",
+      "failedToLoadRecipients": "加载收件人失败",
+      "failedToDeleteRecipient": "删除收件人失败",
+      "failedToSetDefault": "设置默认项失败",
+      "failedToLoadProviders": "加载服务提供方失败",
+      "failedToTestConnection": "测试连接失败",
+      "failedToLoadTemplates": "加载模板失败",
+      "failedToPreviewTemplate": "预览模板失败",
+      "failedToLoadGroups": "加载分组失败",
+      "failedToDeleteGroup": "删除分组失败",
+      "failedToRemoveMember": "移除成员失败",
+      "refreshFailed": "刷新失败",
+      "sessionExpired": "会话已过期",
+      "failedToRefreshMetadata": "刷新元数据失败",
+      "failedToLoadReadingHistory": "加载阅读历史失败",
+      "failedToSaveReadingAttempt": "保存阅读记录失败",
+      "failedToStartReread": "开始重读失败"
+    },
+    "httpMessages": {
+      "failedToFetchEPUBInfo": "获取 EPUB 信息失败： {status}",
+      "failedToFetchBookFile": "获取图书文件失败： {status}",
+      "freeDictionaryAPIError": "词典接口错误： {status}",
+      "wiktionaryAPIError": "维基词典接口错误： {status}",
+      "statisticsRequestFailed": "统计请求失败： {status}",
+      "metadataScoreDistributionRequestFailed": "元数据评分分布请求失败： {status}",
+      "statisticsSummaryRequestFailed": "书库统计概览请求失败： {status}",
+      "userStatisticsSummaryRequestFailed": "阅读统计概览请求失败： {status}",
+      "userReadingHeatmapRequestFailed": "阅读热力图请求失败： {status}",
+      "userReadingSourceDistributionRequestFailed": "阅读来源分布请求失败： {status}",
+      "userPeakHoursRequestFailed": "阅读高峰时段请求失败： {status}",
+      "userFavoriteDaysRequestFailed": "常用阅读日请求失败： {status}",
+      "userCompletionTimelineRequestFailed": "阅读完成趋势请求失败： {status}",
+      "userGoalTrajectoryRequestFailed": "阅读目标进度请求失败： {status}",
+      "userProgressFunnelRequestFailed": "阅读进度漏斗请求失败： {status}",
+      "userCompletionLatencyRequestFailed": "阅读完成用时请求失败： {status}",
+      "userGenreReadingTimeRequestFailed": "类型阅读时长请求失败： {status}",
+      "userReadingPaceRequestFailed": "阅读速度请求失败： {status}",
+      "userSessionTimelineRequestFailed": "阅读会话时间线请求失败： {status}",
+      "userSessionTimelineUpdateFailed": "更新阅读会话时间线失败： {status}",
+      "genreCooccurrenceRequestFailed": "类型共现请求失败： {status}",
+      "metadataFreshnessGaugeRequestFailed": "元数据新鲜度请求失败： {status}",
+      "libraryIntegrityGaugeRequestFailed": "书库完整性请求失败： {status}",
+      "userSessionArchetypesRequestFailed": "阅读会话分布请求失败： {status}",
+      "failedToFetchSeries": "获取丛书失败： {status}",
+      "failedToFetchSeriesBooks": "获取丛书图书失败： {status}",
+      "hTTP": "请求失败（HTTP） {status}",
+      "failedToSaveDashboardShelves": "保存首页书架失败： {status}",
+      "previewFailedWithStatus": "预览失败，状态码 {status}",
+      "synthesisFailed": "语音合成失败： {status}",
+      "downloadFailedWithStatus": "下载失败，状态码 {status}"
+    },
+    "entityMessages": {
+      "browse": "浏览{entity}失败",
+      "scanDuplicates": "扫描{entity}重复项失败",
+      "merge": "合并{entity}失败",
+      "rename": "重命名{entity}失败",
+      "delete": "删除{entity}失败",
+      "bulkDelete": "批量删除{entity}失败",
+      "split": "拆分{entity}失败",
+      "dismissDuplicate": "忽略{entity}重复配对失败",
+      "restoreDuplicate": "取消忽略{entity}重复配对失败",
+      "loadDismissed": "获取已忽略的{entity}配对失败",
+      "scanStatus": "获取{entity}重复扫描状态失败",
+      "refreshDuplicates": "刷新{entity}重复项失败",
+      "loadInfo": "获取{entity}信息失败"
+    },
+    "entityKinds": {
+      "author": "作者",
+      "genre": "类型",
+      "tag": "标签",
+      "narrator": "演播者",
+      "publisher": "出版社",
+      "language": "语言",
+      "series": "丛书"
     }
   }
 }

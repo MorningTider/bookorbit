@@ -176,7 +176,10 @@ async function rawFetch(input: RequestInfo | URL, init?: RequestInit): Promise<R
 
 async function attemptRefresh(): Promise<string> {
   const res = await rawFetch('/api/v1/auth/refresh', { method: 'POST' })
-  if (!res.ok) throw isServerUnavailableStatus(res.status) ? new NetworkError(`refresh answered ${res.status}`) : new Error('refresh failed')
+  if (!res.ok)
+    throw isServerUnavailableStatus(res.status)
+      ? new NetworkError(`refresh answered ${res.status}`)
+      : new Error(i18n.global.t('customUi.runtimeMessages.refreshFailed'))
   const data: RefreshResponse = await res.json()
   const recovered = _sawAuthFailure
   setAccessToken(data.accessToken)
@@ -206,7 +209,7 @@ export async function api(input: RequestInfo | URL, init?: RequestInit & { _isRe
 
   if (isRetry) {
     _onAuthFailure?.()
-    throw new Error('Session expired')
+    throw new Error(i18n.global.t('customUi.runtimeMessages.sessionExpired'))
   }
 
   try {
@@ -215,7 +218,7 @@ export async function api(input: RequestInfo | URL, init?: RequestInit & { _isRe
     // The refresh never got an answer, so the session may well be intact. Keep it.
     if (reason instanceof NetworkError) throw reason
     _onAuthFailure?.()
-    throw new Error('Session expired')
+    throw new Error(i18n.global.t('customUi.runtimeMessages.sessionExpired'))
   }
 
   return api(input, { ...rest, _isRetry: true })

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { onScopeDispose, ref } from 'vue'
 import type { BookDetail, ComicPageCountResponse } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -39,12 +40,13 @@ export function useCbz(fileId: number, bookId: number, source: 'cbz' | 'djvu' = 
         api(`/api/v1/${source}/files/${fileId}/pages`, { signal: request.signal }),
         api(`/api/v1/books/${bookId}`, { signal: request.signal }).catch(() => null),
       ])
-      if (!pagesRes.ok) throw new Error('Reader request failed')
+      if (!pagesRes.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.readerRequestFailed'))
       const [pagesData, bookData] = await Promise.all([
         pagesRes.json() as Promise<ComicPageCountResponse>,
         bookRes?.ok ? (bookRes.json() as Promise<BookDetail>).catch(() => null) : Promise.resolve(null),
       ])
-      if (!Number.isInteger(pagesData.pageCount) || pagesData.pageCount < 1) throw new Error('Invalid page count')
+      if (!Number.isInteger(pagesData.pageCount) || pagesData.pageCount < 1)
+        throw new Error(i18n.global.t('customUi.runtimeMessages.invalidPageCount'))
       if (disposed || controller !== request) return
       pageCount.value = pagesData.pageCount
       bookTitle.value = bookData?.title || bookData?.files?.find((file) => file.id === fileId)?.filename?.replace(/\.[^.]+$/, '') || ''

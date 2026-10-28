@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue'
 import type { GroupRule, LibraryBookFacets } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -35,7 +36,7 @@ export function useLibraryFacets(libraryId: Ref<number | null>, filter: Ref<Grou
         signal: request.signal,
       })
       if (request.signal.aborted) return
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       facets.value = (await res.json()) as LibraryBookFacets
       facetsLibraryId = id
     } catch {

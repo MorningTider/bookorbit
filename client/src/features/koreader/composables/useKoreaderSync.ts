@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type {
@@ -38,7 +39,7 @@ export function useKoreaderSync() {
     if (!silent) loading.value = true
     try {
       const res = await api('/api/v1/koreader/sync-status')
-      if (!res.ok) throw new Error('Failed to fetch sync status')
+      if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchSyncStatus'))
       syncStatus.value = await res.json()
       credentials.value = syncStatus.value!.credentials
     } finally {
@@ -74,7 +75,7 @@ export function useKoreaderSync() {
 
   async function deleteCredentials(): Promise<void> {
     const res = await api('/api/v1/koreader/credentials', { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to delete credentials')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDeleteCredentials'))
     credentials.value = null
     syncStatus.value = null
     unmatchedBooks.value = []

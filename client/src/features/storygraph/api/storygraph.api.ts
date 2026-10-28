@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import type {
   StorygraphActiveSyncStatus,
@@ -18,7 +19,7 @@ const BASE = '/api/v1/storygraph'
 
 export async function fetchStorygraphSettings(): Promise<StorygraphSettings> {
   const res = await api(`${BASE}/settings`)
-  if (!res.ok) throw new Error('Failed to fetch StoryGraph settings')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchStoryGraphSettings'))
   return res.json()
 }
 
@@ -37,7 +38,7 @@ export async function upsertStorygraphSettings(payload: UpsertStorygraphSettings
 
 export async function disconnectStorygraph(): Promise<void> {
   const res = await api(`${BASE}/settings`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to disconnect StoryGraph')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDisconnectStoryGraph'))
 }
 
 export async function validateStorygraphCookies(sessionCookie?: string, rememberToken?: string): Promise<StorygraphCookieValidationResult> {
@@ -46,7 +47,7 @@ export async function validateStorygraphCookies(sessionCookie?: string, remember
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(sessionCookie && rememberToken ? { sessionCookie, rememberToken } : {}),
   })
-  if (!res.ok) throw new Error('Failed to validate cookies')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToValidateCookies'))
   return res.json()
 }
 
@@ -71,7 +72,7 @@ export async function fetchStorygraphSyncStatus(): Promise<StorygraphActiveSyncS
 
 export async function streamStorygraphSyncStatus(onStatus: (status: StorygraphActiveSyncStatus | null) => void, signal?: AbortSignal): Promise<void> {
   const res = await api(`${BASE}/sync/stream`, { signal })
-  if (!res.ok || !res.body) throw new Error('Failed to stream StoryGraph sync status')
+  if (!res.ok || !res.body) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToStreamStoryGraphSyncStatus'))
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -100,7 +101,7 @@ export async function streamStorygraphSyncStatus(onStatus: (status: StorygraphAc
 
 export async function fetchStorygraphSyncFailures(): Promise<StorygraphSyncFailure[]> {
   const res = await api(`${BASE}/sync/failures`)
-  if (!res.ok) throw new Error('Failed to fetch StoryGraph sync failures')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchStoryGraphSyncFailures'))
   return res.json()
 }
 
@@ -112,13 +113,13 @@ export async function fetchStorygraphSyncPendingSummary(): Promise<StorygraphSyn
 
 export async function rematchStorygraphBook(bookId: number): Promise<{ result: 'synced' | 'skipped' | 'failed' }> {
   const res = await api(`${BASE}/books/${bookId}/rematch`, { method: 'POST' })
-  if (!res.ok) throw new Error('Failed to re-match with StoryGraph')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRematchWithStoryGraph'))
   return res.json()
 }
 
 export async function fetchStorygraphBookSyncState(bookId: number): Promise<StorygraphBookSyncState> {
   const res = await api(`${BASE}/books/${bookId}/sync-state`)
-  if (!res.ok) throw new Error('Failed to fetch StoryGraph sync state')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchStoryGraphSyncState'))
   return res.json()
 }
 
@@ -128,13 +129,13 @@ export async function updateStorygraphBookSyncState(bookId: number, payload: Upd
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error('Failed to update StoryGraph sync state')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToUpdateStoryGraphSyncState'))
   return res.json()
 }
 
 export async function startStorygraphBookSync(bookId: number): Promise<StorygraphBookSyncNowResult> {
   const res = await api(`${BASE}/books/${bookId}/sync`, { method: 'POST' })
-  if (!res.ok) throw new Error('Failed to sync StoryGraph book')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToSyncStoryGraphBook'))
   return res.json()
 }
 
@@ -150,7 +151,7 @@ export async function linkStorygraphBook(bookId: number, input: string): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ input }),
   })
-  if (!res.ok) throw new Error('Failed to link StoryGraph book')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLinkStoryGraphBook'))
   return res.json()
 }
 
@@ -166,6 +167,6 @@ export async function setStorygraphEdition(bookId: number, editionId: string): P
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ editionId }),
   })
-  if (!res.ok) throw new Error('Failed to set StoryGraph edition')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToSetStoryGraphEdition'))
   return res.json()
 }

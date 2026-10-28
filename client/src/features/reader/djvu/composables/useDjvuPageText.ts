@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { onScopeDispose, ref, watch } from 'vue'
 import type { DjvuPageTextResponse } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -18,9 +19,9 @@ export function useDjvuPageText(props: Readonly<{ open: boolean; fileId: number;
     loading.value = true
     try {
       const response = await api(`/api/v1/djvu/files/${props.fileId}/pages/${props.pageIndex}/text`, { signal: controller.signal })
-      if (!response.ok) throw new Error('DjVu text request failed')
+      if (!response.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.djVuTextRequestFailed'))
       const data = (await response.json()) as DjvuPageTextResponse
-      if (typeof data.text !== 'string') throw new Error('Invalid DjVu text response')
+      if (typeof data.text !== 'string') throw new Error(i18n.global.t('customUi.runtimeMessages.invalidDjVuTextResponse'))
       if (request === controller && !controller.signal.aborted) text.value = data.text
     } catch {
       if (request === controller && !controller.signal.aborted) failed.value = true

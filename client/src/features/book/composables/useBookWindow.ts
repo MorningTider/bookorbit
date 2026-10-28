@@ -107,7 +107,7 @@ export function useBookWindow(options: { endpoint: Ref<string | null>; query: Re
         signal,
       })
       if (gen !== generation) return
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
 
       const data: BooksPage = await res.json()
       if (gen !== generation) return

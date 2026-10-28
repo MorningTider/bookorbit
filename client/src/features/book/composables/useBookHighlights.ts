@@ -100,7 +100,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
     try {
       const res = await api(`/api/v1/books/${bookId}/annotations?${buildParams(1).toString()}`)
       if (seq !== fetchSeq) return
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data: AnnotationListResponse = await res.json()
       if (seq !== fetchSeq) return
       items.value = data.items
@@ -123,7 +123,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
     try {
       const res = await api(`/api/v1/books/${bookId}/annotations?${buildParams(loadedPages.value + 1).toString()}`)
       if (seq !== fetchSeq) return
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data: AnnotationListResponse = await res.json()
       if (seq !== fetchSeq) return
       const known = new Set(items.value.map((item) => item.id))
@@ -214,7 +214,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
     if (activeId.value === annotationId) activeId.value = null
     try {
       const res = await api(`/api/v1/books/${bookId}/annotations/${annotationId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       await refreshStats()
     } catch (e) {
       items.value = prev
@@ -237,7 +237,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: annotationIds, action: 'trash' }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const body = (await res.json()) as { affected: number }
       await refreshStats()
       return body.affected
@@ -260,7 +260,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: annotationIds, action: 'restyle', ...patch }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const body = (await res.json()) as { affected: number }
       await refreshStats()
       return body.affected

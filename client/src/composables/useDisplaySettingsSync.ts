@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import type { DisplayPreferences } from '@bookorbit/types'
 import { watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -78,10 +79,10 @@ export async function saveDisplaySettingsToServer(prefs: DisplayPreferences): Pr
     })
 
     if (!res.ok) {
-      toast.error('Failed to save display preferences')
+      toast.error(i18n.global.t('customUi.runtimeMessages.failedToSaveDisplayPreferences'))
     }
   } catch {
-    toast.error('Failed to save display preferences')
+    toast.error(i18n.global.t('customUi.runtimeMessages.failedToSaveDisplayPreferences'))
   }
 }
 

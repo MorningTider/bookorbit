@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, watch, type Ref } from 'vue'
 import type { BookDetail } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -62,7 +63,7 @@ export function usePersonalNote(book: Ref<BookDetail>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note: normalizedDraft.value }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const updated = (await res.json()) as BookDetail
       draft.value = updated.personalNote ?? ''
       editing.value = false

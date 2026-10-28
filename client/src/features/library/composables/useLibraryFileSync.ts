@@ -23,8 +23,8 @@ export function useLibraryFileSync() {
     try {
       const url = `/api/v1/libraries/${libraryId}/write-metadata-to-files${dryRun ? '?dryRun=true' : ''}`
       const res = await api(url, { method: 'POST' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      if (!res.body) throw new Error('No response body')
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
+      if (!res.body) throw new Error(i18n.global.t('customUi.runtimeMessages.noResponseBody'))
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()

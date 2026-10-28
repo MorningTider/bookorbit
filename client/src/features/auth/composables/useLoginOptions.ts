@@ -15,7 +15,7 @@ export function useLoginOptions() {
     inFlight = (async () => {
       try {
         const res = await fetchWithAuthProxyRecovery('/api/v1/auth/login-options', { credentials: 'include' })
-        if (!res.ok) throw new Error('Failed to load sign-in options')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadSigninOptions'))
         const data = (await res.json()) as LoginOptionsResponse
         loginOptions.value = data
         loginOptionsError.value = null

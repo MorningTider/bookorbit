@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import type {
   AcquisitionLagPoint,
@@ -39,7 +40,7 @@ import type {
 } from '@bookorbit/types'
 
 async function parseResult<T>(res: Response): Promise<StatisticsResult<T>> {
-  if (!res.ok) throw new Error(`Statistics request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.statisticsRequestFailed', { status: res.status }))
   return res.json() as Promise<StatisticsResult<T>>
 }
 
@@ -116,7 +117,7 @@ export async function fetchGenreDistribution(filters: StatisticsFilterConfig): P
 
 export async function fetchMetadataScoreDistribution(filters: StatisticsFilterConfig): Promise<MetadataScoreDistribution> {
   const res = await api(`/api/v1/statistics/metadata-score-distribution${buildParams(filters)}`)
-  if (!res.ok) throw new Error(`Metadata score distribution request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.metadataScoreDistributionRequestFailed', { status: res.status }))
   return res.json() as Promise<MetadataScoreDistribution>
 }
 
@@ -134,26 +135,26 @@ export async function fetchPageCountDistribution(filters: StatisticsFilterConfig
 
 export async function fetchStatisticsSummary(filters: StatisticsFilterConfig): Promise<StatisticsSummary> {
   const res = await api(`/api/v1/statistics/summary${buildParams(filters)}`)
-  if (!res.ok) throw new Error(`Statistics summary request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.statisticsSummaryRequestFailed', { status: res.status }))
   return res.json() as Promise<StatisticsSummary>
 }
 
 export async function fetchUserStatisticsSummary(filters: StatisticsFilterConfig): Promise<UserStatisticsSummary> {
   const res = await api(`/api/v1/user-statistics/summary${buildParams(filters)}`)
-  if (!res.ok) throw new Error(`User statistics summary request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userStatisticsSummaryRequestFailed', { status: res.status }))
   return res.json() as Promise<UserStatisticsSummary>
 }
 
 export async function fetchUserReadingHeatmap(filters: StatisticsFilterConfig): Promise<UserDailyReadingStat[]> {
   const days = String(getUtcDaysSinceYearStartInclusive())
   const res = await api(`/api/v1/user-statistics/reading-heatmap${buildParams(filters, { days })}`)
-  if (!res.ok) throw new Error(`User reading heatmap request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userReadingHeatmapRequestFailed', { status: res.status }))
   return res.json() as Promise<UserDailyReadingStat[]>
 }
 
 export async function fetchUserReadingSourceDistribution(filters: StatisticsFilterConfig): Promise<UserReadingSourceDistribution> {
   const res = await api(`/api/v1/user-statistics/reading-source-distribution${buildParams(filters, { days: '365' })}`)
-  if (!res.ok) throw new Error(`User reading source distribution request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userReadingSourceDistributionRequestFailed', { status: res.status }))
   return res.json() as Promise<UserReadingSourceDistribution>
 }
 
@@ -161,14 +162,14 @@ export async function fetchUserPeakReadingHours(filters: StatisticsFilterConfig)
   const url = `/api/v1/user-statistics/peak-hours${buildParams(filters, { days: '365' })}`
   return coalesceRequest(url, async () => {
     const res = await api(url)
-    if (!res.ok) throw new Error(`User peak hours request failed: ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userPeakHoursRequestFailed', { status: res.status }))
     return res.json() as Promise<UserPeakHourStat[]>
   })
 }
 
 export async function fetchUserFavoriteReadingDays(filters: StatisticsFilterConfig): Promise<UserFavoriteDayStat[]> {
   const res = await api(`/api/v1/user-statistics/favorite-days${buildParams(filters, { days: '365' })}`)
-  if (!res.ok) throw new Error(`User favorite days request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userFavoriteDaysRequestFailed', { status: res.status }))
   return res.json() as Promise<UserFavoriteDayStat[]>
 }
 
@@ -176,38 +177,38 @@ export async function fetchUserCompletionTimeline(filters: StatisticsFilterConfi
   const url = `/api/v1/user-statistics/completion-timeline${buildParams(filters, { days: '1825' })}`
   return coalesceRequest(url, async () => {
     const res = await api(url)
-    if (!res.ok) throw new Error(`User completion timeline request failed: ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userCompletionTimelineRequestFailed', { status: res.status }))
     return res.json() as Promise<UserCompletionTimelinePoint[]>
   })
 }
 
 export async function fetchUserGoalTrajectory(filters: StatisticsFilterConfig, goalBooks = 12): Promise<UserGoalTrajectory> {
   const res = await api(`/api/v1/user-statistics/goal-trajectory${buildParams(filters, { days: '365', goalBooks: String(goalBooks) })}`)
-  if (!res.ok) throw new Error(`User goal trajectory request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userGoalTrajectoryRequestFailed', { status: res.status }))
   return res.json() as Promise<UserGoalTrajectory>
 }
 
 export async function fetchUserProgressFunnel(filters: StatisticsFilterConfig): Promise<UserProgressFunnelComparison> {
   const res = await api(`/api/v1/user-statistics/progress-funnel${buildParams(filters, { days: '365', comparePrevious: 'true' })}`)
-  if (!res.ok) throw new Error(`User progress funnel request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userProgressFunnelRequestFailed', { status: res.status }))
   return res.json() as Promise<UserProgressFunnelComparison>
 }
 
 export async function fetchUserCompletionLatency(filters: StatisticsFilterConfig): Promise<UserCompletionLatencyDistribution> {
   const res = await api(`/api/v1/user-statistics/completion-latency${buildParams(filters, { days: '1825' })}`)
-  if (!res.ok) throw new Error(`User completion latency request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userCompletionLatencyRequestFailed', { status: res.status }))
   return res.json() as Promise<UserCompletionLatencyDistribution>
 }
 
 export async function fetchUserGenreReadingTime(filters: StatisticsFilterConfig): Promise<UserGenreReadingTimeItem[]> {
   const res = await api(`/api/v1/user-statistics/genre-reading-time${buildParams(filters, { days: '365' })}`)
-  if (!res.ok) throw new Error(`User genre reading time request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userGenreReadingTimeRequestFailed', { status: res.status }))
   return res.json() as Promise<UserGenreReadingTimeItem[]>
 }
 
 export async function fetchUserReadingPace(filters: StatisticsFilterConfig): Promise<UserReadingPacePoint[]> {
   const res = await api(`/api/v1/user-statistics/reading-pace${buildParams(filters, { days: '1825' })}`)
-  if (!res.ok) throw new Error(`User reading pace request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userReadingPaceRequestFailed', { status: res.status }))
   return res.json() as Promise<UserReadingPacePoint[]>
 }
 
@@ -217,7 +218,7 @@ export async function fetchUserReadingSessionTimeline(
   week: number,
 ): Promise<UserReadingSessionTimeline> {
   const res = await api(`/api/v1/user-statistics/session-timeline${buildParams(filters, { year: String(year), week: String(week) })}`)
-  if (!res.ok) throw new Error(`User session timeline request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userSessionTimelineRequestFailed', { status: res.status }))
   return res.json() as Promise<UserReadingSessionTimeline>
 }
 
@@ -232,25 +233,25 @@ export async function updateUserReadingSessionTimelineSession(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ startedAt, endedAt }),
   })
-  if (!res.ok) throw new Error(`User session timeline update failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userSessionTimelineUpdateFailed', { status: res.status }))
   return res.json() as Promise<UserReadingSessionTimelineItem>
 }
 
 export async function fetchGenreCooccurrence(filters: StatisticsFilterConfig): Promise<ChordDiagramData> {
   const res = await api(`/api/v1/statistics/genre-cooccurrence${buildParams(filters)}`)
-  if (!res.ok) throw new Error(`Genre co-occurrence request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.genreCooccurrenceRequestFailed', { status: res.status }))
   return res.json() as Promise<ChordDiagramData>
 }
 
 export async function fetchMetadataFreshnessGauge(filters: StatisticsFilterConfig): Promise<MetadataFreshnessGauge> {
   const res = await api(`/api/v1/statistics/metadata-freshness-gauge${buildParams(filters)}`)
-  if (!res.ok) throw new Error(`Metadata freshness gauge request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.metadataFreshnessGaugeRequestFailed', { status: res.status }))
   return res.json() as Promise<MetadataFreshnessGauge>
 }
 
 export async function fetchLibraryIntegrityGauge(filters: StatisticsFilterConfig): Promise<LibraryIntegrityGauge> {
   const res = await api(`/api/v1/statistics/library-integrity-gauge${buildParams(filters)}`)
-  if (!res.ok) throw new Error(`Library integrity gauge request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.libraryIntegrityGaugeRequestFailed', { status: res.status }))
   return res.json() as Promise<LibraryIntegrityGauge>
 }
 
@@ -260,7 +261,7 @@ export async function fetchAcquisitionLagScatter(filters: StatisticsFilterConfig
 
 export async function fetchUserSessionArchetypes(filters: StatisticsFilterConfig): Promise<UserSessionArchetypePoint[]> {
   const res = await api(`/api/v1/user-statistics/session-archetypes${buildParams(filters, { days: '365' })}`)
-  if (!res.ok) throw new Error(`User session archetypes request failed: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.userSessionArchetypesRequestFailed', { status: res.status }))
   return res.json() as Promise<UserSessionArchetypePoint[]>
 }
 

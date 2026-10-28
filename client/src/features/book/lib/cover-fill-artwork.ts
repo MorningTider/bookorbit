@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 const DEFAULT_ARTWORK_SIZE = 512
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -5,7 +6,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     const image = new Image()
     image.decoding = 'async'
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Unable to load cover artwork'))
+    image.onerror = () => reject(new Error(i18n.global.t('customUi.runtimeMessages.unableToLoadCoverArtwork')))
     image.src = src
   })
 }

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { EmailRecipient } from './useEmailRecipients'
@@ -19,7 +20,7 @@ export function useEmailGroups() {
     if (fetchPromise) return fetchPromise
     fetchPromise = api('/api/v1/email/recipient-groups')
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load groups')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadGroups'))
         groups.value = await res.json()
       })
       .finally(() => {
@@ -60,7 +61,7 @@ export function useEmailGroups() {
 
   async function deleteGroup(id: number): Promise<void> {
     const res = await api(`/api/v1/email/recipient-groups/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to delete group')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDeleteGroup'))
     groups.value = groups.value.filter((g) => g.id !== id)
   }
 
@@ -80,7 +81,7 @@ export function useEmailGroups() {
 
   async function removeMember(groupId: number, recipientId: number): Promise<void> {
     const res = await api(`/api/v1/email/recipient-groups/${groupId}/members/${recipientId}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to remove member')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRemoveMember'))
     groups.value = groups.value.map((g) => (g.id === groupId ? { ...g, members: g.members.filter((m) => m.id !== recipientId) } : g))
   }
 

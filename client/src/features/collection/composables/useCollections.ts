@@ -16,7 +16,7 @@ const loadCollectionList = createCoalescedFetch(async (): Promise<void> => {
   const generation = listGeneration.current()
   try {
     const res = await api('/api/v1/collections')
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     const nextCollections: Collection[] = await res.json()
     if (!listGeneration.isCurrent(generation)) return
     collections.value = nextCollections
@@ -32,7 +32,7 @@ const loadCollectionList = createCoalescedFetch(async (): Promise<void> => {
 const fetchCollectionPodcastPage = createCoalescedFetch(
   async (path: string): Promise<PodcastPage<PodcastListItem>> => {
     const res = await api(path)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     return res.json() as Promise<PodcastPage<PodcastListItem>>
   },
   (path) => path,
@@ -69,7 +69,7 @@ export function useCollections() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(selectionPayload),
     })
-    if (!res.ok) throw new Error('Failed to fetch collections')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchCollections'))
     return res.json()
   }
 
@@ -94,7 +94,7 @@ export function useCollections() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!res.ok) throw new Error('Failed to create collection')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToCreateCollection'))
     const created: Collection = await res.json()
     collections.value = [...collections.value, created]
     return created
@@ -111,7 +111,7 @@ export function useCollections() {
         ...(isPublic !== undefined && { isPublic }),
       }),
     })
-    if (!res.ok) throw new Error('Failed to update collection')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToUpdateCollection'))
     const updated: Collection = await res.json()
     collections.value = collections.value.map((c) => (c.id === id ? updated : c))
     return updated
@@ -123,7 +123,7 @@ export function useCollections() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(selectionPayload),
     })
-    if (!res.ok) throw new Error('Failed to add books to collection')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToAddBooksToCollection'))
     const updated: Collection = await res.json()
     collections.value = collections.value.map((c) => (c.id === collectionId ? updated : c))
     return updated
@@ -135,7 +135,7 @@ export function useCollections() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(selectionPayload),
     })
-    if (!res.ok) throw new Error('Failed to remove books from collection')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRemoveBooksFromCollection'))
     const updated: Collection = await res.json()
     collections.value = collections.value.map((c) => (c.id === collectionId ? updated : c))
     return updated
@@ -147,14 +147,14 @@ export function useCollections() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order }),
     })
-    if (!res.ok) throw new Error('Failed to reorder collections')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToReorderCollections'))
   }
 
   async function deleteCollection(id: number): Promise<void> {
     const res = await api(`/api/v1/collections/${id}`, {
       method: 'DELETE',
     })
-    if (!res.ok) throw new Error('Failed to delete collection')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDeleteCollection'))
     collections.value = collections.value.filter((collection) => collection.id !== id)
   }
 
@@ -175,7 +175,7 @@ export function useCollections() {
   /** One request instead of one per collection, so opening the sheet stays cheap at scale. */
   async function fetchPodcastCollectionMembership(podcastId: number): Promise<Collection[]> {
     const res = await api(`/api/v1/collections/podcast-membership?podcastId=${podcastId}`)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     return res.json()
   }
 
@@ -185,7 +185,7 @@ export function useCollections() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ podcastIds }),
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
   }
 
   async function removePodcastsFromCollection(id: number, podcastIds: number[]): Promise<void> {
@@ -194,7 +194,7 @@ export function useCollections() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ podcastIds }),
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
   }
 
   return {

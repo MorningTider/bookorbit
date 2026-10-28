@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { Button } from '@/components/ui/button'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -119,7 +121,7 @@ async function rebuildEmbeddings() {
   embeddingError.value = null
   try {
     const res = await api('/api/v1/books/embed-all', { method: 'POST' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     const data: { queued: number } = await res.json()
     queued.value = data.queued
     toast.success(
@@ -152,7 +154,7 @@ async function runAchievementBackfill() {
     const res = await api('/api/v1/achievements/admin/backfill', {
       method: 'POST',
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
 
     const result: { usersProcessed: number; awardsGranted: number } = await res.json()
     achievementBackfillResult.value = result

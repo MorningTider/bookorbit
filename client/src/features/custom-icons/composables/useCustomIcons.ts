@@ -28,7 +28,7 @@ async function loadCustomIcons(): Promise<void> {
   error.value = null
   try {
     const res = await api('/api/v1/custom-icons')
-    if (!res.ok) throw new Error('Failed to load custom icons')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadCustomIcons'))
     const catalog = (await res.json()) as CustomIconCatalog
     icons.value = catalog.items
     catalogTotal.value = catalog.total
@@ -79,13 +79,13 @@ async function fetchIconPage(params: FetchPageParams): Promise<CustomIconPage> {
   if (params.page !== undefined) search.set('page', String(params.page))
   if (params.size !== undefined) search.set('size', String(params.size))
   const res = await api(`/api/v1/custom-icons/manage?${search.toString()}`)
-  if (!res.ok) throw new Error('Failed to load icons')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadIcons'))
   return (await res.json()) as CustomIconPage
 }
 
 async function fetchIconUsage(slug: string): Promise<CustomIconUsage> {
   const res = await api(`/api/v1/custom-icons/${encodeURIComponent(slug)}/usage`)
-  if (!res.ok) throw new Error('Failed to load icon usage')
+  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadIconUsage'))
   return (await res.json()) as CustomIconUsage
 }
 

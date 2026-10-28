@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 
 /**
@@ -102,7 +103,7 @@ export async function downloadFromUrl(url: string, fallbackFileName: string, onP
   onProgress?.({ loaded: 0, total: null })
 
   const response = await api(url)
-  if (!response.ok) throw new Error(`Download failed with status ${response.status}`)
+  if (!response.ok) throw new Error(i18n.global.t('customUi.httpMessages.downloadFailedWithStatus', { status: response.status }))
   const filename = fileNameFromContentDisposition(response.headers.get('Content-Disposition'), fallbackFileName)
   const blob = onProgress ? await readBlobWithProgress(response, onProgress) : await response.blob()
   triggerBlobDownload(blob, filename)

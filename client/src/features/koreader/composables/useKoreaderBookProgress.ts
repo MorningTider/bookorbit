@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { KoreaderBookSyncInfo } from '@bookorbit/types'
@@ -22,7 +23,7 @@ export function useKoreaderBookProgress() {
     loading.value = true
     try {
       const res = await api(`/api/v1/koreader/books/${bookId}/progress`)
-      if (!res.ok) throw new Error('Failed to fetch book progress')
+      if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchBookProgress'))
       const progress = await res.json()
       if (version !== fetchVersion) return false
       bookProgress.value = progress

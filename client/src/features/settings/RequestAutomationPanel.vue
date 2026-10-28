@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, Loader2 } from '@lucide/vue'
@@ -43,7 +45,7 @@ const profileIndexers = computed(() => [...indexers.value, ...managedIndexers.va
 async function fetchManagedIndexers() {
   try {
     const res = await api('/api/v1/admin/request-indexer-managers')
-    if (!res.ok) throw new Error('manager load failed')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.managerLoadFailed'))
     const result = (await res.json()) as IndexerManagerListResult
     managedIndexers.value = result.managers.flatMap((manager) =>
       manager.sources.map((source) => ({ id: source.id, name: `${manager.name} / ${source.name}`, adapterType: source.adapterType })),

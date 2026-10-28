@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import type { DeliveryArtifactMetadata, ReadAloudDeliveryVariant } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -39,7 +40,7 @@ export function useKoboReplacement(deviceId: Ref<number | null>, bookId: Ref<num
         ...(body !== undefined ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
         signal: requestController.signal,
       })
-      if (!response.ok) throw new Error('Replacement request failed')
+      if (!response.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.replacementRequestFailed'))
       const record: Replacement | null = await response.json()
       if (current === generation) {
         replacement.value = record?.options.replacement ? record : null

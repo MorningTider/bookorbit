@@ -24,7 +24,7 @@ export function useBookDetail() {
         notFound.value = true
       }
       if (requestId === activeRequestId && res.status !== 404) {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
 
         const nextDetail = (await res.json()) as BookDetail
         if (requestId === activeRequestId) {

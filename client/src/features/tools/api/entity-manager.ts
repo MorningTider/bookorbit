@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import type {
   BrowseEntitiesParams,
@@ -32,7 +33,7 @@ export async function browseEntities(entityType: EntityType, params: BrowseEntit
     bookCount: params.bookCount,
   })
   const res = await api(`${BASE}/${entityType}/browse${query}`)
-  if (!res.ok) throw new Error(`Failed to browse ${entityType}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.browse', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -43,7 +44,8 @@ export async function scanDuplicates(
 ): Promise<DuplicateScanResponse> {
   const query = toQuery({ libraryId: params.libraryId, minSimilarity: params.minSimilarity, page: params.page, pageSize: params.pageSize })
   const res = await api(`${BASE}/${entityType}/duplicates/scan${query}`, { signal })
-  if (!res.ok) throw new Error(`Failed to scan ${entityType} duplicates`)
+  if (!res.ok)
+    throw new Error(i18n.global.t('customUi.entityMessages.scanDuplicates', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -56,7 +58,7 @@ export async function mergeEntities(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to merge ${entityType}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.merge', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -69,7 +71,7 @@ export async function renameEntity(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to rename ${entityType}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.rename', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -82,7 +84,7 @@ export async function deleteEntity(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to delete ${entityType}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.delete', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -95,7 +97,7 @@ export async function bulkDeleteEntities(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to bulk delete ${entityType}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.bulkDelete', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -108,7 +110,7 @@ export async function splitEntity(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to split ${entityType}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.split', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -121,7 +123,8 @@ export async function dismissPair(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to dismiss ${entityType} duplicate pair`)
+  if (!res.ok)
+    throw new Error(i18n.global.t('customUi.entityMessages.dismissDuplicate', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
 }
 
 export async function undismissPair(
@@ -133,18 +136,20 @@ export async function undismissPair(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to undismiss ${entityType} duplicate pair`)
+  if (!res.ok)
+    throw new Error(i18n.global.t('customUi.entityMessages.restoreDuplicate', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
 }
 
 export async function getDismissedPairs(entityType: EntityType): Promise<DismissedPairInfo[]> {
   const res = await api(`${BASE}/${entityType}/duplicates/dismissed`)
-  if (!res.ok) throw new Error(`Failed to get dismissed ${entityType} pairs`)
+  if (!res.ok)
+    throw new Error(i18n.global.t('customUi.entityMessages.loadDismissed', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
 export async function getDuplicateScanStatus(entityType: EntityType): Promise<DuplicateScanStatus> {
   const res = await api(`${BASE}/${entityType}/duplicates/status`)
-  if (!res.ok) throw new Error(`Failed to get ${entityType} duplicate scan status`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.scanStatus', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
@@ -154,12 +159,13 @@ export async function refreshDuplicates(entityType: EntityType, params?: { minSi
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params ?? {}),
   })
-  if (!res.ok) throw new Error(`Failed to refresh ${entityType} duplicates`)
+  if (!res.ok)
+    throw new Error(i18n.global.t('customUi.entityMessages.refreshDuplicates', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }
 
 export async function getEntityInfo(entityType: EntityType, entityId: number | string): Promise<EntityInfo> {
   const res = await api(`${BASE}/${entityType}/info/${entityId}`)
-  if (!res.ok) throw new Error(`Failed to get ${entityType} info`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.entityMessages.loadInfo', { entity: i18n.global.t(`customUi.entityKinds.${entityType}`) }))
   return res.json()
 }

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, shallowRef, watch, type Ref } from 'vue'
 import { api } from '@/lib/api'
 import {
@@ -68,7 +69,7 @@ export function useJumpBuckets(options: {
         body: JSON.stringify(body),
       })
       if (gen !== generation) return
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data: JumpBucketsResponse = await res.json()
       if (gen !== generation) return
       cache.set(key, { buckets: data.buckets, granularity: data.granularity })

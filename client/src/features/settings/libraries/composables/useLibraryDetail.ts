@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import type { LibraryAccessEntry, LibraryScanHistoryEntry } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -32,7 +33,7 @@ export function useLibraryDetail() {
           api(`/api/v1/scanner/libraries/${libraryId}/scan-history?limit=5`),
           api(`/api/v1/libraries/${libraryId}/access`),
         ])
-        if (!historyRes.ok || !accessRes.ok) throw new Error('Failed to load library detail')
+        if (!historyRes.ok || !accessRes.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadLibraryDetail'))
         const history = (await historyRes.json()) as LibraryScanHistoryEntry[]
         const access = (await accessRes.json()) as LibraryAccessEntry[]
         if (requestGeneration !== generation) return

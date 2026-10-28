@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -125,7 +127,7 @@ async function save() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(preferences.value),
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     preferences.value = await res.json()
     toast.success(t('settings.admin.authorEnrichment.metadataPreferences.saved'))
   } catch {

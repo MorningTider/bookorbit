@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, watch, type Ref } from 'vue'
 import { api } from '@/lib/api'
 import type { BookCard, BookQuery, BooksPage } from '@bookorbit/types'
@@ -40,7 +41,7 @@ export function useGlobalSearch(query: Ref<string>) {
         signal: requestController.signal,
       })
       if (gen !== generation) return
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
 
       const data: BooksPage = await res.json()
       if (gen !== generation) return

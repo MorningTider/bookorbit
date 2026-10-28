@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -229,7 +231,7 @@ async function saveAutomation(lib: LibraryType, patch: AutomationPatch, undo: Au
   savingAutomation.value = new Set(savingAutomation.value).add(lib.id)
   try {
     const res = await api(`/api/v1/libraries/${lib.id}`, jsonBody('PATCH', patch))
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
     await refreshLibraries()
     if (undo) {
       toast.success(message, { action: { label: t('common.undo'), onClick: () => void saveAutomation(lib, undo, null, message) } })

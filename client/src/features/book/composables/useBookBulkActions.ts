@@ -123,7 +123,7 @@ export function useBookBulkActions(
       clearRefreshing(ids)
       refreshFeedback.markFailedMany(ids, 'Metadata refresh failed')
       inFlight.value = null
-      toast.error('Failed to refresh metadata')
+      toast.error(i18n.global.t('customUi.runtimeMessages.failedToRefreshMetadata'))
       return
     }
     const reader = res.body!.getReader()
@@ -276,7 +276,7 @@ export function useBookBulkActions(
       body: JSON.stringify({ ...getSelectionPayload(), status }),
     })
     if (!res.ok) {
-      toast.error('Failed to update status')
+      toast.error(i18n.global.t('customUi.runtimeMessages.failedToUpdateStatus'))
       return
     }
     const nowIso = new Date().toISOString()
@@ -297,7 +297,7 @@ export function useBookBulkActions(
       body: JSON.stringify({ ...getSelectionPayload(), rating }),
     })
     if (!res.ok) {
-      toast.error('Failed to update rating')
+      toast.error(i18n.global.t('customUi.runtimeMessages.failedToUpdateRating'))
       return
     }
     const editableIds = books
@@ -407,7 +407,7 @@ export function useBookBulkActions(
       body: JSON.stringify(getSelectionPayload()),
     })
     if (!res.ok) {
-      toast.error('Failed to delete books')
+      toast.error(i18n.global.t('customUi.runtimeMessages.failedToDeleteBooks'))
       return
     }
     onDeleted(ids)

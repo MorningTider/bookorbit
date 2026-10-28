@@ -1,37 +1,38 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import { ignoreCachePostInit, type IgnoreCacheOptions } from '@/features/metadata-cache/lib/metadata-cache'
 
 export function useBookMetadataFetchActions() {
   async function triggerGlobal(options: IgnoreCacheOptions = {}): Promise<{ queued: number }> {
     const res = await api('/api/v1/book-metadata-fetch/run', ignoreCachePostInit(options))
-    if (!res.ok) throw new Error('Failed to trigger run')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToTriggerRun'))
     return res.json()
   }
 
   async function triggerForLibrary(libraryId: number, options: IgnoreCacheOptions = {}): Promise<{ queued: number }> {
     const res = await api(`/api/v1/book-metadata-fetch/run/${libraryId}`, ignoreCachePostInit(options))
-    if (!res.ok) throw new Error('Failed to trigger run')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToTriggerRun'))
     return res.json()
   }
 
   async function pause(): Promise<void> {
     const res = await api('/api/v1/book-metadata-fetch/pause', { method: 'POST' })
-    if (!res.ok) throw new Error('Failed to pause')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToPause'))
   }
 
   async function resume(): Promise<void> {
     const res = await api('/api/v1/book-metadata-fetch/resume', { method: 'POST' })
-    if (!res.ok) throw new Error('Failed to resume')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToResume'))
   }
 
   async function cancelPending(): Promise<void> {
     const res = await api('/api/v1/book-metadata-fetch/cancel', { method: 'POST' })
-    if (!res.ok) throw new Error('Failed to cancel')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToCancel'))
   }
 
   async function retryFailed(): Promise<{ requeued: number }> {
     const res = await api('/api/v1/book-metadata-fetch/retry-failed', { method: 'POST' })
-    if (!res.ok) throw new Error('Failed to retry')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRetry'))
     return res.json()
   }
 

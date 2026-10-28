@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 
@@ -47,7 +48,7 @@ export function useEmailProviders() {
     if (fetchPromise) return fetchPromise
     fetchPromise = api('/api/v1/email/providers')
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load providers')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadProviders'))
         providers.value = await res.json()
       })
       .finally(() => {
@@ -97,7 +98,7 @@ export function useEmailProviders() {
 
   async function setDefaultProvider(id: number): Promise<void> {
     const res = await api(`/api/v1/email/providers/${id}/default`, { method: 'PATCH' })
-    if (!res.ok) throw new Error('Failed to set default')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToSetDefault'))
     const updated: EmailProvider = await res.json()
     providers.value = providers.value.map((p) => ({ ...p, isDefault: p.id === updated.id ? updated.isDefault : false }))
   }
@@ -114,7 +115,7 @@ export function useEmailProviders() {
 
   async function testProvider(id: number): Promise<{ success: boolean; error?: string }> {
     const res = await api(`/api/v1/email/providers/${id}/test`, { method: 'POST' })
-    if (!res.ok) throw new Error('Failed to test connection')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToTestConnection'))
     const result: { success: boolean; error?: string } = await res.json()
     // The server keeps the outcome on the row; mirror it so the page shows it without a refetch.
     const lastTestedAt = new Date().toISOString()

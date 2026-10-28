@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { onUnmounted, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CoverMedium } from '@bookorbit/types'
@@ -57,14 +58,14 @@ export function useCoverEditor(bookId: Ref<number>, medium: CoverMedium | null =
         const form = new FormData()
         form.append('file', pendingFile.value)
         const res = await api(route('cover'), { method: 'POST', body: form })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       } else {
         const res = await api(route('cover/from-url'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: pendingUrl.value }),
         })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       }
       bumpVersion(bookId.value)
       clearPending()
@@ -82,7 +83,7 @@ export function useCoverEditor(bookId: Ref<number>, medium: CoverMedium | null =
     error.value = null
     try {
       const res = await api(route('cover'), { method: 'DELETE' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data = await res.json()
       bumpVersion(bookId.value)
       return data.coverSource as 'extracted' | null
@@ -99,7 +100,7 @@ export function useCoverEditor(bookId: Ref<number>, medium: CoverMedium | null =
     error.value = null
     try {
       const res = await api(route('re-extract-cover'), { method: 'POST' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       bumpVersion(bookId.value)
       return true
     } catch {

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import { useAuth } from './useAuth'
@@ -19,10 +20,10 @@ export function useProfileAvatar() {
 
   async function uploadAvatar(file: File): Promise<string | null> {
     if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image')
+      throw new Error(i18n.global.t('customUi.runtimeMessages.fileMustBeAnImage'))
     }
     if (file.size > MAX_PROFILE_AVATAR_BYTES) {
-      throw new Error('Image exceeds 5 MB limit')
+      throw new Error(i18n.global.t('customUi.runtimeMessages.imageExceeds5MBLimit'))
     }
 
     uploading.value = true

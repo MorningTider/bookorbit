@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { onMounted, ref } from 'vue'
 
 import {
@@ -40,14 +41,14 @@ async function flushBatch(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (!response.ok) throw new Error('Dashboard scroller batch failed')
+    if (!response.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.dashboardScrollerBatchFailed'))
 
     const payload: DashboardScrollerBatchResponse = await response.json()
     const resultsById = new Map(payload.items.map((item) => [item.id, item]))
     for (const request of batch) {
       const result = resultsById.get(request.item.id)
       if (result) request.resolve(result)
-      else request.reject(new Error('Dashboard scroller batch result missing'))
+      else request.reject(new Error(i18n.global.t('customUi.runtimeMessages.dashboardScrollerBatchResultMissing')))
     }
   } catch (error) {
     for (const request of batch) request.reject(error)

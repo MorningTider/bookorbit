@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { KoboDevice, KoboDeviceWithToken } from '@bookorbit/types'
@@ -10,7 +11,7 @@ export function useKoboDevices() {
     if (fetchPromise) return fetchPromise
     fetchPromise = api('/api/v1/kobo/devices')
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to fetch devices')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchDevices'))
         devices.value = await res.json()
       })
       .finally(() => {
@@ -25,7 +26,7 @@ export function useKoboDevices() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     })
-    if (!res.ok) throw new Error('Failed to create device')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToCreateDevice'))
     const created: KoboDeviceWithToken = await res.json()
     devices.value = [...devices.value, { id: created.id, name: created.name, lastSeenAt: created.lastSeenAt, createdAt: created.createdAt }]
     return created
@@ -37,7 +38,7 @@ export function useKoboDevices() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     })
-    if (!res.ok) throw new Error('Failed to rename device')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRenameDevice'))
     const updated: KoboDevice = await res.json()
     devices.value = devices.value.map((d) => (d.id === id ? updated : d))
     return updated
@@ -45,7 +46,7 @@ export function useKoboDevices() {
 
   async function revokeDevice(id: number) {
     const res = await api(`/api/v1/kobo/devices/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to revoke device')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToRevokeDevice'))
     devices.value = devices.value.filter((d) => d.id !== id)
   }
 

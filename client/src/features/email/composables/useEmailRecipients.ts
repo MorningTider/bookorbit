@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import type { EmailRecipient, EmailRecipientForm } from '@bookorbit/types'
 export type { EmailRecipient, EmailRecipientForm } from '@bookorbit/types'
 import { ref } from 'vue'
@@ -11,7 +12,7 @@ export function useEmailRecipients() {
     if (fetchPromise) return fetchPromise
     fetchPromise = api('/api/v1/email/recipients')
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load recipients')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadRecipients'))
         recipients.value = await res.json()
       })
       .finally(() => {
@@ -52,13 +53,13 @@ export function useEmailRecipients() {
 
   async function deleteRecipient(id: number): Promise<void> {
     const res = await api(`/api/v1/email/recipients/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to delete recipient')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToDeleteRecipient'))
     recipients.value = recipients.value.filter((r) => r.id !== id)
   }
 
   async function setDefaultRecipient(id: number): Promise<void> {
     const res = await api(`/api/v1/email/recipients/${id}/default`, { method: 'PATCH' })
-    if (!res.ok) throw new Error('Failed to set default')
+    if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToSetDefault'))
     const updated: EmailRecipient = await res.json()
     recipients.value = recipients.value.map((r) => ({ ...r, isDefault: r.id === updated.id ? updated.isDefault : false }))
   }

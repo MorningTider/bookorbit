@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { api } from '@/lib/api'
@@ -466,7 +467,7 @@ export function useReaderDefaultSettings<T extends ReaderSettings>(format: strin
     if (syncEnabled.value) {
       api(`/api/v1/reader/defaults/${group}`, { method: 'DELETE' }).catch(() => {})
     }
-    toast.success('Settings reset to defaults')
+    toast.success(i18n.global.t('customUi.runtimeMessages.settingsResetToDefaults'))
   }
 
   return { effective, load, update, reset }

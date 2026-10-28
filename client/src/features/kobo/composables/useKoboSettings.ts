@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { KoboSyncSettings } from '@bookorbit/types'
@@ -20,7 +21,7 @@ export function useKoboSettings() {
     if (fetchPromise) return fetchPromise
     fetchPromise = api('/api/v1/kobo/settings')
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to fetch settings')
+        if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToFetchSettings'))
         settings.value = await res.json()
       })
       .finally(() => {

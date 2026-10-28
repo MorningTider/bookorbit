@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { api } from '@/lib/api'
 import type { SeriesBooksPage, SeriesPage } from '@bookorbit/types'
 import type { CompletionStatus, SeriesBookSort, SeriesListSort, SortDirection } from '../types/series'
@@ -29,13 +30,13 @@ function toQuery(params: Record<string, unknown>): string {
 export async function fetchSeries(params: ListSeriesParams): Promise<SeriesPage> {
   const qs = toQuery(params)
   const res = await api(`/api/v1/series?${qs}`)
-  if (!res.ok) throw new Error(`Failed to fetch series: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.failedToFetchSeries', { status: res.status }))
   return res.json()
 }
 
 export async function fetchSeriesBooks(seriesId: number, params: ListSeriesBooksParams): Promise<SeriesBooksPage> {
   const qs = toQuery(params)
   const res = await api(`/api/v1/series/${seriesId}/books?${qs}`)
-  if (!res.ok) throw new Error(`Failed to fetch series books: ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.failedToFetchSeriesBooks', { status: res.status }))
   return res.json()
 }

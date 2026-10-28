@@ -139,7 +139,7 @@ export function useFoliate(
       script.type = 'module'
       script.src = src
       script.onload = () => setTimeout(resolve, 100)
-      script.onerror = () => reject(new Error('Failed to load foliate/view.js'))
+      script.onerror = () => reject(new Error(i18n.global.t('customUi.runtimeMessages.failedToLoadFoliateviewjs')))
       document.head.appendChild(script)
     })
     await customElements.whenDefined('foliate-view')
@@ -283,7 +283,7 @@ export function useFoliate(
 
       if (format === 'epub' || format === 'txt') {
         const infoRes = await api(`/api/v1/epub/${bookId}/info?fileId=${fileId}`)
-        if (!infoRes.ok) throw new Error(`Failed to fetch EPUB info: ${infoRes.status}`)
+        if (!infoRes.ok) throw new Error(i18n.global.t('customUi.httpMessages.failedToFetchEPUBInfo', { status: infoRes.status }))
         const bookInfo = await infoRes.json()
         const rawLang = (bookInfo as EpubBookInfo)?.metadata?.language
         bookLanguage.value = typeof rawLang === 'string' && rawLang ? (rawLang.split('-')[0] ?? 'en').toLowerCase() : 'en'
@@ -310,7 +310,7 @@ export function useFoliate(
         const mimeType = format === 'pdf' ? 'application/pdf' : 'application/zip'
         const ext = format === 'pdf' ? 'pdf' : format === 'cbz' ? 'cbz' : format
         const res = await api(`/api/v1/books/files/${fileId}/serve`)
-        if (!res.ok) throw new Error(`Failed to fetch book file: ${res.status}`)
+        if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.failedToFetchBookFile', { status: res.status }))
         const blob = await res.blob()
         const file = new File([blob], `book-file-${fileId}.${ext}`, { type: mimeType })
         await view.open(file)

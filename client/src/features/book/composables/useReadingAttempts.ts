@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, watch, type Ref } from 'vue'
 import type { ReadingAttempt, ReadingAttemptListResponse, ReadingAttemptOutcome, UserBookStatus } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -37,13 +38,13 @@ export function useReadingAttempts(bookIdRef: Ref<number>) {
     error.value = null
     try {
       const res = await api(`/api/v1/books/${bookId}/reading-attempts?page=1&pageSize=${PAGE_SIZE}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const data = (await res.json()) as ReadingAttemptListResponse
       if (bookId !== bookIdRef.value) return
       attempts.value = data.items
       total.value = data.total
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : 'Failed to load reading history'
+      error.value = cause instanceof Error ? cause.message : i18n.global.t('customUi.runtimeMessages.failedToLoadReadingHistory')
     } finally {
       loading.value = false
     }
@@ -60,11 +61,11 @@ export function useReadingAttempts(bookIdRef: Ref<number>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draft),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       await load()
       return true
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : 'Failed to save reading attempt'
+      error.value = cause instanceof Error ? cause.message : i18n.global.t('customUi.runtimeMessages.failedToSaveReadingAttempt')
       return false
     } finally {
       saving.value = false
@@ -81,12 +82,12 @@ export function useReadingAttempts(bookIdRef: Ref<number>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resetProgress }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
       const readStatus = (await res.json()) as UserBookStatus
       await load()
       return readStatus
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : 'Failed to start reread'
+      error.value = cause instanceof Error ? cause.message : i18n.global.t('customUi.runtimeMessages.failedToStartReread')
       return null
     } finally {
       saving.value = false

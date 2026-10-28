@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { i18n } from '@/i18n'
+
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -36,7 +38,7 @@ const filtered = computed(() => {
 
 async function loadPage(target: number): Promise<void> {
   const res = await api(`/api/v1/release-notes?page=${target}`)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) throw new Error(i18n.global.t('customUi.httpMessages.hTTP', { status: res.status }))
   const data = (await res.json()) as ReleaseNotesResponse
   releases.value = target === 1 ? data.releases : [...releases.value, ...data.releases]
   hasMore.value = data.hasMore

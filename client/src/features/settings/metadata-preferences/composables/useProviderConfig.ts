@@ -59,7 +59,7 @@ export function useProviderConfig() {
       })
       if (res.ok) {
         await fetchConfig()
-        toast.success('Provider settings saved')
+        toast.success(i18n.global.t('customUi.runtimeMessages.providerSettingsSaved'))
       } else {
         const data = await res.json().catch(() => null)
         const message = typeof data?.message === 'string' ? data.message : 'Failed to save provider settings'

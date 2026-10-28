@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import { requestAudioFocus } from '@/lib/audio-focus'
 import * as ttsApi from '../api/tts.api'
@@ -164,7 +165,7 @@ export function useTtsAdminProviders() {
     previewLoadingKey.value = key
     try {
       const response = await ttsApi.previewVoice(provider.key, voiceId)
-      if (!response.ok) throw new Error(`Preview failed with status ${response.status}`)
+      if (!response.ok) throw new Error(i18n.global.t('customUi.httpMessages.previewFailedWithStatus', { status: response.status }))
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)

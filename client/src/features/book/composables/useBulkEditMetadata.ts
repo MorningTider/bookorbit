@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
 import { toast } from 'vue-sonner'
@@ -94,7 +95,7 @@ export function useBulkEditMetadata(
       const totalSkipped = Object.values(result.fields).reduce((sum, f) => sum + f.skippedLocked, 0)
 
       if (totalUpdated === 0 && totalSkipped > 0) {
-        toast.warning('All selected books had locked fields - no changes applied')
+        toast.warning(i18n.global.t('customUi.runtimeMessages.allSelectedBooksHadLockedFieldsNoChangesApplied'))
       } else if (totalSkipped > 0) {
         toast.success(`Updated ${totalUpdated} book${totalUpdated === 1 ? '' : 's'} (some fields skipped due to locks)`)
       } else {
@@ -108,7 +109,7 @@ export function useBulkEditMetadata(
 
       return result
     } catch {
-      toast.error('An unexpected error occurred while saving changes')
+      toast.error(i18n.global.t('customUi.runtimeMessages.anUnexpectedErrorOccurredWhileSavingChanges'))
       return null
     } finally {
       submitting.value = false
