@@ -320,3 +320,9 @@ audit-release-gaps.py只盘点许可证证据，不自动作法律许可判断�
 正式公开发行仍须补齐逐组件许可文本、必要对应源码，并将全部payload文件绑定到已审查组件后通过payload-contract。不能用package.json的license字段代替完整审计。本轮仅新增审计工具与记录，未改现网服务或重启NAS。
 
 许可证证据复查：26个根目录未找到NOTICE的包实例中，12个在README内带有完整许可段落。审计器新增内嵌许可证据及SHA256记录，不复制或改写冻结阶段，剩余14个实例涉及7个组件：@bookorbit/plugin-api、@bookorbit/types、@img/sharp-libvips-linux-x64、@nodable/entities、abstract-logging、boolbase、drizzle-orm。报告release-gaps-10002-embedded.json保存在local/synology-native/reports。仅有许可证名称或链接不视作完整许可文本；源码义务和公开发行批准仍待审查。5个package.json缺声明仍作为元数据缺口保留，不等同于5个包没有许可证文件。
+
+## 2026-10-29 发行材料收集与界面漏译修复并行进度
+
+已从npm精确版本元数据定位上游提交，取得Drizzle0.45.4与@nodable/entities3.1.0许可证、sharp-libvips1.3.4对应提交的第三方声明，以及9c41f580中的BookOrbit仓库许可证。release-notice-lock.json固定5个组件证据的来源/提交/SHA256，collect-reviewed-notices.py实际收集5项并逐项校验通过。sharp构建仓库Apache许可证不能代替所含库的许可证。
+
+collect-sharp-sources.py按已安装versions.json和固定sharp配方收集28个库的源码归档，28/28下载完成并验证可识别为tar归档，保留来源与内容哈希；不执行远程配方，限定并发、大小与时长，解析保护测试5项通过。收据位于local/synology-native/release-evidence/sharp-sources/receipt.json。独立上游校验值、补丁身份及递归依赖/版权审查尚未完成，不能把28/28下载成功写成公开发行已批准。abstract-logging作者许可证端点503、boolbase1.0.0没有发行标签，未把新提交许可证冒充旧版本证据。上述材料保留，用户反馈的全前端漏译正在优先修复。

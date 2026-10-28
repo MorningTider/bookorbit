@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "releaseApproved": false,
+  "notices": [
+    {
+      "component": "@nodable/entities",
+      "version": "3.1.0",
+      "commit": "ac48e7ea591da372be023a481875c747535812b3",
+      "url": "https://raw.githubusercontent.com/nodable/val-parsers/ac48e7ea591da372be023a481875c747535812b3/LICENSE",
+      "sha256": "750cb3fb6362804957ef52caaf9b5c824015be44d494637330d7cd8834d31d40",
+      "evidenceKind": "exact-version-license-text",
+      "notSourceCompletenessApproval": true
+    },
+    {
+      "component": "drizzle-orm",
+      "version": "0.45.4",
+      "commit": "eab8bedbb65d5429c54e612ddbd88aa23091d398",
+      "url": "https://raw.githubusercontent.com/drizzle-team/drizzle-orm/eab8bedbb65d5429c54e612ddbd88aa23091d398/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "evidenceKind": "exact-version-license-text",
+      "notSourceCompletenessApproval": true
+    },
+    {
+      "component": "@img/sharp-libvips-linux-x64",
+      "version": "1.3.4",
+      "commit": "ebb95f8add54eee8bed840e3fb587e4cbec857d7",
+      "url": "https://raw.githubusercontent.com/lovell/sharp-libvips/ebb95f8add54eee8bed840e3fb587e4cbec857d7/THIRD-PARTY-NOTICES.md",
+      "sha256": "6f0d5086e3bcbee12bcdacf5878b31d1104002aeecaeb241d3fff466108082fe",
+      "evidenceKind": "exact-version-third-party-license-list",
+      "notSourceCompletenessApproval": true
+    },
+    {
+      "component": "@bookorbit/plugin-api",
+      "commit": "9c41f5806489ac513b5c4f708ddf33ca101b33ca",
+      "source": "repository LICENSE",
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+      "evidenceKind": "workspace-source-license",
+      "notSourceCompletenessApproval": true
+    },
+    {
+      "component": "@bookorbit/types",
+      "commit": "9c41f5806489ac513b5c4f708ddf33ca101b33ca",
+      "source": "repository LICENSE",
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+      "evidenceKind": "workspace-source-license",
+      "notSourceCompletenessApproval": true
+    }
+  ]
+}
