@@ -6,6 +6,7 @@ import { ListChecks } from '@lucide/vue'
 
 import { useMetadataCompleteness } from '../../composables/useMetadataCompleteness'
 import ChartCard from '../ChartCard.vue'
+import { METADATA_FIELD_KEYS } from '../../lib/metadata-field-label'
 
 const { t } = useI18n()
 
@@ -20,7 +21,7 @@ watchEffect(() => {
       formatter: (params: { name: string; value: number }[]) => {
         const p = params[0]
         if (!p) return ''
-        const item = data.value.items.find((i) => i.field === p.name)
+        const item = data.value.items.find((i) => t(`statistics.metadataFields.${METADATA_FIELD_KEYS[i.field]}`) === p.name)
         if (!item) return ''
         return `${p.name}: <strong>${p.value}%</strong> (${item.presentCount} / ${item.totalCount})`
       },
@@ -28,7 +29,7 @@ watchEffect(() => {
     grid: { left: '3%', right: '3%', bottom: '24%', top: '8%', containLabel: false },
     xAxis: {
       type: 'category',
-      data: [...data.value.items].reverse().map((d) => d.field),
+      data: [...data.value.items].reverse().map((d) => t(`statistics.metadataFields.${METADATA_FIELD_KEYS[d.field]}`)),
       axisTick: { show: false },
       axisLabel: {
         fontSize: 11,

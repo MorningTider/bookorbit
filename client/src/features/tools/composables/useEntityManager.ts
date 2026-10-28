@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, onUnmounted, ref, watch } from 'vue'
 
 import {
@@ -196,7 +197,7 @@ export function useEntityManager() {
       hasScanned.value = true
     } catch (err) {
       if (controller.signal.aborted) return
-      scanError.value = err instanceof Error ? err.message : 'Scan failed'
+      scanError.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.scanFailed')
     } finally {
       if (!controller.signal.aborted) {
         scanning.value = false
@@ -241,7 +242,7 @@ export function useEntityManager() {
         : { targetEntityId: targetId as number, sourceEntityIds: sourceIds as number[], writeFiles }
       await entityManagerApi.mergeEntities(entityType.value, payload)
     } catch (err) {
-      operationError.value = err instanceof Error ? err.message : 'Merge failed'
+      operationError.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.mergeFailed')
       throw err
     } finally {
       operationLoading.value = false
@@ -257,7 +258,7 @@ export function useEntityManager() {
         : { entityId: entityId as number, newName, writeFiles }
       await entityManagerApi.renameEntity(entityType.value, payload)
     } catch (err) {
-      operationError.value = err instanceof Error ? err.message : 'Rename failed'
+      operationError.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.renameFailed')
       throw err
     } finally {
       operationLoading.value = false
@@ -273,7 +274,7 @@ export function useEntityManager() {
         : { entityId: entityId as number, mode: deleteMode, writeFiles }
       await entityManagerApi.deleteEntity(entityType.value, payload)
     } catch (err) {
-      operationError.value = err instanceof Error ? err.message : 'Delete failed'
+      operationError.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.deleteFailed')
       throw err
     } finally {
       operationLoading.value = false
@@ -289,7 +290,7 @@ export function useEntityManager() {
         : { entityIds: entityIds as number[], mode: deleteMode, writeFiles }
       await entityManagerApi.bulkDeleteEntities(entityType.value, payload)
     } catch (err) {
-      operationError.value = err instanceof Error ? err.message : 'Bulk delete failed'
+      operationError.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.bulkDeleteFailed')
       throw err
     } finally {
       operationLoading.value = false
@@ -302,7 +303,7 @@ export function useEntityManager() {
     try {
       await entityManagerApi.splitEntity(entityType.value, { entityId, newNames, writeFiles })
     } catch (err) {
-      operationError.value = err instanceof Error ? err.message : 'Split failed'
+      operationError.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.splitFailed')
       throw err
     } finally {
       operationLoading.value = false

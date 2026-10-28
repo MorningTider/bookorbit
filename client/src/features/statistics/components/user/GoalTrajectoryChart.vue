@@ -52,7 +52,7 @@ watchEffect(() => {
     },
     series: [
       {
-        name: 'Actual',
+        name: t('statistics.labels.actual'),
         type: 'line',
         data: data.value.points.map((item) => item.actualCumulative),
         smooth: 0.2,
@@ -62,7 +62,7 @@ watchEffect(() => {
         areaStyle: { opacity: 0.15 },
       },
       {
-        name: `Goal (${data.value.goalBooks}/yr)`,
+        name: t('statistics.goalPerYear', { count: data.value.goalBooks }),
         type: 'line',
         data: data.value.points.map((item) => item.targetCumulative),
         smooth: 0.2,

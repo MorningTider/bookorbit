@@ -1,0 +1,15 @@
+export const METADATA_FIELD_KEYS: Record<string, string> = {
+  Title: 'title',
+  Cover: 'cover',
+  Author: 'author',
+  Genres: 'genres',
+  Tags: 'tags',
+  Description: 'description',
+  Publisher: 'publisher',
+  Year: 'year',
+  Language: 'language',
+  'Page Count': 'pageCount',
+  Rating: 'rating',
+  Series: 'series',
+  ISBN: 'isbn',
+}

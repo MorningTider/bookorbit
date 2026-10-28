@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import type { ReadwiseSettings, ReadwiseTokenValidationResult, UpsertReadwiseSettingsPayload } from '@bookorbit/types'
 import { fetchReadwiseSettings, upsertReadwiseSettings, validateReadwiseToken } from '../api/readwise.api'
@@ -15,7 +16,7 @@ export function useReadwiseSettings() {
     try {
       settings.value = await fetchReadwiseSettings()
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load settings'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSettings')
     } finally {
       loading.value = false
     }
@@ -28,7 +29,7 @@ export function useReadwiseSettings() {
       settings.value = await upsertReadwiseSettings(payload)
       return true
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to save settings'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToSaveSettings')
       return false
     } finally {
       saving.value = false

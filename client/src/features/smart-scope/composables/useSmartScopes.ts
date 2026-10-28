@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import { api } from '@/lib/api'
 import { apiError } from '@/lib/api-json'
@@ -23,7 +24,7 @@ const loadSmartScopeList = createCoalescedFetch(async (): Promise<void> => {
     loaded.value = true
   } catch (e: unknown) {
     if (!listGeneration.isCurrent(generation)) return
-    error.value = e instanceof Error ? e.message : 'Failed to load smart scopes'
+    error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSmartScopes')
   } finally {
     if (listGeneration.isCurrent(generation)) loading.value = false
   }

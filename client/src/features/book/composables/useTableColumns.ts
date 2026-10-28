@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, watch } from 'vue'
 import type { Ref } from 'vue'
 import { watchDebounced } from '@vueuse/core'
@@ -94,7 +95,12 @@ export function useTableColumns(viewType: TableViewType, customFields?: Ref<Cust
   })
 
   const combinedColumnMap = computed<Map<string, ColumnDef>>(() => {
-    const map = new Map<string, ColumnDef>(COLUMN_DEF_MAP)
+    const map = new Map<string, ColumnDef>(
+      [...COLUMN_DEF_MAP].map(([id, definition]) => [
+        id,
+        { ...definition, header: definition.header ? i18n.global.t(`customUi.tableColumns.${id}`) : definition.header },
+      ]),
+    )
     for (const def of customColumnDefs.value) {
       map.set(def.id, def)
     }

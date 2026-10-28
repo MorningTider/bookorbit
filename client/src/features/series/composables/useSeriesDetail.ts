@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, type Ref } from 'vue'
 
 import type { BookCard, SeriesDetail } from '@bookorbit/types'
@@ -80,7 +81,7 @@ export function useSeriesDetail(seriesId: Ref<number | null>) {
       if (err instanceof Error && err.message.includes('404')) {
         notFound.value = true
       } else {
-        error.value = err instanceof Error ? err.message : 'Failed to load series'
+        error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSeries')
       }
     } finally {
       if (token === requestToken) loading.value = false

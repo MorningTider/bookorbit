@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { insightLabel } from '../../lib/insight-labels'
 import { Dna } from '@lucide/vue'
 
 import { useReadingDnaWidget } from '../../composables/useReadingDnaWidget'
@@ -44,7 +45,7 @@ const traitColors: Record<string, string> = {
 
     <!-- DNA Card -->
     <div v-else class="flex flex-1 flex-col justify-center gap-2.5">
-      <p class="text-center text-sm font-bold text-foreground">"{{ data.archetype }}"</p>
+      <p class="text-center text-sm font-bold text-foreground">"{{ insightLabel(data.archetype) }}"</p>
 
       <div class="space-y-1.5">
         <div
@@ -62,7 +63,7 @@ const traitColors: Record<string, string> = {
           <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
             <div class="h-full rounded-full transition-all duration-500" :class="traitColors[trait.key]" :style="{ width: `${trait.score}%` }" />
           </div>
-          <span class="w-18 text-[10px] text-muted-foreground">{{ trait.valueLabel }}</span>
+          <span class="w-18 text-[10px] text-muted-foreground">{{ insightLabel(trait.valueLabel) }}</span>
         </div>
       </div>
 

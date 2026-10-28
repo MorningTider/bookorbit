@@ -12,6 +12,6 @@ const model = defineModel<BreakdownDimension>({ required: true })
     class="border-border bg-background text-foreground rounded-md border px-2 py-1 text-xs"
     :aria-label="t('statistics.breakdown.ariaLabel')"
   >
-    <option v-for="option in BREAKDOWN_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+    <option v-for="option in BREAKDOWN_OPTIONS" :key="option.value" :value="option.value">{{ t(`statistics.breakdown.${option.value}`) }}</option>
   </select>
 </template>

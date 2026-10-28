@@ -28,7 +28,7 @@ watchEffect(() => {
       formatter: (params: Array<{ axisValue: string; data: number }>) => {
         const point = params[0]
         if (!point) return ''
-        const label = point.data === 1 ? 'book' : 'books'
+        const label = t('statistics.units.books', { count: point.data })
         return `${point.axisValue}: <strong>${point.data}</strong> ${label}`
       },
     },

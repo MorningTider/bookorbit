@@ -691,7 +691,7 @@ defineOptions({ name: 'SeriesDetailView' })
             <div v-if="groupByMedia" class="space-y-7">
               <section v-for="group in nonEmptyMediaGroups" :key="group.key" class="space-y-3" :data-testid="`series-media-group-${group.key}`">
                 <div class="flex items-center justify-between border-b border-border/60 pb-2">
-                  <h3 class="text-sm font-semibold text-foreground">{{ group.label }}</h3>
+                  <h3 class="text-sm font-semibold text-foreground">{{ t(`customUi.mediaGroups.${group.key}`) }}</h3>
                   <span class="text-xs text-muted-foreground">{{ formatNumber(group.books.length) }}</span>
                 </div>
                 <VirtualBookGrid

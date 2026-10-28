@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { AnnotationPositionFormat, AnnotationSyncDetail } from '@bookorbit/types'
@@ -16,7 +17,7 @@ export function useAnnotationSyncDetail() {
       if (!res.ok) throw new Error('Failed to load sync detail')
       detail.value = (await res.json()) as AnnotationSyncDetail
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load sync detail'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSyncDetail')
     } finally {
       loading.value = false
     }
@@ -34,7 +35,7 @@ export function useAnnotationSyncDetail() {
       if (!res.ok) throw new Error('Failed to retry position conversion')
       detail.value = (await res.json()) as AnnotationSyncDetail
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to retry position conversion'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToRetryPositionConversion')
     } finally {
       retrying.value = null
     }

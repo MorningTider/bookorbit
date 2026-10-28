@@ -21,17 +21,17 @@ const primaryPercent = computed(() => (data.value.totalBooks > 0 ? Math.round((d
 const metadataPercent = computed(() => (data.value.totalBooks > 0 ? Math.round((data.value.metadataCount / data.value.totalBooks) * 100) : 0))
 const statCards = computed(() => [
   {
-    label: 'Present',
+    label: t('statistics.labels.present'),
     percent: presentPercent.value,
     ratio: `${data.value.presentCount}/${data.value.totalBooks}`,
   },
   {
-    label: 'Primary',
+    label: t('statistics.labels.primary'),
     percent: primaryPercent.value,
     ratio: `${data.value.primaryFileCount}/${data.value.totalBooks}`,
   },
   {
-    label: 'Metadata',
+    label: t('statistics.labels.metadata'),
     percent: metadataPercent.value,
     ratio: `${data.value.metadataCount}/${data.value.totalBooks}`,
   },
@@ -57,10 +57,10 @@ watchEffect(() => {
     tooltip: {
       formatter: () =>
         [
-          `<strong>Integrity Score: ${data.value.integrityScore}%</strong>`,
-          `Present: ${data.value.presentCount} / ${data.value.totalBooks}`,
-          `Primary file: ${data.value.primaryFileCount} / ${data.value.totalBooks}`,
-          `Metadata row: ${data.value.metadataCount} / ${data.value.totalBooks}`,
+          `<strong>${t('statistics.labels.integrity')}: ${data.value.integrityScore}%</strong>`,
+          `${t('statistics.labels.present')}: ${data.value.presentCount} / ${data.value.totalBooks}`,
+          `${t('statistics.labels.primary')}: ${data.value.primaryFileCount} / ${data.value.totalBooks}`,
+          `${t('statistics.labels.metadata')}: ${data.value.metadataCount} / ${data.value.totalBooks}`,
         ].join('<br/>'),
     },
     series: [
@@ -92,7 +92,7 @@ watchEffect(() => {
         axisLabel: { distance: -24, fontSize: 10 },
         detail: { valueAnimation: true, formatter: '{value}%', fontSize: 24, fontWeight: 700, color: activeColor, offsetCenter: [0, '22%'] },
         title: { show: true, offsetCenter: [0, '44%'], fontSize: 11, color: foreground },
-        data: [{ value: data.value.integrityScore, name: 'Integrity' }],
+        data: [{ value: data.value.integrityScore, name: t('statistics.labels.integrity') }],
       },
     ],
   }

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type {
   BulkDeleteCustomIconsResponse,
@@ -33,7 +34,7 @@ async function loadCustomIcons(): Promise<void> {
     catalogTotal.value = catalog.total
     loaded.value = true
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load custom icons'
+    error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadCustomIcons')
     throw err
   } finally {
     loading.value = false

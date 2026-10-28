@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import { api } from '@/lib/api'
 import { BOOK_METADATA_LOCK_FIELDS, type BookDetail, type BookMetadataLockField } from '@bookorbit/types'
@@ -72,7 +73,7 @@ export function useMetadataLocks(options: UseMetadataLocksOptions = {}) {
       markPersisted(updated.lockedFields)
       return updated
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update locks'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToUpdateLocks')
       return null
     } finally {
       updatingField.value = null

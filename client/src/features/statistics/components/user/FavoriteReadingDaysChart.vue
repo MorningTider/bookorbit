@@ -71,14 +71,14 @@ watchEffect(() => {
         if (!row) return ''
         const events = row.eventsCount
         const avgTotal = Number(params.reduce((sum, p) => sum + (p.data ?? 0), 0).toFixed(1))
-        const avgMinuteLabel = avgTotal === 1 ? 'minute' : 'minutes'
+        const avgMinuteLabel = t('statistics.units.minutes', { count: avgTotal })
         const totalMinutes = Math.round(row.readingSeconds / 60)
-        const totalMinuteLabel = totalMinutes === 1 ? 'minute' : 'minutes'
-        const eventLabel = events === 1 ? 'event' : 'events'
-        const header = `${first.axisValue}<br/><strong>${avgTotal}</strong> avg ${avgMinuteLabel}<br/>${totalMinutes} total ${totalMinuteLabel}<br/>${events} ${eventLabel}`
+        const totalMinuteLabel = t('statistics.units.minutes', { count: totalMinutes })
+        const eventLabel = t('statistics.units.events', { count: events })
+        const header = `${first.axisValue}<br/><strong>${avgTotal}</strong> ${t('statistics.labels.average')} ${avgMinuteLabel}<br/>${totalMinutes} ${t('statistics.labels.totalUnit')} ${totalMinuteLabel}<br/>${events} ${eventLabel}`
         const rows = params
           .filter((p) => p.data > 0)
-          .map((p) => `${p.marker} ${p.seriesName}: ${p.data} avg min`)
+          .map((p) => `${p.marker} ${p.seriesName}: ${p.data} ${t('statistics.labels.averageMinutes')}`)
           .join('<br/>')
         return rows ? `${header}<br/>${rows}` : header
       },
@@ -86,7 +86,7 @@ watchEffect(() => {
     grid: { left: '5%', right: '3%', bottom: 36, top: '8%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: WEEKDAYS,
+      data: WEEKDAYS.map((_, day) => t(`statistics.weekdays.${day}`)),
       axisTick: { show: false },
       axisLabel: { fontSize: 11 },
     },
@@ -94,7 +94,7 @@ watchEffect(() => {
       type: 'value',
       min: 0,
       axisLabel: { fontSize: 11, formatter: '{value}m' },
-      name: 'Avg min/day',
+      name: t('statistics.labels.averageMinutesPerDay'),
       nameTextStyle: { fontSize: 11, color: 'var(--muted-foreground)' },
     },
     series,

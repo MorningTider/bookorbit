@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, shallowRef, type Ref } from 'vue'
 
 import type { AuthorMetadataCandidate, MetadataCandidateCacheInfo } from '@bookorbit/types'
@@ -99,7 +100,7 @@ export function useAuthorMetadataPreview(authorName: Ref<string>, pinnedMatch?: 
       if (seq !== requestSeq) return
       preview.value = null
       previewCache.value = null
-      error.value = err instanceof Error ? err.message : 'Failed to load author metadata'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadAuthorMetadata')
     } finally {
       if (seq === requestSeq) {
         loading.value = false

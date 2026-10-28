@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type { TtsEffectivePreferences, TtsUserPreferences } from '@bookorbit/types'
 import * as ttsApi from '../api/tts.api'
@@ -15,7 +16,7 @@ export function useTtsPreferences() {
     try {
       userPrefs.value = await ttsApi.getPreferences()
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load TTS preferences'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadTTSPreferences')
     } finally {
       loading.value = false
     }
@@ -27,7 +28,7 @@ export function useTtsPreferences() {
     try {
       userPrefs.value = await ttsApi.savePreferences(prefs)
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to save TTS preferences'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToSaveTTSPreferences')
       throw err
     } finally {
       loading.value = false

@@ -23,7 +23,7 @@ function buildOption(chordData: ChordDiagramData) {
       trigger: 'item',
       formatter: (params: { dataType: string; name: string; value: number; data: { source?: string; target?: string; value?: number } }) => {
         if (params.dataType === 'edge') {
-          return `<strong>${params.data.source} + ${params.data.target}</strong><br/>${params.data.value} shared book${params.data.value === 1 ? '' : 's'}`
+          return `<strong>${params.data.source} + ${params.data.target}</strong><br/>${t('statistics.sharedBooks', { count: params.data.value })}`
         }
         return `<strong>${params.name}</strong>`
       },

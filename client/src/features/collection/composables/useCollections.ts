@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import { api } from '@/lib/api'
 import { createCoalescedFetch, createRequestGeneration } from '@/lib/async'
@@ -22,7 +23,7 @@ const loadCollectionList = createCoalescedFetch(async (): Promise<void> => {
     loaded.value = true
   } catch (e: unknown) {
     if (!listGeneration.isCurrent(generation)) return
-    error.value = e instanceof Error ? e.message : 'Failed to load collections'
+    error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadCollections')
   } finally {
     if (listGeneration.isCurrent(generation)) loading.value = false
   }

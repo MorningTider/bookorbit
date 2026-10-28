@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { LibraryFileSyncProgressEvent } from '@bookorbit/types'
@@ -56,7 +57,7 @@ export function useLibraryFileSync() {
         throw e
       }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Sync failed'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.syncFailed')
     } finally {
       syncing.value = false
     }

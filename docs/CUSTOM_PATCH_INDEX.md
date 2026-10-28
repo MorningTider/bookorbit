@@ -44,3 +44,5 @@ BO-C09正式入口补充：source-build.py、Source.Dockerfile和finalize-source
 2026-10-28源码链路已实际通过：正式构建禁用legacy deploy，必须保留共享锁冻结部署、依赖层稳定归档和共享模块内部加载检查。stage-application-payload.py的--source-build路径承接编译产物，不再从线上容器导出或覆盖旧Sharp探针。打包回归合计38项；完整SPK验收仍未完成。
 
 2026-10-28 BO-C09生产原生迁移已完成：native-service.py、spk/scripts、build-acceptance-spk.py、cutover-native-app.py及probe-installed-native.py纳入上游同步回归。10002生产在专用UID217211运行，8184及公网8926可用；12项生产API在服务重启前后通过。迁移执行器是一次性从旧bookorbit容器/数据库转入新bookorbit_prod_spk副本的工具，不是日常升级入口；后续上传SPK升级保留现有私有service.json及新库。不要再次启用保留的旧Docker应用、覆盖新库为旧bookorbit，或用只改版本号的包跳过迁移指纹保护。公开组件审计和正式发行仍待完成。
+
+2026-10-29 BO-C08补充：统计配置元信息使用labelKey，元数据字段共用metadata-field-label.ts，表格列在useTableColumns组合层翻译而不改持久ID；动态提示、来源、星期、引导、画像和错误兜底统一国际化。审计入口scripts/audit-ui-localization.cjs扩展TypeScript脚本UI候选检查，候选并非均为漏译。合并上游时保留这层适配和en/zh资源，复验统计热力图与表格切换语言而不重建页面、用户自定义列不变。全前端741文件8336项测试通过；具体上线版本须另查部署记录，不能把本机通过当作现网已更新。

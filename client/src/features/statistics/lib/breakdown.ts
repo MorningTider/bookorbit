@@ -1,4 +1,5 @@
-import { READING_SESSION_SOURCE_BUCKETS, READING_SESSION_SOURCE_BUCKET_LABELS, type ReadingSessionSourceBucket } from '@bookorbit/types'
+import { i18n } from '@/i18n'
+import { READING_SESSION_SOURCE_BUCKETS, type ReadingSessionSourceBucket } from '@bookorbit/types'
 
 import { getFormatColor } from '@/features/book/lib/format-colors'
 import { resolveSourceBucketColors } from './source-bucket-colors'
@@ -25,7 +26,7 @@ export function getBreakdownSeries(dimension: BreakdownDimension, themeKey: stri
     const colors = resolveSourceBucketColors(themeKey)
     return READING_SESSION_SOURCE_BUCKETS.map((bucket) => ({
       key: bucket,
-      label: READING_SESSION_SOURCE_BUCKET_LABELS[bucket],
+      label: i18n.global.t(`statistics.sources.${bucket}`),
       color: colors[bucket],
     }))
   }

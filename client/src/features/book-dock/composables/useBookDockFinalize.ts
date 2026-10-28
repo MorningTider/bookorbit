@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { BookDockFinalizeResult, BookDockFinalizeOverride } from '@bookorbit/types'
@@ -37,7 +38,7 @@ export function useBookDockFinalize() {
         error.value = (body as { message?: string } | null)?.message ?? `Error ${res.status}`
       }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Finalize failed'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.finalizeFailed')
     } finally {
       loading.value = false
     }

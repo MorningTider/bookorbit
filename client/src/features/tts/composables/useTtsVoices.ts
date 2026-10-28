@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type { TtsVoice } from '@bookorbit/types'
 import * as ttsApi from '../api/tts.api'
@@ -16,7 +17,7 @@ export function useTtsVoices() {
     try {
       allVoices.value = await ttsApi.getVoices(providerId)
     } catch (err) {
-      voicesError.value = err instanceof Error ? err.message : 'Failed to load voices'
+      voicesError.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadVoices')
     } finally {
       voicesLoading.value = false
     }

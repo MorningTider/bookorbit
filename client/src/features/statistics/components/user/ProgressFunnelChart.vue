@@ -24,11 +24,11 @@ const previous = computed(() => data.value.previous)
 
 const stages = computed(() => {
   const raw = [
-    { key: 'started', label: 'Started', count: current.value.started },
+    { key: 'started', label: t('statistics.labels.started'), count: current.value.started },
     { key: 'reached25', label: '25%', count: current.value.reached25 },
     { key: 'reached50', label: '50%', count: current.value.reached50 },
     { key: 'reached75', label: '75%', count: current.value.reached75 },
-    { key: 'completed', label: 'Finished', count: current.value.completed },
+    { key: 'completed', label: t('statistics.labels.finished'), count: current.value.completed },
   ] as const
 
   return raw.map((stage, index) => {
@@ -94,8 +94,8 @@ watchEffect(() => {
         formatter: (params: Array<{ axisValue: string; data: number }>) => {
           const point = params[0]
           if (!point) return ''
-          const plural = point.data === 1 ? 'book' : 'books'
-          return `${point.axisValue}<br/>Drop-off: <strong>${point.data}</strong> ${plural}`
+          const plural = t('statistics.units.books', { count: point.data })
+          return `${point.axisValue}<br/>${t('statistics.labels.dropoff')}: <strong>${point.data}</strong> ${plural}`
         },
       },
       grid: { left: '10%', right: '8%', bottom: '12%', top: '14%', containLabel: true },
@@ -144,7 +144,7 @@ watchEffect(() => {
       trigger: 'item',
       formatter: (params: { data: { name: string; rawCount: number; pct: number } }) => {
         const point = params.data
-        const plural = point.rawCount === 1 ? 'book' : 'books'
+        const plural = t('statistics.units.books', { count: point.rawCount })
         return `${point.name}<br/><strong>${point.rawCount}</strong> ${plural} (${point.pct.toFixed(1)}%)`
       },
     },

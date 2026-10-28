@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, type Ref } from 'vue'
 
 import type { BookCard } from '@bookorbit/types'
@@ -63,7 +64,7 @@ export function useAuthorBooks(authorId: Ref<number>) {
         page.value += 1
       }
     } catch (err) {
-      if (!resetQueued) error.value = err instanceof Error ? err.message : 'Failed to load books'
+      if (!resetQueued) error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadBooks')
     } finally {
       loading.value = false
       if (resetQueued) {

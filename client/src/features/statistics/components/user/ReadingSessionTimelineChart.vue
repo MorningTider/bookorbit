@@ -6,7 +6,6 @@ import VChart from 'vue-echarts'
 import { CalendarRange } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import type { UserReadingSessionTimeline, UserReadingSessionTimelineItem, ReadingSessionSourceBucket } from '@bookorbit/types'
-import { READING_SESSION_SOURCE_BUCKET_LABELS } from '@bookorbit/types'
 
 import { useChartTokens } from '@/composables/useChartTokens'
 import { useCoverVersions } from '@/features/book/composables/useCoverVersions'
@@ -220,7 +219,7 @@ function makeOption(data: SessionSegment[], preview: DragPreview | null, dim: Br
     },
     yAxis: {
       type: 'category',
-      data: DAY_LABELS,
+      data: DAY_LABELS.map((_, day) => t(`statistics.weekdays.${(day + 1) % 7}`)),
       axisTick: { show: false },
       splitLine: { show: true, lineStyle: { opacity: 0.25 } },
       axisLabel: { fontSize: 11 },
@@ -242,11 +241,11 @@ function makeOption(data: SessionSegment[], preview: DragPreview | null, dim: Br
         const start = formatTimeLabel(d.value[1] ?? 0)
         const end = formatTimeLabel(d.value[2] ?? 0)
         const duration = formatDuration(Math.max(0, d.durationMinutes ?? 0))
-        const title = escapeHtml(d.bookTitle ?? 'Reading session')
-        const format = escapeHtml(d.bookFormat ?? 'Unknown')
-        const source = d.bookSource ? READING_SESSION_SOURCE_BUCKET_LABELS[d.bookSource] : ''
+        const title = escapeHtml(d.bookTitle ?? t('statistics.labels.readingSession'))
+        const format = escapeHtml(d.bookFormat ?? t('statistics.labels.unknown'))
+        const source = d.bookSource ? t(`statistics.sources.${d.bookSource}`) : ''
         const cover = d.bookId
-          ? `<img src="${coverUrl(d.bookId)}" alt="Cover" style="width:32px;height:48px;object-fit:cover;border-radius:4px;" />`
+          ? `<img src="${coverUrl(d.bookId)}" alt="${escapeHtml(t('statistics.metadataFields.cover'))}" style="width:32px;height:48px;object-fit:cover;border-radius:4px;" />`
           : ''
 
         return [
@@ -606,7 +605,7 @@ function formatTimeLabel(minutes: number): string {
   const hour24 = Math.floor(clockMinutes / 60)
   const minute = Math.floor(clockMinutes % 60)
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
-  const period = hour24 < 12 ? 'AM' : 'PM'
+  const period = t(hour24 < 12 ? 'statistics.labels.am' : 'statistics.labels.pm')
   return `${hour12}:${String(minute).padStart(2, '0')} ${period}`
 }
 

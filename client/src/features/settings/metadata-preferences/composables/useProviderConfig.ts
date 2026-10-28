@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { api } from '@/lib/api'
@@ -93,7 +94,7 @@ export function useProviderConfig() {
       return result
     } catch (error) {
       clearPassingSignature(key)
-      const message = error instanceof Error ? error.message : 'Provider test failed'
+      const message = error instanceof Error ? error.message : i18n.global.t('customUi.fallbackErrors.providerTestFailed')
       toast.error(message)
       return null
     } finally {

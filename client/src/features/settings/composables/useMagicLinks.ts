@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { MagicLinkToken, MagicLinkTokenCreateResponse } from '@bookorbit/types'
@@ -15,7 +16,7 @@ export function useMagicLinks() {
       if (!res.ok) throw new Error('Failed to load magic links')
       tokens.value = await res.json()
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoad')
     } finally {
       loading.value = false
     }

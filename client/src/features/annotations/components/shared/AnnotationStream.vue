@@ -296,7 +296,9 @@ function handleClearFilters() {
                 <label v-if="showStyleFilter" class="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
                   {{ t('annotations.hub.style') }}
                   <select v-model="styleFilter" class="h-9 w-full rounded-md border border-border bg-background px-2 text-sm">
-                    <option v-for="option in STYLE_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in STYLE_OPTIONS" :key="option.value" :value="option.value">
+                      {{ t(`customUi.annotationStyles.${option.value}`) }}
+                    </option>
                   </select>
                 </label>
               </template>

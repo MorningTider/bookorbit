@@ -28,7 +28,7 @@ watchEffect(() => {
       appendToBody: true,
       formatter: (params: { name: string; value: number }) => {
         const pct = total.value > 0 ? ((params.value / total.value) * 100).toFixed(1) : '0'
-        return `<strong>${params.name}</strong><br/>${params.value} books &nbsp;&nbsp; ${pct}% of library`
+        return `<strong>${params.name}</strong><br/>${params.value} ${t('statistics.labels.bookUnit')} &nbsp;&nbsp; ${pct}% ${t('statistics.labels.libraryShare')}`
       },
     },
     series: [

@@ -47,20 +47,20 @@ watchEffect(() => {
       trigger: 'item',
       formatter: (params: { seriesName: string; data: [number, number] }) => {
         const [mins, pct] = params.data
-        return `${params.seriesName}<br/>${mins} min session<br/><strong>${pct}%</strong> progress made`
+        return `${params.seriesName}<br/>${mins} ${t('statistics.labels.sessionMinutes')}<br/><strong>${pct}%</strong> ${t('statistics.labels.progressMade')}`
       },
     },
     grid: { left: '3%', right: '5%', bottom: '8%', top: 30, containLabel: true },
     xAxis: {
       type: 'value',
-      name: 'Duration (min)',
+      name: t('statistics.labels.durationMinutes'),
       nameLocation: 'middle',
       nameGap: 28,
       axisLabel: { fontSize: 11 },
     },
     yAxis: {
       type: 'value',
-      name: 'Progress %',
+      name: t('statistics.labels.progressPercent'),
       nameLocation: 'middle',
       nameGap: 40,
       axisLabel: { fontSize: 11 },

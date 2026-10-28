@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type { HardcoverImportApplyResult, HardcoverImportPreview } from '@bookorbit/types'
 import { applyHardcoverImport, previewHardcoverImport } from '../api/hardcover.api'
@@ -21,7 +22,7 @@ export function useHardcoverImport() {
     try {
       preview.value = await previewHardcoverImport()
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to preview Hardcover import'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToPreviewHardcoverImport')
     } finally {
       previewing.value = false
     }
@@ -38,7 +39,7 @@ export function useHardcoverImport() {
       preview.value = null
       return result.value
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to import Hardcover read status'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToImportHardcoverReadStatus')
       return null
     } finally {
       applying.value = false

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { insightLabel } from '../../lib/insight-labels'
 import { Compass } from '@lucide/vue'
 
 import { useDiversityScoreWidget } from '../../composables/useDiversityScoreWidget'
@@ -51,7 +52,7 @@ const subScores = computed(
         <span class="text-3xl font-bold tabular-nums">{{ data.score }}</span>
         <span class="text-[11px] text-muted-foreground">/100</span>
       </div>
-      <p class="text-xs font-medium text-primary">{{ data.label }}</p>
+      <p class="text-xs font-medium text-primary">{{ insightLabel(data.label) }}</p>
 
       <div class="w-full space-y-1">
         <div v-for="sub in subScores" :key="sub.key" class="flex items-center gap-2">

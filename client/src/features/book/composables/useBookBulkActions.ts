@@ -113,7 +113,7 @@ export function useBookBulkActions(
     const total = querySelection?.value ? querySelection.value.total : ids.length
     markRefreshing(ids)
     refreshFeedback.markRefreshingMany(ids)
-    inFlight.value = { label: 'Refreshing metadata', processed: 0, total, failed: 0 }
+    inFlight.value = { label: i18n.global.t('customUi.refreshingMetadata'), processed: 0, total, failed: 0 }
     const res = await api('/api/v1/books/bulk-refresh-metadata', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -166,9 +166,9 @@ export function useBookBulkActions(
 
               bumpVersion(bookId)
               clearRefreshing([bookId])
-              const prev: InFlightOp = inFlight.value ?? { label: 'Refreshing metadata', processed: 0, total, failed: 0 }
+              const prev: InFlightOp = inFlight.value ?? { label: i18n.global.t('customUi.refreshingMetadata'), processed: 0, total, failed: 0 }
               inFlight.value = {
-                label: 'Refreshing metadata',
+                label: i18n.global.t('customUi.refreshingMetadata'),
                 processed: prev.processed + 1,
                 total,
                 failed: (prev.failed ?? 0) + (succeeded ? 0 : 1),

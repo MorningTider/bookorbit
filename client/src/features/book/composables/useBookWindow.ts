@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, shallowRef, watch, type Ref } from 'vue'
 import { api } from '@/lib/api'
 import type { BookCard, BookQuery, BooksPage } from '@bookorbit/types'
@@ -131,7 +132,7 @@ export function useBookWindow(options: { endpoint: Ref<string | null>; query: Re
         total.value = 0
       }
       failedAt.set(block, Date.now())
-      error.value = e instanceof Error ? e.message : 'Failed to load books'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadBooks')
     } finally {
       if (gen === generation) {
         inFlight.delete(block)

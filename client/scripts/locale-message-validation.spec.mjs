@@ -80,10 +80,9 @@ describe('locale message validation', () => {
     const reference = '{count, plural, one {# book} other {# books}}'
     const message = '{count, plural, one {# knjiga} other {# knjig}}'
 
-    expect(validate('sl', reference, message)).toEqual([
-      'sl: ICU plural category two missing for books.count',
-      'sl: ICU plural category few missing for books.count',
-    ])
+    expect(validate('sl', reference, message).sort()).toEqual(
+      ['sl: ICU plural category two missing for books.count', 'sl: ICU plural category few missing for books.count'].sort(),
+    )
   })
 
   it('accepts cardinal categories that only fractional or million-scale counts select', () => {

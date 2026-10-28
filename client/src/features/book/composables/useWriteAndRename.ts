@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { BookWriteAndRenameResult } from '@bookorbit/types'
@@ -22,7 +23,7 @@ export function useWriteAndRename() {
       result.value = data
       return data
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Unknown error'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.unknownError')
       return null
     } finally {
       loading.value = false

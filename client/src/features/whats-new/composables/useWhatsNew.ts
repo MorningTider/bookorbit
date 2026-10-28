@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type { ReleaseNote, ReleaseNotesResponse, WhatsNewPreferences } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -91,7 +92,7 @@ export function useWhatsNew() {
       hasMore.value = data.hasMore
       evaluated = true
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load release notes'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadReleaseNotes')
     } finally {
       evaluating = false
       loading.value = false

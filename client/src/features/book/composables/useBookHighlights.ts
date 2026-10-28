@@ -1,7 +1,9 @@
+import { i18n } from '@/i18n'
 import { computed, nextTick, ref, watch, type Ref } from 'vue'
 import type { AnnotationItem, AnnotationListResponse, AnnotationStats } from '@bookorbit/types'
 import { api } from '@/lib/api'
-import { buildFilterChips } from '@/features/annotations/lib/filter-chips'
+import { buildHubChips } from '@/features/annotations/lib/hub-chips'
+import { formatDate } from '@/i18n/formatters'
 import { useAnnotationSelection } from '@/features/annotations/composables/useAnnotationSelection'
 import { useAnnotationMutations } from '@/features/annotations/composables/useAnnotationMutations'
 import { buildHighlightGroups, withLoadedItems } from '@/features/book/lib/highlight-groups'
@@ -49,7 +51,13 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
   const activeItem = computed(() => items.value.find((item) => item.id === activeId.value) ?? null)
   const activeIndex = computed(() => (activeId.value == null ? -1 : items.value.findIndex((item) => item.id === activeId.value)))
 
-  const activeFilterChips = computed(() => buildFilterChips({ colors: colors.value, dateFrom: dateFrom.value, dateTo: dateTo.value }))
+  const activeFilterChips = computed(() =>
+    buildHubChips(
+      { colors: colors.value, styleFilter: 'all', originFilter: 'all', dateFrom: dateFrom.value, dateTo: dateTo.value },
+      i18n.global.t,
+      (value) => formatDate(new Date(value + 'T00:00:00')),
+    ),
+  )
   const popoverFilterCount = computed(() => activeFilterChips.value.length)
   const hasActiveFilters = computed(
     () =>
@@ -100,7 +108,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
       stats.value = data.stats
       loadedPages.value = 1
     } catch (e) {
-      if (seq === fetchSeq) error.value = e instanceof Error ? e.message : 'Failed to load highlights'
+      if (seq === fetchSeq) error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadHighlights')
     } finally {
       if (seq === fetchSeq) loading.value = false
     }
@@ -124,7 +132,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
       stats.value = data.stats
       loadedPages.value += 1
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load highlights'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadHighlights')
     } finally {
       loadingMore.value = false
     }
@@ -211,7 +219,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
     } catch (e) {
       items.value = prev
       total.value = prevTotal
-      error.value = e instanceof Error ? e.message : 'Failed to delete highlight'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToDeleteHighlight')
     }
   }
 
@@ -236,7 +244,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
     } catch (e) {
       items.value = prev
       total.value = prevTotal
-      error.value = e instanceof Error ? e.message : 'Failed to move highlights to trash'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToMoveHighlightsToTrash')
       return 0
     }
   }
@@ -258,7 +266,7 @@ export function useBookHighlights(bookIdRef: Ref<number>) {
       return body.affected
     } catch (e) {
       items.value = prev
-      error.value = e instanceof Error ? e.message : 'Failed to update selected highlights'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToUpdateSelectedHighlights')
       return 0
     }
   }

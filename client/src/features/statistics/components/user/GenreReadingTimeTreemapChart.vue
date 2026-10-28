@@ -3,7 +3,7 @@ import { computed, shallowRef, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import VChart from 'vue-echarts'
 import { Tag } from '@lucide/vue'
-import { READING_SESSION_SOURCE_BUCKETS, READING_SESSION_SOURCE_BUCKET_LABELS } from '@bookorbit/types'
+import { READING_SESSION_SOURCE_BUCKETS } from '@bookorbit/types'
 
 import { useChartTokens } from '@/composables/useChartTokens'
 import { useUserGenreReadingTime } from '../../composables/useUserGenreReadingTime'
@@ -41,10 +41,10 @@ watchEffect(() => {
         const bySource = bySourceByGenre.get(params.name)
         const sourceRows = bySource
           ? READING_SESSION_SOURCE_BUCKETS.filter((bucket) => (bySource[bucket] ?? 0) > 0)
-              .map((bucket) => `${READING_SESSION_SOURCE_BUCKET_LABELS[bucket]}: ${((bySource[bucket] ?? 0) / 3600).toFixed(1)}h`)
+              .map((bucket) => `${t(`statistics.sources.${bucket}`)}: ${((bySource[bucket] ?? 0) / 3600).toFixed(1)}h`)
               .join('<br/>')
           : ''
-        const base = `<strong>${params.name}</strong><br/>${hours}h reading time<br/>${pct}% of total`
+        const base = `<strong>${params.name}</strong><br/>${hours}h ${t('statistics.labels.readingTime')}<br/>${pct}% ${t('statistics.labels.totalShare')}`
         return sourceRows ? `${base}<br/>${sourceRows}` : base
       },
     },

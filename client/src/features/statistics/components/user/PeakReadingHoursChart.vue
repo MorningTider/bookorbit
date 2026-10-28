@@ -62,7 +62,7 @@ watchEffect(() => {
         const item = data.value[first.dataIndex]
         const events = item?.eventsCount ?? 0
         const readingSeconds = item?.readingSeconds ?? 0
-        const eventLabel = events === 1 ? 'event' : 'events'
+        const eventLabel = t('statistics.units.events', { count: events })
         const header = `${first.axisValue}<br/><strong>${formatDuration(readingSeconds)}</strong> · ${events} ${eventLabel}`
         const rows = params
           .filter((p) => p.data > 0)
@@ -82,7 +82,7 @@ watchEffect(() => {
       type: 'value',
       min: 0,
       axisLabel: { fontSize: 11, formatter: '{value}m' },
-      name: 'Minutes',
+      name: t('statistics.labels.minutes'),
       nameTextStyle: { fontSize: 11, color: 'var(--muted-foreground)' },
     },
     series,

@@ -82,12 +82,20 @@ const statCards = computed(() => {
   const classics = items.filter((p) => p.year < 1970).reduce((s, p) => s + p.count, 0)
   const pct = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : '0%')
   return [
-    { label: 'Peak year', value: peakItem.value?.year ?? 0, sub: `${peakItem.value?.count ?? 0} books` },
-    { label: 'Last 10 years', value: pct(last10), sub: 'of library' },
-    { label: 'Classics', value: pct(classics), sub: 'pre-1970' },
-    { label: 'Unique years', value: items.length, sub: 'with books' },
-    { label: 'Year span', value: last.year - first.year, sub: 'years covered' },
-    { label: 'Avg per year', value: items.length > 0 ? +(total / items.length).toFixed(1) : 0, sub: 'books' },
+    {
+      label: t('statistics.labels.peakYear'),
+      value: peakItem.value?.year ?? 0,
+      sub: `${peakItem.value?.count ?? 0} ${t('statistics.labels.bookUnit')}`,
+    },
+    { label: t('statistics.labels.last10Years'), value: pct(last10), sub: t('statistics.labels.libraryShare') },
+    { label: t('statistics.labels.classics'), value: pct(classics), sub: t('statistics.labels.before1970') },
+    { label: t('statistics.labels.uniqueYears'), value: items.length, sub: t('statistics.labels.yearsWithBooks') },
+    { label: t('statistics.labels.yearSpan'), value: last.year - first.year, sub: t('statistics.labels.yearsCovered') },
+    {
+      label: t('statistics.labels.averagePerYear'),
+      value: items.length > 0 ? +(total / items.length).toFixed(1) : 0,
+      sub: t('statistics.labels.bookUnit'),
+    },
   ]
 })
 
@@ -119,7 +127,7 @@ watchEffect(() => {
     ? [
         {
           coord: [String(peak.year), peak.count],
-          name: 'Peak',
+          name: t('statistics.labels.peak'),
           value: peak.year,
           symbolSize: 30,
           label: { fontSize: 9, fontWeight: 'bold' },
@@ -136,7 +144,7 @@ watchEffect(() => {
         const year = parseInt(main.axisValue)
         const pt = data.value.items.find((p) => p.year === year)
         const count = main.data
-        const bookLabel = count === 1 ? 'book' : 'books'
+        const bookLabel = t('statistics.units.books', { count: count })
         let html = `<strong>${main.axisValue}</strong><br/>${count} ${bookLabel}`
         if (pt?.topTitles?.length) {
           html += '<br/><span style="opacity:0.65;font-size:11px">' + pt.topTitles.map((t) => `- ${t}`).join('<br/>') + '</span>'
@@ -174,7 +182,7 @@ watchEffect(() => {
     },
     series: [
       {
-        name: 'Books',
+        name: t('statistics.labels.books'),
         type: 'line',
         data: counts,
         smooth: 0.3,
@@ -191,7 +199,7 @@ watchEffect(() => {
         },
       },
       {
-        name: '5yr Avg',
+        name: t('statistics.labels.fiveYearAverage'),
         type: 'line',
         data: avg,
         smooth: 0.4,

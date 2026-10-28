@@ -178,8 +178,8 @@ describe('TtsOpenAiVoiceCuration', () => {
 
   describe('Preview voice', () => {
     it('calls previewVoice with provider id and voice id', async () => {
-      const mockBlob = new Blob(['audio'], { type: 'audio/mpeg' })
-      const spy = vi.spyOn(ttsApi, 'previewVoice').mockResolvedValue(new Response(mockBlob, { status: 200 }))
+      const mockAudio = new TextEncoder().encode('audio')
+      const spy = vi.spyOn(ttsApi, 'previewVoice').mockResolvedValue(new Response(mockAudio, { status: 200 }))
       const wrapper = mountCuration({ ...BASE_PROVIDER, staticVoices: SAVED_VOICES })
       await wrapper.find('button[aria-label="Preview Heart"]').trigger('click')
       await vi.waitFor(() => expect(spy).toHaveBeenCalledWith('1', 'af_heart'))

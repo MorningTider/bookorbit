@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import type { StorygraphSettings, UpsertStorygraphSettingsPayload } from '@bookorbit/types'
 import { disconnectStorygraph, fetchStorygraphSettings, upsertStorygraphSettings, validateStorygraphCookies } from '../api/storygraph.api'
@@ -15,7 +16,7 @@ export function useStorygraphSettings() {
     try {
       settings.value = await fetchStorygraphSettings()
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load settings'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSettings')
     } finally {
       loading.value = false
     }
@@ -28,7 +29,7 @@ export function useStorygraphSettings() {
       settings.value = await upsertStorygraphSettings(payload)
       return true
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to save settings'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToSaveSettings')
       return false
     } finally {
       saving.value = false
@@ -42,7 +43,7 @@ export function useStorygraphSettings() {
       await disconnectStorygraph()
       settings.value = null
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to disconnect'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToDisconnect')
     } finally {
       saving.value = false
     }

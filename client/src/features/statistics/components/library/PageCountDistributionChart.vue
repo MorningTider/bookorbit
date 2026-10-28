@@ -22,12 +22,12 @@ watchEffect(() => {
         const row = data.value.items[params.dataIndex]
         if (!row) return ''
         return [
-          `${row.format} (${row.count} books)`,
-          `Min: ${row.min}`,
+          `${row.format} (${row.count} ${t('statistics.labels.bookUnit')})`,
+          `${t('statistics.labels.minimum')}: ${row.min}`,
           `Q1: ${Math.round(row.q1)}`,
-          `Median: ${Math.round(row.median)}`,
+          `${t('statistics.labels.median')}: ${Math.round(row.median)}`,
           `Q3: ${Math.round(row.q3)}`,
-          `Max: ${row.max}`,
+          `${t('statistics.labels.maximum')}: ${row.max}`,
         ].join('<br/>')
       },
     },

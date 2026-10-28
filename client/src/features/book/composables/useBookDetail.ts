@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { BookDetail } from '@bookorbit/types'
@@ -32,7 +33,7 @@ export function useBookDetail() {
       }
     } catch (e) {
       if (requestId === activeRequestId) {
-        error.value = e instanceof Error ? e.message : 'Failed to load book'
+        error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadBook')
       }
     }
 

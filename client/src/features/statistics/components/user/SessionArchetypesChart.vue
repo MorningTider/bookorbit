@@ -33,7 +33,7 @@ function formatHourLabel(hour: number, includeMinutes = false): string {
   const hour24 = Math.floor(normalizedMinutes / 60)
   const minute = normalizedMinutes % 60
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
-  const period = hour24 < 12 ? 'am' : 'pm'
+  const period = t(hour24 < 12 ? 'statistics.labels.am' : 'statistics.labels.pm')
 
   if (!includeMinutes || minute === 0) return `${hour12}${period}`
   return `${hour12}:${String(minute).padStart(2, '0')}${period}`
@@ -42,7 +42,7 @@ function formatHourLabel(hour: number, includeMinutes = false): string {
 function formatDuration(minutes: number): string {
   if (!Number.isFinite(minutes)) return ''
   const roundedMinutes = Math.round(minutes)
-  return `${roundedMinutes} ${roundedMinutes === 1 ? 'min' : 'mins'}`
+  return `${roundedMinutes} ${t('statistics.units.minutes', { count: roundedMinutes })}`
 }
 
 watchEffect(() => {
@@ -50,7 +50,7 @@ watchEffect(() => {
   if (!data.value.length) return
 
   const seriesByDay = DAY_NAMES.map((name, dow) => ({
-    name,
+    name: t(`statistics.weekdays.${dow}`),
     type: 'scatter',
     data: data.value.filter((d) => d.dayOfWeek === dow).map((d) => [d.hour, d.durationMinutes]),
     itemStyle: { color: DAY_COLORS[dow], opacity: 0.7 },
@@ -71,7 +71,7 @@ watchEffect(() => {
     },
     yAxis: {
       type: 'value',
-      name: 'Duration (min)',
+      name: t('statistics.labels.durationMinutes'),
       nameLocation: 'middle',
       nameGap: 40,
       axisLabel: { fontSize: 11 },
@@ -86,7 +86,7 @@ watchEffect(() => {
       },
     },
     legend: {
-      data: DAY_NAMES,
+      data: DAY_NAMES.map((_, day) => t(`statistics.weekdays.${day}`)),
       bottom: 0,
       itemWidth: 10,
       itemHeight: 10,

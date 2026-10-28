@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref, watch, type Ref } from 'vue'
 import type { BookReadingSession, BookReadingSessionListResponse, BookReadingSessionStats } from '@bookorbit/types'
 import { api } from '@/lib/api'
@@ -65,7 +66,7 @@ export function useBookReadingLog(bookIdRef: Ref<number>) {
       total.value = data.total
       stats.value = data.stats
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load reading sessions'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadReadingSessions')
     } finally {
       loading.value = false
       loadingMore.value = false
@@ -106,7 +107,7 @@ export function useBookReadingLog(bookIdRef: Ref<number>) {
     } catch (e) {
       sessions.value = prev
       total.value = prevTotal
-      error.value = e instanceof Error ? e.message : 'Failed to delete session'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToDeleteSession')
     }
   }
 

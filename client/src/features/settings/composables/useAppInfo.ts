@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 
 import type { AppInfoResponse } from '@bookorbit/types'
@@ -25,7 +26,7 @@ export function useAppInfo() {
       latestVersion.value = data.latestVersion
       maxUploadSizeMb.value = data.maxUploadSizeMb ?? 500
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load app info'
+      error.value = e instanceof Error ? e.message : i18n.global.t('customUi.fallbackErrors.failedToLoadAppInfo')
     } finally {
       isLoading.value = false
     }

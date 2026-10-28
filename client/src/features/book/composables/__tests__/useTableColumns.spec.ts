@@ -1,3 +1,4 @@
+import { setI18nLocale } from '@/i18n'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 import type { CustomMetadataFieldSummary } from '@bookorbit/types'
@@ -34,6 +35,15 @@ function makeField(overrides: Partial<CustomMetadataFieldSummary> = {}): CustomM
 }
 
 describe('useTableColumns', () => {
+  it('updates fixed headers on language switch while preserving custom labels', async () => {
+    const fields = ref([makeField({ id: 10, label: 'My Award' })])
+    const { allColumns } = useTableColumns('library', fields)
+    expect(allColumns.value.find((c) => c.id === 'title')?.header).toBe('Title')
+    await setI18nLocale('zh')
+    expect(allColumns.value.find((c) => c.id === 'title')?.header).toBe('书名')
+    expect(allColumns.value.find((c) => c.id === 'custom:10')?.header).toBe('My Award')
+    await setI18nLocale('en')
+  })
   beforeEach(() => {
     vi.useFakeTimers()
     Object.keys(mockStorage).forEach((k) => delete mockStorage[k])

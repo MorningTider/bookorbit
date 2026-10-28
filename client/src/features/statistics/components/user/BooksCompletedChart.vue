@@ -38,8 +38,8 @@ watchEffect(() => {
       formatter: (params: Array<{ axisValue: string; data: number }>) => {
         const point = params[0]
         if (!point) return ''
-        const label = point.data === 1 ? 'book' : 'books'
-        return `${point.axisValue}<br/><strong>${point.data}</strong> ${label} completed`
+        const label = t('statistics.units.books', { count: point.data })
+        return `${point.axisValue}<br/><strong>${point.data}</strong> ${label} ${t('statistics.labels.completedSuffix')}`
       },
     },
     grid: { left: '3%', right: '3%', bottom: '8%', top: '6%', containLabel: true },

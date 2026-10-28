@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { driver } from 'driver.js'
 import type { DriveStep } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -21,8 +22,8 @@ export function useOnboardingTour() {
       {
         element: '[data-tour="sidebar-libraries"]',
         popover: {
-          title: 'Your libraries live here',
-          description: 'Libraries appear here once created. Use the + button to add your first one, then click any library to browse its books.',
+          title: i18n.global.t('customUi.tour.librariesTitle'),
+          description: i18n.global.t('customUi.tour.librariesDescription'),
           side: 'right',
           align: 'start',
           showButtons: ['next', 'close'],
@@ -31,9 +32,8 @@ export function useOnboardingTour() {
       {
         element: '[data-tour="sidebar-smartScopes"]',
         popover: {
-          title: 'Smart Scopes - Smart filters',
-          description:
-            'Smart Scopes are saved filter rules that always stay up to date. Define criteria once - like "unread sci-fi" - and browse that slice of your library instantly.',
+          title: i18n.global.t('customUi.tour.smartScopesTitle'),
+          description: i18n.global.t('customUi.tour.smartScopesDescription'),
           side: 'right',
           align: 'start',
         },
@@ -41,9 +41,8 @@ export function useOnboardingTour() {
       {
         element: '[data-tour="sidebar-collections"]',
         popover: {
-          title: 'Collections - curated lists',
-          description:
-            'Collections are manual lists you build yourself - great for reading orders, recommendations, or syncing a specific set of books to your Kobo.',
+          title: i18n.global.t('customUi.tour.collectionsTitle'),
+          description: i18n.global.t('customUi.tour.collectionsDescription'),
           side: 'right',
           align: 'start',
         },
@@ -52,8 +51,8 @@ export function useOnboardingTour() {
       {
         element: '[data-tour="global-search"]',
         popover: {
-          title: 'Search your collection',
-          description: 'Click Search or press Cmd/Ctrl+K to find any book, author, series, or setting, jump to a library, or upload new books.',
+          title: i18n.global.t('customUi.tour.searchTitle'),
+          description: i18n.global.t('customUi.tour.searchDescription'),
           side: 'right',
           align: 'start',
         },
@@ -61,8 +60,8 @@ export function useOnboardingTour() {
       {
         element: '[data-tour="book-dock-btn"]',
         popover: {
-          title: 'Book Dock',
-          description: 'Uploaded files wait here. Review metadata, set the target library, then finalize to add them to your collection.',
+          title: i18n.global.t('customUi.tour.bookDockTitle'),
+          description: i18n.global.t('customUi.tour.bookDockDescription'),
           side: 'right',
           align: 'start',
         },
@@ -70,9 +69,8 @@ export function useOnboardingTour() {
       {
         element: '[data-tour="statistics-btn"]',
         popover: {
-          title: 'Reading statistics',
-          description:
-            'Explore 33+ charts covering your reading pace, genre breakdown, session patterns, top authors, and more. Your full reading history at a glance.',
+          title: i18n.global.t('customUi.tour.statisticsTitle'),
+          description: i18n.global.t('customUi.tour.statisticsDescription'),
           side: 'right',
           align: 'start',
         },
@@ -80,8 +78,8 @@ export function useOnboardingTour() {
       {
         element: '[data-tour="appearance-picker"]',
         popover: {
-          title: 'Make it yours',
-          description: 'Customize your theme, accent color, and background from the appearance menu.',
+          title: i18n.global.t('customUi.tour.appearanceTitle'),
+          description: i18n.global.t('customUi.tour.appearanceDescription'),
           side: 'right',
           align: 'end',
         },
@@ -116,10 +114,10 @@ export function useOnboardingTour() {
 
     const driverObj = driver({
       showProgress: true,
-      progressText: '{{current}} of {{total}}',
-      nextBtnText: 'Next',
-      prevBtnText: 'Back',
-      doneBtnText: 'Done',
+      progressText: i18n.global.t('customUi.tour.progress', { current: '{{current}}', total: '{{total}}' }),
+      nextBtnText: i18n.global.t('customUi.tour.next'),
+      prevBtnText: i18n.global.t('customUi.tour.back'),
+      doneBtnText: i18n.global.t('customUi.tour.done'),
       disableActiveInteraction: true,
       onDestroyed: () => {
         markCompletedLocally()

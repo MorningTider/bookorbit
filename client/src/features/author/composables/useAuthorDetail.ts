@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref, type Ref } from 'vue'
 
 import type { AuthorDetail } from '@bookorbit/types'
@@ -29,7 +30,7 @@ export function useAuthorDetail(authorId: Ref<number>) {
       }
     } catch (err) {
       author.value = null
-      error.value = err instanceof Error ? err.message : 'Failed to load author'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadAuthor')
     } finally {
       loading.value = false
     }

@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, onUnmounted, ref } from 'vue'
 import type {
   BookMoveCollisionPolicy,
@@ -89,7 +90,7 @@ export function useMoveToLibrary() {
       return result
     } catch (error) {
       if (previewController.signal.aborted) return null
-      previewError.value = error instanceof Error ? error.message : 'Failed to prepare the move'
+      previewError.value = error instanceof Error ? error.message : i18n.global.t('customUi.fallbackErrors.failedToPrepareTheMove')
       return null
     } finally {
       previewLoading.value = false
@@ -160,7 +161,7 @@ export function useMoveToLibrary() {
         step.value = 'done'
         return summary.value
       }
-      executeError.value = error instanceof Error ? error.message : 'The move failed'
+      executeError.value = error instanceof Error ? error.message : i18n.global.t('customUi.fallbackErrors.theMoveFailed')
       step.value = 'done'
       return null
     } finally {

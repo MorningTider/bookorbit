@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import { fetchWithAuthProxyRecovery } from '@/lib/api'
 
@@ -20,7 +21,7 @@ export function useSetupStatus() {
         needsSetup.value = data.needsSetup === true
         allowRegistration.value = data.allowRegistration === true
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load setup status'
+        const message = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSetupStatus')
         setupStatusError.value = message
         throw err
       } finally {

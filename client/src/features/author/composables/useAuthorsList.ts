@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 
 import type { AuthorSummary } from '@bookorbit/types'
@@ -60,7 +61,7 @@ export function useAuthorsList() {
       total.value = data.total
       page.value += 1
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load authors'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadAuthors')
     } finally {
       loading.value = false
     }

@@ -8,6 +8,7 @@ import { useChartTokens } from '@/composables/useChartTokens'
 import { buildHeatmapPalette } from '@/lib/heatmap-palette'
 import { useLibraryMetadataCompleteness } from '../../composables/useLibraryMetadataCompleteness'
 import ChartCard from '../ChartCard.vue'
+import { METADATA_FIELD_KEYS } from '../../lib/metadata-field-label'
 
 const FIELD_ORDER = [
   'Title',
@@ -41,6 +42,7 @@ watchEffect(() => {
   const libraries = [...new Set(data.value.items.map((item) => item.libraryName))]
   const fields = FIELD_ORDER.filter((field) => data.value.items.some((item) => item.field === field))
 
+  const fieldLabels = fields.map((field) => t(`statistics.metadataFields.${METADATA_FIELD_KEYS[field]}`))
   const points = data.value.items.map((item) => {
     const x = fields.indexOf(item.field)
     const y = libraries.indexOf(item.libraryName)
@@ -65,13 +67,13 @@ watchEffect(() => {
       textStyle: { color: palette.tooltipText, fontSize: 12 },
       formatter: (params: { value: [number, number, number, number, number] }) => {
         const [x, y, pct, present, total] = params.value
-        return `${libraries[y]}<br/>${fields[x]}: <strong>${pct}%</strong> (${present}/${total})`
+        return `${libraries[y]}<br/>${fieldLabels[x]}: <strong>${pct}%</strong> (${present}/${total})`
       },
     },
     grid: { left: '3%', right: '3%', bottom: '6%', top: '6%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: fields,
+      data: fieldLabels,
       axisTick: { show: false },
       axisLabel: { fontSize: 11, rotate: 35, interval: 0, color: palette.axisColor },
     },

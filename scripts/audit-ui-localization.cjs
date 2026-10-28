@@ -92,5 +92,43 @@ inspect(path.join(root, "client/src"));
 const en = flatten(JSON.parse(fs.readFileSync(path.join(root, "client/src/locales/en.json"), "utf8")));
 const zh = flatten(JSON.parse(fs.readFileSync(path.join(root, "client/src/locales/zh.json"), "utf8")));
 const missingChineseKeys = [...en].filter((key) => !zh.has(key));
-console.log(JSON.stringify({ templates, unexpectedStaticEnglish: findings, missingChineseKeys }, null, 2));
+
+const ts = createRequire(path.join(root, "client/package.json"))("typescript");
+const scriptUiCandidates = [];
+function inspectScripts(directory) {
+  for (const name of fs.readdirSync(directory)) {
+    const file = path.join(directory, name);
+    if (fs.statSync(file).isDirectory()) {
+      if (!["__tests__", "test", "locales"].includes(name)) inspectScripts(file);
+      continue;
+    }
+    if (!/\.(ts|vue)$/.test(name) || /\.(test|spec)\.ts$/.test(name)) continue;
+    const raw = fs.readFileSync(file, "utf8");
+    const descriptor = name.endsWith(".vue") ? parse(raw).descriptor : null;
+    const source = descriptor ? [descriptor.script?.content, descriptor.scriptSetup?.content].filter(Boolean).join("\n") : raw;
+    const ast = ts.createSourceFile(file + ".ts", source, ts.ScriptTarget.Latest, true);
+    function visit(node) {
+      if (
+        ts.isPropertyAssignment(node) &&
+        ["label", "title", "header", "description", "placeholder", "message"].includes(node.name.getText(ast)) &&
+        ts.isStringLiteralLike(node.initializer)
+      ) {
+        const text = node.initializer.text;
+        if (/^[A-Z][A-Za-z ]{2,}$/.test(text) && !technical(text))
+          scriptUiCandidates.push({ file: path.relative(root, file), property: node.name.getText(ast), text });
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(ast);
+  }
+}
+inspectScripts(path.join(root, "client/src"));
+
+console.log(
+  JSON.stringify(
+    { templates, unexpectedStaticEnglish: findings, missingChineseKeys, scriptUiCandidates, scriptCandidatesRequireConsumerReview: true },
+    null,
+    2,
+  ),
+);
 if (findings.length || missingChineseKeys.length) process.exitCode = 1;

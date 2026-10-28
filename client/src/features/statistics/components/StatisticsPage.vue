@@ -255,7 +255,7 @@ function setTab(tab: StatisticsTab) {
               <GripVertical class="text-muted-foreground drawer-drag-handle size-4 shrink-0 cursor-grab active:cursor-grabbing" />
               <component :is="chartMeta(chart.id).icon" :class="['size-4 shrink-0', chart.visible ? 'text-primary' : 'text-muted-foreground']" />
               <span :class="['flex-1 text-sm', chart.visible ? 'text-foreground' : 'text-muted-foreground']">
-                {{ chartMeta(chart.id).label }}
+                {{ t(chartMeta(chart.id).labelKey) }}
               </span>
               <ToggleSwitch :model-value="chart.visible" @update:model-value="handleToggleChart(chart.id)" />
             </div>

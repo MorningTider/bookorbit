@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 
 import type { SeriesFacets, SeriesSummary } from '@bookorbit/types'
@@ -61,7 +62,7 @@ export function useSeriesList() {
       page.value = requestPage + 1
     } catch (err) {
       if (token !== requestToken) return
-      error.value = err instanceof Error ? err.message : 'Failed to load series'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSeries')
     } finally {
       if (token === requestToken) loading.value = false
     }

@@ -31,7 +31,7 @@ watchEffect(() => {
       formatter: (params: { name: string; value: number }[]) => {
         const p = params[0]
         if (!p) return ''
-        return `${p.name}: <strong>${p.value}</strong> books`
+        return `${p.name}: <strong>${p.value}</strong> ${t('statistics.labels.bookUnit')}`
       },
     },
     grid: { left: '3%', right: '3%', bottom: '8%', top: '6%', containLabel: true },

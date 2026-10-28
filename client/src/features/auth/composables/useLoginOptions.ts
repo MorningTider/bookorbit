@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { ref } from 'vue'
 import type { LoginOptionsResponse } from '@bookorbit/types'
 import { fetchWithAuthProxyRecovery } from '@/lib/api'
@@ -21,7 +22,7 @@ export function useLoginOptions() {
         return data
       } catch (error) {
         loginOptions.value = null
-        loginOptionsError.value = error instanceof Error ? error.message : 'Failed to load sign-in options'
+        loginOptionsError.value = error instanceof Error ? error.message : i18n.global.t('customUi.fallbackErrors.failedToLoadSign-inOptions')
         throw error
       } finally {
         inFlight = null

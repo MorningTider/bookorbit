@@ -3,7 +3,6 @@ import { computed, shallowRef, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import VChart from 'vue-echarts'
 import { MonitorSmartphone } from '@lucide/vue'
-import { READING_SESSION_SOURCE_BUCKET_LABELS } from '@bookorbit/types'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
 import { useChartTokens } from '@/composables/useChartTokens'
@@ -60,7 +59,7 @@ watchEffect(() => {
         radius: ['45%', '72%'],
         center: md.value ? ['38%', '50%'] : ['50%', '44%'],
         data: data.value.slices.map((slice) => ({
-          name: READING_SESSION_SOURCE_BUCKET_LABELS[slice.bucket],
+          name: t(`statistics.sources.${slice.bucket}`),
           value: slice.readingSeconds,
           itemStyle: { color: colors[slice.bucket] },
         })),

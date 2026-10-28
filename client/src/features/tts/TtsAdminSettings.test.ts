@@ -118,7 +118,7 @@ describe('TtsAdminSettings', () => {
 
   it('previews a voice through the provider key rather than the numeric id', async () => {
     stubApi()
-    const preview = vi.spyOn(ttsApi, 'previewVoice').mockResolvedValue(new Response(new Blob(), { status: 200 }))
+    const preview = vi.spyOn(ttsApi, 'previewVoice').mockResolvedValue(new Response(new Uint8Array(), { status: 200 }))
     const wrapper = await mountSettings()
 
     const kokoro = wrapper.findAllComponents(TtsAdminProviderCard)[0]!

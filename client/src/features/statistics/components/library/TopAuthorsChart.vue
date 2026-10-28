@@ -51,7 +51,7 @@ watchEffect(() => {
         const bar = params.find((p) => p.seriesType === 'bar')
         if (!bar) return ''
         const pct = total > 0 ? ((bar.value / total) * 100).toFixed(1) : '0'
-        return `<strong>${bar.name}</strong><br/>${bar.value} books &nbsp;&nbsp; ${pct}% of top 25`
+        return `<strong>${bar.name}</strong><br/>${bar.value} ${t('statistics.labels.bookUnit')} &nbsp;&nbsp; ${pct}% ${t('statistics.labels.top25Share')}`
       },
     },
     legend: {
@@ -94,7 +94,7 @@ watchEffect(() => {
     },
     series: [
       {
-        name: 'Books',
+        name: t('statistics.labels.books'),
         type: 'bar',
         xAxisIndex: 0,
         data: items.map((d, i) => ({
@@ -110,7 +110,7 @@ watchEffect(() => {
         },
       },
       {
-        name: 'Cumulative %',
+        name: t('statistics.labels.cumulativePercent'),
         type: 'line',
         xAxisIndex: 1,
         data: cumulativePct,

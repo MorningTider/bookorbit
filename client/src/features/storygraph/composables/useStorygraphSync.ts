@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 import type { StorygraphActiveSyncStatus, StorygraphSyncFailure, StorygraphSyncPendingSummary } from '@bookorbit/types'
 import {
@@ -93,7 +94,7 @@ export function useStorygraphSync() {
       startSyncTracking()
       await fetchPendingSummary()
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to start sync'
+      error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToStartSync')
     } finally {
       syncing.value = false
     }

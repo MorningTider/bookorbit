@@ -20,9 +20,9 @@ const statCards = computed(() => {
   const percent = (count: number) => (total > 0 ? `${Math.round((count / total) * 100)}%` : '0%')
 
   return [
-    { label: 'Total', value: data.value.totalBooks, sub: 'Books' },
-    { label: 'Fresh ≤30d', value: data.value.fresh30dCount, sub: percent(data.value.fresh30dCount) },
-    { label: 'Never fetched', value: data.value.neverFetchedCount, sub: percent(data.value.neverFetchedCount) },
+    { label: t('statistics.labels.total'), value: data.value.totalBooks, sub: t('statistics.labels.books') },
+    { label: t('statistics.labels.freshWithin30Days'), value: data.value.fresh30dCount, sub: percent(data.value.fresh30dCount) },
+    { label: t('statistics.labels.neverFetched'), value: data.value.neverFetchedCount, sub: percent(data.value.neverFetchedCount) },
   ]
 })
 
@@ -46,12 +46,12 @@ watchEffect(() => {
     tooltip: {
       formatter: () =>
         [
-          `<strong>Freshness Score: ${data.value.freshnessScore}%</strong>`,
+          `<strong>${t('statistics.labels.freshness')}: ${data.value.freshnessScore}%</strong>`,
           `<=30d: ${data.value.fresh30dCount}`,
           `31-90d: ${data.value.stale31To90dCount}`,
           `91-180d: ${data.value.stale91To180dCount}`,
           `>180d: ${data.value.staleOver180dCount}`,
-          `Never fetched: ${data.value.neverFetchedCount}`,
+          `${t('statistics.labels.neverFetched')}: ${data.value.neverFetchedCount}`,
         ].join('<br/>'),
     },
     series: [
@@ -84,7 +84,7 @@ watchEffect(() => {
         axisLabel: { distance: -24, fontSize: 10 },
         detail: { valueAnimation: true, formatter: '{value}%', fontSize: 24, fontWeight: 700, color: activeColor, offsetCenter: [0, '22%'] },
         title: { show: true, offsetCenter: [0, '44%'], fontSize: 11, color: foreground },
-        data: [{ value: data.value.freshnessScore, name: 'Freshness' }],
+        data: [{ value: data.value.freshnessScore, name: t('statistics.labels.freshness') }],
       },
     ],
   }

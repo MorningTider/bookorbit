@@ -32,7 +32,7 @@ watchEffect(() => {
     tooltip: {
       formatter: (params: { value: [number, number, number, number] }) => {
         const [publishedYear, lagYears, count, addedYear] = params.value
-        return `Published ${publishedYear}<br/>Added ${addedYear}<br/>Lag: <strong>${lagYears}</strong> years<br/>Books: <strong>${count}</strong>`
+        return `${t('statistics.labels.published')} ${publishedYear}<br/>${t('statistics.labels.added')} ${addedYear}<br/>${t('statistics.labels.lag')}: <strong>${lagYears}</strong> ${t('statistics.labels.years')}<br/>${t('statistics.labels.books')}: <strong>${count}</strong>`
       },
     },
     grid: { left: '5%', right: '4%', top: '10%', bottom: '16%', containLabel: true },
@@ -42,7 +42,7 @@ watchEffect(() => {
       max: maxYear,
       axisLabel: { fontSize: 10, formatter: (value: number) => String(Math.round(value)) },
       splitNumber: 4,
-      name: 'Published',
+      name: t('statistics.labels.published'),
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { fontSize: 10 },
@@ -52,7 +52,7 @@ watchEffect(() => {
       min: Math.min(-5, minLag),
       max: Math.max(30, maxLag),
       axisLabel: { fontSize: 10 },
-      name: 'Lag (y)',
+      name: t('statistics.labels.lagYears'),
       nameLocation: 'middle',
       nameGap: 34,
       nameTextStyle: { fontSize: 10 },
