@@ -15,6 +15,8 @@ import time
 import urllib.parse
 import urllib.request
 
+STARTUP_TIMEOUT_SECONDS = 600
+
 ALLOWED = set('DATABASE_URL JWT_SECRET JWT_EXPIRES_IN JWT_REFRESH_EXPIRES_IN SETUP_BOOTSTRAP_TOKEN PODCAST_ENCRYPTION_KEY BOOK_REQUEST_ENCRYPTION_KEY EMAIL_ENCRYPTION_KEY MIGRATION_ENCRYPTION_KEY DISABLE_LOCAL_AUTH APP_URL CLIENT_URL TZ LOG_LEVEL BOOK_DOCK_PATH LIBRARY_BROWSE_ROOT COVER_SLOTS_BACKFILL_MODE'.split())
 
 
@@ -59,7 +61,8 @@ def atomic(path, value):
     fd = os.open(str(temporary), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         with os.fdopen(fd, 'w') as stream:
-            json.dump(value, stream);stream.flush();os.fsync(stream.fileno())
+            # PID and exit receipts are disposable after reboot; syncing them can block startup behind RAID work.
+            json.dump(value, stream)
         temporary.replace(path)
     finally:
         if temporary.exists():temporary.unlink()
@@ -173,6 +176,19 @@ def healthy(port):
     except (OSError, ValueError):return False
 
 
+
+def wait_for_startup(root, state, port):
+    deadline = time.monotonic() + STARTUP_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        running = alive(state)
+        if running and child_identity(root, state) is not None and healthy(port):
+            return True
+        if (state / 'last-exit.json').exists() and not running:
+            return False
+        time.sleep(0.5)
+    return False
+
+
 def control(action, root, state):
     if action == 'supervise':supervise(root, state);return 0
     with (state / 'control.lock').open('a') as lock:
@@ -200,11 +216,7 @@ def control(action, root, state):
         try:
             subprocess.Popen([sys.executable, str(pathlib.Path(__file__).resolve()), 'supervise', '--root', str(root), '--state', str(state)], stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True, env={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8','TMPDIR':str(state/'tmp')})
         finally:os.close(log)
-        deadline = time.monotonic() + 180
-        while time.monotonic() < deadline:
-            if alive(state) and child_identity(root,state) is not None and healthy(config['port']):return 0
-            if (state / 'last-exit.json').exists() and not alive(state):break
-            time.sleep(0.5)
+        if wait_for_startup(root, state, config['port']):return 0
         if alive(state):os.kill(json.loads((state / 'service.pid.json').read_text())['pid'], signal.SIGTERM)
         raise RuntimeError('Native service did not become healthy; inspect private logs')
 

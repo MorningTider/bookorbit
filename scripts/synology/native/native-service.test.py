@@ -4,6 +4,7 @@ import os
 import pathlib
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec=importlib.util.spec_from_file_location('service',pathlib.Path(__file__).with_name('native-service.py'))
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -87,6 +88,39 @@ class ServicePolicyTests(unittest.TestCase):
         path=self.state/'receipt.json';m.atomic(path,{'test':True})
         self.assertEqual(path.stat().st_mode&0o777,0o600)
         self.assertEqual(json.loads(path.read_text()),{'test':True})
+
+    def test_runtime_receipts_do_not_wait_for_durable_storage(self):
+        path=self.state/'service.pid.json'
+        with patch.object(m.os,'fsync',side_effect=AssertionError('Disk sync blocked')):
+            m.atomic(path,{'pid':123,'startTicks':'old'})
+            m.atomic(path,{'pid':456,'startTicks':'new'})
+        self.assertEqual(json.loads(path.read_text()),{'pid':456,'startTicks':'new'})
+        self.assertEqual(path.stat().st_mode&0o777,0o600)
+        self.assertEqual(list(self.state.glob('.service.pid.json-*')),[])
+    def startup_wait(self, health):
+        clock=[0]
+        def sleep(seconds):clock[0]+=seconds
+        with patch.object(m.time,'monotonic',side_effect=lambda:clock[0]), patch.object(m.time,'sleep',side_effect=sleep), patch.object(m,'alive',return_value=True), patch.object(m,'child_identity',return_value=123), patch.object(m,'healthy',side_effect=lambda port:health(clock[0])):
+            result=m.wait_for_startup(self.state,self.state,18185)
+        return result,clock[0]
+    def test_slow_storage_readiness_survives_old_three_minute_limit(self):
+        result,elapsed=self.startup_wait(lambda elapsed:elapsed>=240)
+        self.assertTrue(result)
+        self.assertEqual(elapsed,240)
+    def test_unhealthy_child_has_bounded_startup(self):
+        result,elapsed=self.startup_wait(lambda elapsed:False)
+        self.assertFalse(result)
+        self.assertEqual(elapsed,600)
+    def test_healthy_http_without_owned_child_is_not_ready(self):
+        clock=iter([0,1,601])
+        with patch.object(m.time,'monotonic',side_effect=lambda:next(clock)), patch.object(m.time,'sleep'), patch.object(m,'alive',return_value=True), patch.object(m,'child_identity',return_value=None), patch.object(m,'healthy') as health:
+            self.assertFalse(m.wait_for_startup(self.state,self.state,18185))
+        health.assert_not_called()
+    def test_exited_supervisor_fails_without_waiting_ten_minutes(self):
+        (self.state/'last-exit.json').write_text('{"code":1}')
+        with patch.object(m,'alive',return_value=False), patch.object(m.time,'sleep') as sleep:
+            self.assertFalse(m.wait_for_startup(self.state,self.state,18185))
+        sleep.assert_not_called()
 
 
 if __name__=='__main__':unittest.main()

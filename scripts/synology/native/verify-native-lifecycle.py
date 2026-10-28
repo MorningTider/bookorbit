@@ -14,8 +14,9 @@ import tempfile
 import time
 
 
-def verify(root, output, node_root=None):
+def verify(root, output, node_root=None, readiness_delay=0):
     if os.geteuid()==0:raise ValueError('Ordinary user acceptance required')
+    if isinstance(readiness_delay,bool) or not isinstance(readiness_delay,int) or not 0<=readiness_delay<=300:raise ValueError('Readiness delay must be within 0..300 seconds')
     output=pathlib.Path(output)
     if output.exists():raise ValueError('Report output must be new')
     script=pathlib.Path(__file__).with_name('native-service.py').resolve()
@@ -29,14 +30,15 @@ def verify(root, output, node_root=None):
             for library in (source/'lib').iterdir():
                 if library.is_file():shutil.copyfile(library,package/'lib'/library.name)
         shutil.copyfile(source/'bin/node' if source else '/usr/local/bin/node',package/'bin/node');(package/'bin/node').chmod(0o755)
-        (package/'app/dist/main.js').write_text("const fs=require('fs'),http=require('http');const p=process.env.APP_DATA_PATH+'/boots.json';let count=0;try{count=JSON.parse(fs.readFileSync(p)).count}catch{}fs.writeFileSync(p,JSON.stringify({pid:process.pid,count:count+1}));http.createServer((q,r)=>{r.setHeader('content-type','application/json');r.end(JSON.stringify({status:'ok'}))}).listen(Number(process.env.PORT),process.env.HOST);")
+        (package/'app/dist/main.js').write_text("const fs=require('fs'),http=require('http');const p=process.env.APP_DATA_PATH+'/boots.json';let count=0;try{count=JSON.parse(fs.readFileSync(p)).count}catch{}fs.writeFileSync(p,JSON.stringify({pid:process.pid,count:count+1}));const server=http.createServer((q,r)=>{r.setHeader('content-type','application/json');r.end(JSON.stringify({status:'ok'}))});setTimeout(()=>server.listen(Number(process.env.PORT),process.env.HOST),count===0?"+str(readiness_delay*1000)+":0);")
         with socket.socket() as probe:probe.bind(('127.0.0.1',0));port=probe.getsockname()[1]
         config={'schemaVersion':1,'mode':'isolated','port':port,'environment':{'DATABASE_URL':'postgres://unused:unused@127.0.0.1:5433/bookorbit_spk_pathcheck_synthetic','JWT_SECRET':'test-isolation-'+'a'*40,'SETUP_BOOTSTRAP_TOKEN':'test-bootstrap-'+'b'*40}}
         (state/'service.json').write_text(json.dumps(config));(state/'service.json').chmod(0o600)
-        def control(action,timeout=30):
+        def control(action,timeout=120):
             return subprocess.run([sys.executable,str(script),action,'--root',str(package),'--state',str(state)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout)
         try:
-            started=control('start')
+            started_at=time.monotonic()
+            started=control('start',timeout=630)
             if started.returncode:
                 diagnostics=started.stderr.decode(errors='replace')
                 for log in ['supervisor.log','application.log']:
@@ -45,6 +47,9 @@ def verify(root, output, node_root=None):
             first=json.loads((state/'service.pid.json').read_text())
             assert control('status').returncode==0
             checks['startAndStatus']=True
+            if readiness_delay:
+                assert time.monotonic()-started_at>=readiness_delay
+                checks['delayedReadiness']=True
             assert control('start').returncode==0 and json.loads((state/'service.pid.json').read_text())==first
             checks['duplicateStartIdempotent']=True
             boots=state/'data/boots.json';child=json.loads(boots.read_text());os.kill(child['pid'],signal.SIGKILL)
@@ -85,11 +90,11 @@ def verify(root, output, node_root=None):
             checks['occupiedPortRejectedBeforeSpawn']=True
         finally:
             control('stop')
-    report={'kind':'synthetic-process-lifecycle','uid':os.geteuid(),'controllerSha256':hashlib.sha256(script.read_bytes()).hexdigest(),'checks':checks,'passed':all(checks.values()),'temporaryApplicationRemoved':True,'databaseUsed':False}
+    report={'kind':'synthetic-process-lifecycle','uid':os.geteuid(),'controllerSha256':hashlib.sha256(script.read_bytes()).hexdigest(),'checks':checks,'passed':all(checks.values()),'temporaryApplicationRemoved':True,'databaseUsed':False,'readinessDelaySeconds':readiness_delay}
     fd=os.open(str(output),os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as target:json.dump(report,target,indent=2)
     print(json.dumps(report))
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--work-parent',required=True);p.add_argument('--output',required=True);p.add_argument('--node-root');a=p.parse_args();verify(a.work_parent,a.output,a.node_root)
+    p=argparse.ArgumentParser();p.add_argument('--work-parent',required=True);p.add_argument('--output',required=True);p.add_argument('--node-root');p.add_argument('--readiness-delay',type=int,default=0);a=p.parse_args();verify(a.work_parent,a.output,a.node_root,a.readiness_delay)
