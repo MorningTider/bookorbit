@@ -336,3 +336,13 @@ boolbase1.0.0补齐上游2015-10-14追加的ISC文本，固定提交be0bcd8a4e91
 abstract-logging2.0.1固定提交80dfaef91ee87008f4ed2b6e78921d383bccd406没有LICENSE，Readme.md链接原作者MIT许可站。固定README与实际安装文件一致，SHA256 e1a86711fb5055c0e66901276b7d2c843554bf5f1dab218c069c8b9d17148e81。作者HTTPS页面本轮已成功访问，保存原HTML及SHA256 0315813ad87e9e4338ff5c9494ef2d6663be85703d032bee2fa35bcd605340bc；页面显示动态2026版权年份，作为作者链接证据单独保留，未冒充2020固定发行材料。目录local/synology-native/release-evidence/abstract-logging-author-20261029。
 
 公开发行仍需完成abstract-logging固定许可材料复核、sharp对应源码独立校验及补丁/依赖审查，以及全部payload组件绑定。没有改变线上服务或移除Beta标识。
+
+## 2026-10-29 慢存储启动修正10007已部署
+
+源码提交9c21da6cb8133a104c09db9e9836c50e80f33c73修正监督程序：临时PID和退出状态原子替换不再fsync，等待就绪上限600秒，可信监督/子进程身份与HTTP健康必须同时成立，明确失败提前返回。配置、数据库、备份持久化同步没有变化。全套原生Python回归151项通过，其中控制器23项包含240秒延迟成功、600秒截止、无可信子进程拒绝及监督退出提前失败。
+
+群晖UID217211实际运行合成Node验收10项全部通过，首启故意延迟200秒，涵盖重复启停、子进程崩溃恢复、监督程序被杀后的回收、无孤儿进程、其他PID与端口占用拒绝；没有使用真实数据库。该测试模拟慢就绪，不宣称强制RAID故障或整机重启。控制器SHA256 a400266f384063e599907eeca2b9d38bae7a77ffe43135017c09489094e145a3，收据local/synology-native/lifecycle-check/delayed-lifecycle-20261029.json及NAS私有升级目录startup-lifecycle-10007.json。
+
+应用继续使用0ded7f49构建产物，本次仅更新包内控制器。SPK3.5.0-10007，SHA256 178e8b41a7197e707216b536b740eee4c687d607411f47a85013d6aec067f52e。配置备份及完整PG备份核验通过，升级审计目录/volume1/database/pg/backups/bookorbit-spk-upgrade-10007-20261029，PG备份/volume1/database/pg/backups/logical-20261028T205419Z-89c790c1。
+
+DSM从10006升级10007成功，日志04:59:12开始启动，04:59:27启动返回0，实际约15秒，synopkg status为running。已安装控制器指纹与上述收据相同；配置SHA256 e7a939f13b786ea0819172f7ea77f0687f6574549de307604e05738768303a32保持不变。12项生产API全部通过，11本图书可查、详情并发和文件Range正常，收据production-api-10007.json位于NAS私有升级目录。真实公网前端5个图标解码和19项说明验收通过，接口数据为合成，报告local/synology-native/reports/browser-provider-branding-10007-public.json。未重启NAS；十分钟仍是有界上限，不承诺任意存储故障都能成功启动。公开发行组件审查仍未完成，保留Beta。

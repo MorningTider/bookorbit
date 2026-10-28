@@ -52,3 +52,5 @@ BO-C08上线确认：2026-10-29由原生10004交付，应用源码77afa4e5；115
 区域元数据来源展示补充：五个国内来源使用client/public/assets/provider-icons中的官网图标，通过provider-icons.ts统一映射，来源及SHA256保存在regional-sources.json；不依赖浏览器访问官网图标地址。七个区域来源说明通过en/zh资源维护，描述元数据补充用途，不把下载能力说明混入元数据开关。后续同步上游须保留映射、静态素材和对应语言键。
 
 区域来源展示回归：整页19个来源说明统一使用en/zh hints，保留各自的密钥要求。verify-provider-branding-browser.cjs在合成接口上下文校验19条中文说明和5个图标解码，不读取生产凭据；真实生产接口由NAS探针单独验收。
+
+BO-C09启动回归补充：保留native-service.py的600秒有界就绪等待、临时进程记录无fsync策略及可信子进程身份检查。verify-native-lifecycle.py新增--readiness-delay参数，候选打包须绑定修改后控制器的真实普通账号收据。不要通过延长测试外层超时来掩盖控制器仍停留180秒，也不要去除配置/数据库备份的持久化同步。
