@@ -61,8 +61,13 @@ def freeze(root):
         version = metadata['version']
         if not re.fullmatch(r'[a-zA-Z0-9.+!_-]+', version):
             raise ValueError('Invalid Python version')
+        archive = item['download_info']['archive_info']
+        checksum = archive.get('hashes', {}).get('sha256')
+        legacy = archive.get('hash', '')
+        if checksum is None and legacy.startswith('sha256='):checksum = legacy[7:]
+        if legacy and legacy != 'sha256=' + str(checksum):raise ValueError('Conflicting Python SHA256')
         python.append({'name': name, 'version': version, 'url': url, 'kind': kind,
-                       'sha256': sha256(item['download_info']['archive_info']['hashes'].get('sha256'))})
+                       'sha256': sha256(checksum)})
     if not debian or not python:
         raise ValueError('Empty runtime input list')
     return {'schemaVersion': 1, 'scope': 'runtime-inputs-only',

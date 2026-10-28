@@ -208,3 +208,19 @@ python3 scripts/synology/native/lock-support-inputs.py \
   --artifact local/synology-native/support-private-libc \
   --output /private/tmp/bookorbit-support-lock-new.json
 ```
+
+## 2026-10-28 锁定重建与源码应用业务验收
+
+新增 build-support.py，使用404项已观测工具链包的精确版本安装约束，并核对实际 dpkg 版本；Python20项使用精确制品地址、require-hashes、no-deps、no-build-isolation，执行 pip check。不再由 Poppler 脚本临时安装未固定开发包。构建结束重新从收据生成运行清单，要求218项 Debian 和20项 Python 的版本、源包身份与制品 SHA256 与锁文件完全一致，否则失败。
+
+实际构建 support-locked-first 和带最终门槛的 support-locked-checked 均成功；后者 locked-rebuild.json 记录 runtimeIdentitiesMatched=true、toolchainPackages=404。前者在只读、无外网、普通用户环境的六组媒体/Python 验收全部通过。重建与此前 DSM 已验候选相比，可执行程序、私有库和 Python 代码一致；差异为 Python 安装来源元数据及保存的构建脚本。本结论不声称逐字节、全目录可重复构建；APT 仓库版本淘汰仍可能导致未来构建明确失败，不允许自动改用新版。
+
+collect-support-sources.py 通过认证 APT 索引按对应源版本收集169组 Debian 源码，逐项核对 dsc 身份、SHA256与文件大小，全部通过。材料位于忽略目录 local/synology-native/source-materials/debian-runtime-0b24a941，source-receipt.json SHA256 为950e519dafdd2576361aca11a4d2ba19160773bcbb4396212e4a14db34ae46b5。源码清单绑定运行锁哈希，不能把这份 Debian 材料扩大为 Node、Sharp、所有 Python 组件的完整源码审计。
+
+新增 probe-source-application.py：只从指定源码候选读取程序并检查提交与 Sharp 收据；使用已有隔离数据库服务器上的一次性数据库，不从容器导出程序。NAS UID1026 的第三轮报告 /tmp/bookorbit-source-application-20261028-v3.json 共10项检查全部通过：迁移、健康、普通用户、前端、未登录拒绝、首次设置、登录重启、TXT导入/正文/Range、TXT转EPUB及spine、书籍转换后重启持久化。三次启动9.06/7.05/7.04秒，临时库与临时目录已删除，生产8184仍status=ok。首轮90秒等待曾失败，第二轮放宽至180秒后通过；尚未将该单次超时归因于确定缺陷，须继续覆盖正式套件启动及NAS重启。
+
+本轮新增构建入口6项、源码计划5项测试；锁清单测试扩为10项，覆盖pip报告旧hash字段及冲突拒绝。媒体工具的核验与应用业务测试是不同证据，不能互相替代。
+
+生产切换授权已获得：原生SPK验收完成后，先最终备份再停旧应用容器并启动SPK，保留旧容器和数据。当前尚未执行切换。生产挂载为 /data 对应 /volume1/docker/bookorbit/data/app、/books 对应 /volume1/library（只读）、/books/ebook 对应 /volume1/library/ebook（读写）。原生迁移须处理持久数据库路径和群晖ACL，不能只复制容器环境变量或给整座书库递归放开写权限。DSM套件生命周期、原生PG上的完整应用验收、路径与权限迁移及最终切换仍待完成。
+
+生产只读路径审计发现：book_files.absolute_path 有6468行、books.folder_path 有11行、library_dir_scan_state.dir_path 有14行、library_folders.path 有2行使用 /books 前缀。该查询只返回计数，没有修改记录；正式迁移必须对这些记录和额外JSON配置做完整预检及隔离回放，不能只改11本书的主记录。

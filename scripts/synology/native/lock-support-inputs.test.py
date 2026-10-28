@@ -64,6 +64,16 @@ class LockTests(unittest.TestCase):
         self.write_report()
         self.assertEqual(lock.freeze(self.root)['python'][0]['kind'], 'sdist')
 
+    def test_pip_legacy_hash_report(self):
+        self.report['install'][0]['download_info']['archive_info'] = {'hash': 'sha256=' + 'b' * 64}
+        self.write_report()
+        self.assertEqual(lock.freeze(self.root)['python'][0]['sha256'], 'b' * 64)
+
+    def test_conflicting_hashes_rejected(self):
+        self.report['install'][0]['download_info']['archive_info']['hash'] = 'sha256=' + 'c' * 64
+        self.write_report()
+        with self.assertRaisesRegex(ValueError, 'Conflicting'):lock.freeze(self.root)
+
     def test_python_duplicate_normalized_names_rejected(self):
         self.report['install'].append(self.report['install'][0])
         self.write_report()

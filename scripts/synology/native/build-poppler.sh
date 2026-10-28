@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-apt-get install --yes --no-install-recommends cmake make g++ dpkg-dev libfreetype-dev libfontconfig-dev libjpeg62-turbo-dev libpng-dev libtiff-dev libopenjp2-7-dev liblcms2-dev zlib1g-dev libboost-dev
 version=$(dpkg-query -W -f='${source:Version}' libpoppler126)
 mkdir -p /build/poppler-downloads
 cd /build/poppler-downloads
