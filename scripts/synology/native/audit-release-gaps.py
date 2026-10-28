@@ -3,6 +3,7 @@
 import argparse
 import collections
 import json
+import hashlib
 import pathlib
 import re
 
@@ -15,8 +16,14 @@ def audit(root):
         value=json.loads(path.read_text())
         if not value.get('name') or not value.get('version'):continue
         licenses=[p.relative_to(root).as_posix() for p in path.parent.iterdir() if p.is_file() and re.match(r'^(licen[cs]e|copying|notice)([.\-_]|$)',p.name,re.I)]
-        packages.append({'name':value['name'],'version':value['version'],'declaredLicense':value.get('license'),'packageJson':path.relative_to(root).as_posix(),'localNoticeFiles':sorted(licenses),'metadataOnlyNotLegallyCleared':True})
-    return {'schemaVersion':1,'kind':'release-evidence-gap-inventory','releaseApproved':False,'npmPackageInstances':len(packages),'missingDeclaredLicense':sum(not p['declaredLicense'] for p in packages),'missingLocalNotice':sum(not p['localNoticeFiles'] for p in packages),'declaredLicenseCounts':dict(collections.Counter(str(p['declaredLicense']) for p in packages)),'packages':packages,'remaining':['Review component license text and corresponding source obligations','Bind every payload file to reviewed component evidence','Run payload-contract validation before public release']}
+        embedded=[]
+        for readme in path.parent.iterdir():
+            if not readme.is_file() or not readme.name.lower().startswith('readme') or not readme.resolve().is_relative_to(root) or readme.stat().st_size>2*1024*1024:continue
+            data=readme.read_bytes();text=re.sub(r'\s+',' ',data.decode(errors='replace')).lower()
+            if all(marker in text for marker in ['copyright','permission is hereby granted','the above copyright notice','without warranty','liability']):
+                embedded.append({'path':readme.relative_to(root).as_posix(),'sha256':hashlib.sha256(data).hexdigest(),'kind':'embedded-permission-and-warranty-text-review-required'})
+        packages.append({'embeddedNoticeEvidence':embedded,'name':value['name'],'version':value['version'],'declaredLicense':value.get('license'),'packageJson':path.relative_to(root).as_posix(),'localNoticeFiles':sorted(licenses),'metadataOnlyNotLegallyCleared':True})
+    return {'schemaVersion':1,'kind':'release-evidence-gap-inventory','releaseApproved':False,'npmPackageInstances':len(packages),'missingDeclaredLicense':sum(not p['declaredLicense'] for p in packages),'missingLocalNotice':sum(not p['localNoticeFiles'] for p in packages),'missingNoticeEvidence':sum(not p['localNoticeFiles'] and not p['embeddedNoticeEvidence'] for p in packages),'declaredLicenseCounts':dict(collections.Counter(str(p['declaredLicense']) for p in packages)),'packages':packages,'remaining':['Review component license text and corresponding source obligations','Bind every payload file to reviewed component evidence','Run payload-contract validation before public release']}
 
 
 if __name__=='__main__':

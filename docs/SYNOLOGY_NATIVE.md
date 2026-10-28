@@ -318,3 +318,5 @@ DSM已由10001升级10002，程序来自仓库源码9c41f580，打包提交2e953
 audit-release-gaps.py只盘点许可证证据，不自动作法律许可判断。对10002支持阶段盘点754个npm包实例，5个实例缺声明（passport-strategy、pause），26个实例未找到包根目录许可证或NOTICE；计数包含多依赖实例，不等于独立组件数量。清单包括BookOrbit两个工作区包、sharp-libvips及若干小依赖。根目录未发现不代表上游没有许可，仍需核对嵌套版权文件和对应源码材料。完整报告位于忽略的local/synology-native/reports/release-gaps-10002.json。
 
 正式公开发行仍须补齐逐组件许可文本、必要对应源码，并将全部payload文件绑定到已审查组件后通过payload-contract。不能用package.json的license字段代替完整审计。本轮仅新增审计工具与记录，未改现网服务或重启NAS。
+
+许可证证据复查：26个根目录未找到NOTICE的包实例中，12个在README内带有完整许可段落。审计器新增内嵌许可证据及SHA256记录，不复制或改写冻结阶段，剩余14个实例涉及7个组件：@bookorbit/plugin-api、@bookorbit/types、@img/sharp-libvips-linux-x64、@nodable/entities、abstract-logging、boolbase、drizzle-orm。报告release-gaps-10002-embedded.json保存在local/synology-native/reports。仅有许可证名称或链接不视作完整许可文本；源码义务和公开发行批准仍待审查。5个package.json缺声明仍作为元数据缺口保留，不等同于5个包没有许可证文件。
