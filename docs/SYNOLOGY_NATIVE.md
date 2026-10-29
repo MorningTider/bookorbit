@@ -378,3 +378,11 @@ TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF
 12项生产API全部通过，11本图书、详情并发、宿主Range及原生进程正常，收据production-api-10008.json留在上述NAS私有审计目录。公网真实前端5个官方图标与19项中文说明验证通过，接口数据为合成，报告local/synology-native/reports/browser-provider-branding-10008-public.json。DSM详情已实际检查10008、无BETA和新中文说明，截图/private/tmp/bookorbit-private-stable-10008-dsm.png。
 
 自用正式版交付范围是当前群晖的正常升级与运行。Android实机、七猫正文和未执行的整机重启测试保留原有边界，不将其写成新增已实现能力；公开再分发材料不再作为本次自用交付前置条件。
+
+### 2026-10-29 TXT 逐文件迁移与标题修复
+
+生产 ebook 库由 book_per_folder 转为 book_per_file，10个TXT从3条书目拆为10条；原3个书目ID、全部文件ID、主文件阅读关联保留，音频库不变，生产总数18本。独立数据库预演及生产各完成两次扫描和10个TXT阅读验证，所有源文件SHA256与阅读记录指纹保持一致。生产审计位于 /volume1/database/pg/backups/bookorbit-txt-split-20261029，迁移前备份 logical-20261029T072837Z-c93436bb，拆分后备份 logical-20261029T075816Z-285bd5c2 均校验通过。
+
+应用提交164dc3ed修复装饰线和网址被识别为TXT标题；相关106项源码测试、13项迁移保护测试与生产构建类型检查通过。以专用账号对10个真实文件运行新编译提取器，复现旧标题错误并验证新结果，收据txt-extractor-real-files.json。新旧app/dist仅提取器及其source map不同。
+
+候选3.5.0-10009已由新源码构建，通过DSM上传后正在处理，尚未确认安装成功。安装期间本机Tailscale转为Stopped，SSH超时；须恢复网络后先检查服务器实际版本再继续，禁止盲目重复安装。最终自用稳定包尚未生成和验收；当前不能把候选上传当作正式交付。
