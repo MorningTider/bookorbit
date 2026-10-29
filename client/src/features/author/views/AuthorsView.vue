@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatNumber } from '@/i18n/formatters'
 import { useRoute, useRouter } from 'vue-router'
@@ -501,6 +501,14 @@ onMounted(async () => {
 
   await nextTick()
   if (sentinel.value) observer.observe(sentinel.value)
+  rail.syncActiveKey()
+})
+
+onActivated(async () => {
+  if (!initialLoadComplete.value) return
+  if (selectionMode.value) exitSelectionMode()
+  await load(true)
+  await nextTick()
   rail.syncActiveKey()
 })
 

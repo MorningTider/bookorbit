@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { defineComponent, h, KeepAlive, ref } from 'vue'
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import type { AuthorSummary } from '@bookorbit/types'
 import type { AuthorListSort, SortDirection } from '../types/author'
@@ -185,6 +185,26 @@ describe('AuthorsView', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.clearAllMocks()
+  })
+
+  it('reloads saved author portraits when returning to a cached list without double loading the first visit', async () => {
+    const visible = ref(true)
+    const Other = defineComponent({ render: () => h('div', 'Detail') })
+    const Host = defineComponent({ setup: () => () => h(KeepAlive, null, { default: () => (visible.value ? h(AuthorsView) : h(Other)) }) })
+    const wrapper = shallowMount(Host, { global: { stubs: { KeepAlive: false, AuthorsView: false } } })
+    await flushPromises()
+    expect(mocks.load).toHaveBeenCalledTimes(1)
+    visible.value = false
+    await flushPromises()
+    mocks.load.mockImplementationOnce(async () => {
+      mocks.items.value = [author(16, 'Saved author', { imageUrl: '/api/v1/authors/16/thumbnail?t=2' })]
+    })
+    visible.value = true
+    await flushPromises()
+    expect(mocks.load).toHaveBeenCalledTimes(2)
+    expect(mocks.load).toHaveBeenLastCalledWith(true)
+    expect(mocks.items.value[0]?.imageUrl).toContain('/authors/16/thumbnail')
+    wrapper.unmount()
   })
 
   it('keeps the quick filters outside the scrolling <main> so they stay anchored', async () => {
