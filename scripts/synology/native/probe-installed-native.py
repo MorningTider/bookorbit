@@ -16,8 +16,9 @@ import urllib.error
 import urllib.parse
 
 
-def probe(output, production=False):
+def probe(output, production=False, expected_books=11):
     if os.geteuid()!=0:raise ValueError('Local package configuration access requires administrator execution')
+    if type(expected_books) is not int or expected_books<=0:raise ValueError('Positive expected book count required')
     root=pathlib.Path('/var/packages/bookorbit-native/target').resolve(strict=True)
     state=pathlib.Path('/volume1/@appdata/bookorbit-native')
     config=json.loads((state/'service.json').read_text())
@@ -41,7 +42,7 @@ def probe(output, production=False):
         with opener.open(req,timeout=30) as response:return response.status,response.read(),{key.lower():value for key,value in response.headers.items()}
     status,body,_=request('/health');checks={'databaseHealthy':status==200 and json.loads(body)['status']=='ok'}
     status,body,_=request('/books/query',{'pagination':{'page':0,'size':5}});query=json.loads(body)
-    checks['copiedBooksQueryable']=status in (200,201) and query['total']==11
+    checks['copiedBooksQueryable']=status in (200,201) and query['total']==expected_books
     assert query['items'],'No representative book'
     book=int(query['items'][0]['id']);status,body,_=request('/books/'+str(book));detail=json.loads(body)
     checks['bookDetail']=status==200 and bool(detail['files'])
@@ -79,4 +80,4 @@ def probe(output, production=False):
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--output',required=True);parser.add_argument('--production',action='store_true');args=parser.parse_args();probe(args.output,args.production)
+    parser=argparse.ArgumentParser();parser.add_argument('--output',required=True);parser.add_argument('--production',action='store_true');parser.add_argument('--expected-books',type=int,default=11);args=parser.parse_args();probe(args.output,args.production,args.expected_books)
