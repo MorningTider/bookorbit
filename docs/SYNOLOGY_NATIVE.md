@@ -381,8 +381,12 @@ TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF
 
 ### 2026-10-29 TXT 逐文件迁移与标题修复
 
-生产 ebook 库由 book_per_folder 转为 book_per_file，10个TXT从3条书目拆为10条；原3个书目ID、全部文件ID、主文件阅读关联保留，音频库不变，生产总数18本。独立数据库预演及生产各完成两次扫描和10个TXT阅读验证，所有源文件SHA256与阅读记录指纹保持一致。生产审计位于 /volume1/database/pg/backups/bookorbit-txt-split-20261029，迁移前备份 logical-20261029T072837Z-c93436bb，拆分后备份 logical-20261029T075816Z-285bd5c2 均校验通过。
+生产 ebook 库由 book_per_folder 转为 book_per_file，10个TXT从3条书目拆为10条；原3个书目ID、全部文件ID、主文件阅读关联保留，音频库不变；先前总数18的基准有误，实际为16本（10本电子书、6本有声书）。独立数据库预演及生产各完成两次扫描和10个TXT阅读验证，所有源文件SHA256与阅读记录指纹保持一致。生产审计位于 /volume1/database/pg/backups/bookorbit-txt-split-20261029，迁移前备份 logical-20261029T072837Z-c93436bb，拆分后备份 logical-20261029T075816Z-285bd5c2 均校验通过。
 
 应用提交164dc3ed修复装饰线和网址被识别为TXT标题；相关106项源码测试、13项迁移保护测试与生产构建类型检查通过。以专用账号对10个真实文件运行新编译提取器，复现旧标题错误并验证新结果，收据txt-extractor-real-files.json。新旧app/dist仅提取器及其source map不同。
 
 候选3.5.0-10009已由新源码构建，通过DSM上传后正在处理，尚未确认安装成功。安装期间本机Tailscale转为Stopped，SSH超时；须恢复网络后先检查服务器实际版本再继续，禁止盲目重复安装。最终自用稳定包尚未生成和验收；当前不能把候选上传当作正式交付。
+
+网络恢复后确认旧包10008仍正常，重新通过DSM升级10009成功。只读核心验收最初因18本基准失败；查询生产及删除审计确认有声书ID2/9已于2026-10-29 09:32删除，早于本次迁移，实际总数为16，无TXT丢失。按16本核验12项核心API通过；两次真实扫描、10本TXT阅读、全部文件SHA256、阅读记录指纹、安装后标题提取合计8项通过，收据production-api-10009-verified-count.json及production-txt-10009.json。独立测试服务已停止。自用正式10010已由相同源码和新生产验收绑定生成，SHA256 139930b2a40e4e0ea85fd83d2a511da0ab2fddf797546f4031ef3a64a4b4d415，正在DSM上传，最终安装状态待验收。
+
+10010 已通过DSM升级并恢复running，实际releaseChannel=stable、publicationScope=private、sourceCommit=164dc3ed，INFO无beta=yes。最终12项生产核心API和8项TXT专项验收全部通过（production-api-10010.json、production-txt-10010.json）；10本TXT仍独立，重复扫描未重并，阅读记录与全部源文件保持一致。最终自用包位于 local/synology-native/spk/txt-title-private-stable-10010/bookorbit-native_x86_64_3.5.0-10010.spk，SHA256如上。10009仅为验收中间版本，最终交付10010；公开发行不在本次范围。
