@@ -39,6 +39,16 @@ describe('Chinese author pages', () => {
       providerId: '天下霸唱/6447807',
     });
   });
+  it('uses a writer descriptor when the primary occupation is another job', () => {
+    const html = baidu('国家公务员').replace('"lemmaTitle":"天下霸唱"', '"lemmaTitle":"天下霸唱","lemmaDesc":"中国男作家"');
+    expect(parseBaiduAuthor(html)?.name).toBe('天下霸唱');
+  });
+  it('recognises audiobook narrators without accepting arbitrary livestream hosts', () => {
+    const html = baidu('喜马拉雅FM主播').replace('"lemmaTitle":"天下霸唱"', '"lemmaTitle":"天下霸唱","lemmaDesc":"喜马拉雅FM有声书主播"');
+    expect(parseBaiduAuthor(html)?.imageUrl).toBeDefined();
+    expect(parseBaiduAuthor(baidu('网络主播'))).toBeNull();
+    expect(parseBaiduAuthor(baidu('蔷薇科植物'))).toBeNull();
+  });
   it('does not turn unrelated encyclopedia entries into authors', () => expect(parseBaiduAuthor(baidu('演员'))).toBeNull());
   it('rejects verification pages and malformed structures', () => {
     expect(() => checkedAuthorPage('<form id="sec"></form>')).toThrow('验证');

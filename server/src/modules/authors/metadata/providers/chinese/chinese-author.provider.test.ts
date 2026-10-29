@@ -64,6 +64,43 @@ describe('ChineseAuthorProvider', () => {
     c.abort();
     remote.mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
     await expect(new ChineseAuthorProvider('baiduBaike', config as never).search({ name: '天下霸唱', signal: c.signal })).rejects.toThrow('Aborted');
-    expect(remote.mock.calls[0]?.[1]).toMatchObject({ signal: c.signal, redirect: 'error' });
+    expect(remote.mock.calls[0]?.[1]).toMatchObject({ signal: c.signal, redirect: 'manual' });
+  });
+  it('follows only same-name canonical Baidu redirects and preserves the deadline', async () => {
+    const page = `<script id="__NEXT_DATA__">${JSON.stringify({ props: { pageProps: { pageData: { lemmaTitle: '沈醉天', lemmaId: 4135356, lemmaDesc: '中国男作家', card: { content: [] } } } } })}</script>`;
+    remote
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: encodeURI('/item/沈醉天/4135356') } }))
+      .mockResolvedValueOnce(new Response(page));
+    expect(await new ChineseAuthorProvider('baiduBaike', config as never).search({ name: '沈醉天' })).toMatchObject([
+      { name: '沈醉天', providerId: '沈醉天/4135356' },
+    ]);
+    expect(remote).toHaveBeenCalledTimes(2);
+    expect(String(remote.mock.calls[1]?.[0])).toBe('https://wapbaike.baidu.com/item/%E6%B2%88%E9%86%89%E5%A4%A9/4135356');
+    expect(remote.mock.calls[1]?.[1].signal).toBe(remote.mock.calls[0]?.[1].signal);
+  });
+  it.each([
+    'https://evil.example/item/沈醉天/4135356',
+    'http://wapbaike.baidu.com/item/沈醉天/4135356',
+    'https://user@wapbaike.baidu.com/item/沈醉天/4135356',
+  ])('rejects an unsafe redirect %s before fetching it', async (location) => {
+    remote.mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: encodeURI(location) } }));
+    await expect(new ChineseAuthorProvider('baiduBaike', config as never).search({ name: '沈醉天' })).rejects.toThrow('不支持');
+    expect(remote).toHaveBeenCalledTimes(1);
+  });
+  it.each(['/error.html?status=404', '/item/榆叶梅/769432', '/login'])(
+    'does not treat missing or unrelated pages as the queried author: %s',
+    async (location) => {
+      remote.mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: encodeURI(location) } }));
+      expect(await new ChineseAuthorProvider('baiduBaike', config as never).search({ name: '小桃红' })).toEqual([]);
+      expect(remote).toHaveBeenCalledTimes(1);
+    },
+  );
+  it('bounds redirect loops and refuses a changed pinned identity', async () => {
+    remote.mockImplementation(() => Promise.resolve(new Response(null, { status: 302, headers: { location: encodeURI('/item/沈醉天/4135356') } })));
+    await expect(new ChineseAuthorProvider('baiduBaike', config as never).search({ name: '沈醉天' })).rejects.toThrow('次数过多');
+    expect(remote).toHaveBeenCalledTimes(3);
+    remote.mockReset().mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: encodeURI('/item/沈醉天/42') } }));
+    expect(await new ChineseAuthorProvider('baiduBaike', config as never).lookupById('沈醉天/4135356')).toBeNull();
+    expect(remote).toHaveBeenCalledTimes(1);
   });
 });

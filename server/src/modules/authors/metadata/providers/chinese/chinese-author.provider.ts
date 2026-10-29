@@ -38,13 +38,48 @@ export class ChineseAuthorProvider implements IdentifiableAuthorMetadataProvider
       });
     return readBoundedText(response, 2 * 1024 * 1024);
   }
+  private async readBaidu(name: string, signal: AbortSignal, id?: string): Promise<string | null> {
+    let url = new URL(`https://wapbaike.baidu.com/item/${encodeURIComponent(name)}${id ? '/' + id : ''}`);
+    for (let redirects = 0; redirects <= 2; redirects += 1) {
+      const response = await authorProviderFetch(url, {
+        signal,
+        redirect: 'manual',
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
+      });
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get('location');
+        await response.body?.cancel();
+        if (!location) throw new AuthorMetadataProviderError('百度百科跳转缺少目标地址');
+        const next = new URL(location, url);
+        if (next.origin !== 'https://wapbaike.baidu.com' || next.username || next.password || next.port)
+          throw new AuthorMetadataProviderError('百度百科返回不支持的跳转地址');
+        if (next.pathname === '/error.html' && next.searchParams.get('status') === '404') return null;
+        const match = next.pathname.match(/^\/item\/([^/]+)\/(\d{1,20})\/?$/);
+        if (!match || !sameName(decodeURIComponent(match[1]!), name)) return null;
+        if (id && match[2] !== id) return null;
+        if (redirects === 2) throw new AuthorMetadataProviderError('百度百科跳转次数过多');
+        url = next;
+        continue;
+      }
+      if (response.status === 404) return null;
+      if (!response.ok)
+        throw new AuthorMetadataProviderError(`百度百科访问失败 (HTTP ${response.status})`, {
+          httpStatus: response.status,
+          transient: response.status === 429 || response.status >= 500,
+        });
+      return readBoundedText(response, 2 * 1024 * 1024);
+    }
+    return null;
+  }
   async search(params: AuthorMetadataSearchParams): Promise<AuthorMetadataCandidate[]> {
     if (!(await this.config.getConfig())[this.key].enabled) return [];
     const name = params.name.trim().slice(0, 100);
     if (!name) return [];
     const signal = authorRequestSignal(14000, params.signal);
     if (this.key === 'baiduBaike') {
-      const candidate = parseBaiduAuthor(await this.read(`https://wapbaike.baidu.com/item/${encodeURIComponent(name)}`, signal));
+      const html = await this.readBaidu(name, signal);
+      if (!html) return [];
+      const candidate = parseBaiduAuthor(html);
       return candidate && sameName(candidate.name, name) ? [candidate] : [];
     }
     const ids: string[] = [];
@@ -128,7 +163,9 @@ export class ChineseAuthorProvider implements IdentifiableAuthorMetadataProvider
     if (this.key === 'baiduBaike') {
       const match = id.match(/^([^/]{1,100})\/(\d{1,20})$/);
       if (!match) return null;
-      const candidate = parseBaiduAuthor(await this.read(`https://wapbaike.baidu.com/item/${encodeURIComponent(match[1]!)}/${match[2]}`, signal));
+      const html = await this.readBaidu(match[1]!, signal, match[2]);
+      if (!html) return null;
+      const candidate = parseBaiduAuthor(html);
       return candidate?.providerId === id ? candidate : null;
     }
     if (!/^\d{1,25}$/.test(id)) return null;

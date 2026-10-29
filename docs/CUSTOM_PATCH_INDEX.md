@@ -68,3 +68,5 @@ BO-C09自用正式入口：build-private-stable-spk.py、private-stable-policy.p
 转换扫描修复103a44e2：handleScanBookPerFile必须先查已注册文件归属，加载原书目全部附件再处理，防止监视器将已附加EPUB另建书目并迁移文件。回归覆盖TXT/EPUB任一事件不新建书、不删除另一格式，不能仅测试转换接口返回成功。历史已拆分条目须另行保留阅读记录修复，正常全扫有意保留不同已有书目，不能假称会自动合回。
 
 2026-10-30 历史转换关联修复de681e7d：repair-converted-edition.ts及显式转换弹窗操作纳入同步检查，路由同时要求LibraryUpload/LibraryDeleteBooks且验证库editor权限。只支持同目录同名同标题且唯一的TXT/EPUB，事务锁定及真实外键检查，保留fileId/会话/尝试/进度，拒绝冲突状态和未支持的源关联。helper删除书目必须调用带SQL范围的deleteBooksWithHashInvalidation，不能直接删除文件或清空阅读历史；未来新增FK必须默认拒绝非空未知关联。447项上传与6项弹窗回归通过，现网历史修复已通过页面实操：余罪10保留6460/6474两个文件，移除重复书目25，六项摘要核验及页面重扫通过，阅读会话/尝试/状态/进度均保留。自用正式10016经DSM部署及12项生产API验收通过，详见SYNOLOGY_NATIVE.md的2026-10-30完成记录。
+
+2026-10-30 作者头像补充：百科正常302曾被redirect:error误报fetch failed，readBaidu改为最多两次同HTTPS源、同姓名、数字词条ID的手动跳转；固定身份查询禁止换ID，404词条返回无匹配，跨站/登录/异名页不抓取。parseBaiduAuthor合并职业和词条人物描述，支持职业为公务员的作家以及明确有声书播讲者，不接受泛网络主播或植物等同名页。全部作者模块431项通过；上游同步须保留跳转、固定ID和有声书身份回归，不应放宽为任意重定向。

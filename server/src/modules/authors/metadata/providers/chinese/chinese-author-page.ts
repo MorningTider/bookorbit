@@ -56,7 +56,8 @@ export function parseBaiduAuthor(html: string): AuthorMetadataCandidate | null {
       .slice(0, 2000);
     if (typeof field.key === 'string') values.set(field.key, text);
   }
-  if (!/作家|小说家|诗人|文学家|编剧|漫画家|作者/.test(values.get('occupation') ?? (typeof page.lemmaDesc === 'string' ? page.lemmaDesc : '')))
+  const profession = `${values.get('occupation') ?? ''} ${typeof page.lemmaDesc === 'string' ? page.lemmaDesc : ''}`;
+  if (!/作家|小说家|诗人|文学家|编剧|漫画家|作者|有声(?:书|小说).*(?:主播|播讲|演播)|(?:播讲|演播).*(?:有声书|有声小说)/.test(profession))
     return null;
   const name = typeof page.lemmaTitle === 'string' ? page.lemmaTitle.trim().slice(0, 255) : '';
   const id = typeof page.lemmaId === 'string' || typeof page.lemmaId === 'number' ? String(page.lemmaId) : '';
