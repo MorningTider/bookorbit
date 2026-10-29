@@ -62,3 +62,7 @@ BO-C09自用正式入口：build-private-stable-spk.py、private-stable-policy.p
 2026-10-29 TXT 组织与标题修复：上游 v3.5.0 的 walk.ts 未改，子文件夹合书来自原 book_per_folder 配置。txt-format.extractor.ts 增加标题文字/装饰线/网址校验（提交164dc3ed，12项提取器用例）。split-ebook-library.py 为有边界的一次性数据修复，13项保护测试；probe-txt-library-split.py 验证重复扫描、10个TXT阅读、文件哈希和阅读历史。probe-installed-native.py 支持显式 expected-books，避免数据增长后仍固定11本。上游合并时保留提取器回归，勿将迁移工具当常规启动迁移执行。
 
 2026-10-29 豆瓣搜索回退（7524e3f9）：subject_suggest对龙岭迷窟、精绝古城返回空数组，但公开www.douban.com/search?cat=1001有图书结果。DoubanProvider在非ISBN建议检索均为空时请求一次公开图书搜索；douban-page解析限制30行/10个唯一候选，只接受HTTPS book.douban.com/subject/数字/，安全解码豆瓣link2，不跟随任意链接。保留作者、出版社、年份、简介、封面，最多3个详情请求，沿用匹配管线与14秒总期限；验证页或结构变化报错而非假空结果。135项相关回归、生产类型检查和ESLint通过；真实龙岭迷窟HTML解析10个候选。上游合并须保留安全URL、空建议回退及ISBN不扩搜测试。
+
+2026-10-29 作者来源扩展3172b72e：shared AuthorMetadataProviderKey/字段能力、AuthorsModule注册、国内作者页面解析及查询、前端来源标签/安全链接、中英文提示、默认字段优先级同时维护。百度百科只接受作家职业词条；豆瓣仅从明确单一作者的图书页作者简介区取传记，人物主页验证页不绕过；番茄无authorId的出版署名不伪装平台主页，字体私用区简介暂不入库；起点由精确作者署名定位主页。现有保存的字段优先级保留，不自动覆盖用户规则。作者模块与扫描合计611项、前端作者188项通过，前端类型检查需兼容TS6的ignoreDeprecations=6.0。
+
+转换扫描修复103a44e2：handleScanBookPerFile必须先查已注册文件归属，加载原书目全部附件再处理，防止监视器将已附加EPUB另建书目并迁移文件。回归覆盖TXT/EPUB任一事件不新建书、不删除另一格式，不能仅测试转换接口返回成功。历史已拆分条目须另行保留阅读记录修复，正常全扫有意保留不同已有书目，不能假称会自动合回。
