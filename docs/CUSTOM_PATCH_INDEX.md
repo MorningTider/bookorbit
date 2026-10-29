@@ -66,3 +66,5 @@ BO-C09自用正式入口：build-private-stable-spk.py、private-stable-policy.p
 2026-10-29 作者来源扩展3172b72e：shared AuthorMetadataProviderKey/字段能力、AuthorsModule注册、国内作者页面解析及查询、前端来源标签/安全链接、中英文提示、默认字段优先级同时维护。百度百科只接受作家职业词条；豆瓣仅从明确单一作者的图书页作者简介区取传记，人物主页验证页不绕过；番茄无authorId的出版署名不伪装平台主页，字体私用区简介暂不入库；起点由精确作者署名定位主页。现有保存的字段优先级保留，不自动覆盖用户规则。作者模块与扫描合计611项、前端作者188项通过，前端类型检查需兼容TS6的ignoreDeprecations=6.0。
 
 转换扫描修复103a44e2：handleScanBookPerFile必须先查已注册文件归属，加载原书目全部附件再处理，防止监视器将已附加EPUB另建书目并迁移文件。回归覆盖TXT/EPUB任一事件不新建书、不删除另一格式，不能仅测试转换接口返回成功。历史已拆分条目须另行保留阅读记录修复，正常全扫有意保留不同已有书目，不能假称会自动合回。
+
+2026-10-30 历史转换关联修复de681e7d：repair-converted-edition.ts及显式转换弹窗操作纳入同步检查，路由同时要求LibraryUpload/LibraryDeleteBooks且验证库editor权限。只支持同目录同名同标题且唯一的TXT/EPUB，事务锁定及真实外键检查，保留fileId/会话/尝试/进度，拒绝冲突状态和未支持的源关联。helper删除书目必须调用带SQL范围的deleteBooksWithHashInvalidation，不能直接删除文件或清空阅读历史；未来新增FK必须默认拒绝非空未知关联。447项上传与6项弹窗回归通过，现网历史数据修复仍待页面实操验收。
