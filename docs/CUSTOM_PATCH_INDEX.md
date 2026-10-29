@@ -60,3 +60,5 @@ BO-C09公开发行材料回归：verify-sharp-sources.py读取sharp-source-evide
 BO-C09自用正式入口：build-private-stable-spk.py、private-stable-policy.py及对应测试应随上游同步保留。已有候选默认仍是Beta，正式入口要求与生产验收一致的源码/清单/控制器/迁移；改变应用或运行库后不能复用旧收据。private-stable metadata不等于publicRedistributionApproved，DSM描述和Beta标记须检查实际打包INFO与安装界面。
 
 2026-10-29 TXT 组织与标题修复：上游 v3.5.0 的 walk.ts 未改，子文件夹合书来自原 book_per_folder 配置。txt-format.extractor.ts 增加标题文字/装饰线/网址校验（提交164dc3ed，12项提取器用例）。split-ebook-library.py 为有边界的一次性数据修复，13项保护测试；probe-txt-library-split.py 验证重复扫描、10个TXT阅读、文件哈希和阅读历史。probe-installed-native.py 支持显式 expected-books，避免数据增长后仍固定11本。上游合并时保留提取器回归，勿将迁移工具当常规启动迁移执行。
+
+2026-10-29 豆瓣搜索回退（7524e3f9）：subject_suggest对龙岭迷窟、精绝古城返回空数组，但公开www.douban.com/search?cat=1001有图书结果。DoubanProvider在非ISBN建议检索均为空时请求一次公开图书搜索；douban-page解析限制30行/10个唯一候选，只接受HTTPS book.douban.com/subject/数字/，安全解码豆瓣link2，不跟随任意链接。保留作者、出版社、年份、简介、封面，最多3个详情请求，沿用匹配管线与14秒总期限；验证页或结构变化报错而非假空结果。135项相关回归、生产类型检查和ESLint通过；真实龙岭迷窟HTML解析10个候选。上游合并须保留安全URL、空建议回退及ISBN不扩搜测试。
