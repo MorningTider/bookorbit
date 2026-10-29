@@ -32,6 +32,12 @@ export class BookFileUploadController {
     return this.uploadService.convertTxtToEpub(bookId, user, options);
   }
 
+  @Post(':id/repair-converted-epub')
+  @RequirePermission(Permission.LibraryUpload, Permission.LibraryDeleteBooks)
+  repairConvertedEpub(@Param('id', ParseIntPipe) bookId: number, @CurrentUser() user: RequestUser) {
+    return this.uploadService.repairConvertedEpub(bookId, user);
+  }
+
   @Post(':id/rename-files')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission(Permission.LibraryEditMetadata)

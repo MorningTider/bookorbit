@@ -113,3 +113,12 @@ describe('BookFileUploadController', () => {
     });
   });
 });
+
+describe('edition repair authorization', () => {
+  it('requires both upload and book deletion permissions', () => {
+    expect(Reflect.getMetadata(PERMISSION_KEY, BookFileUploadController.prototype.repairConvertedEpub)).toEqual([
+      Permission.LibraryUpload,
+      Permission.LibraryDeleteBooks,
+    ]);
+  });
+});

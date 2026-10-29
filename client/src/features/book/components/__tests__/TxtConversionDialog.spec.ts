@@ -2,7 +2,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TxtConversionDialog from '../TxtConversionDialog.vue'
 
-const mocks = vi.hoisted(() => ({ api: vi.fn() }))
+const mocks = vi.hoisted(() => ({ api: vi.fn(), hasPermission: vi.fn() }))
+vi.mock('@/features/auth/composables/usePermissions', () => ({ usePermissions: () => ({ hasPermission: mocks.hasPermission }) }))
 vi.mock('@/lib/api', () => ({ api: mocks.api }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 const global = {
@@ -68,6 +69,40 @@ describe('TXT conversion dialog', () => {
     finish(new Response('{}'))
     await flushPromises()
     expect(wrapper.emitted('completed')).toHaveLength(1)
+    wrapper.unmount()
+  })
+})
+
+describe('converted edition repair', () => {
+  it('requires deletion permission to show the explicit repair action', () => {
+    const wrapper = mount(TxtConversionDialog, { props: { bookId: 10, open: true }, global })
+    expect(wrapper.text()).not.toContain('txtConversion.repairNote')
+    wrapper.unmount()
+  })
+  it('calls the scoped repair endpoint and only completes after success', async () => {
+    mocks.hasPermission.mockReturnValue(true)
+    const wrapper = mount(TxtConversionDialog, { props: { bookId: 10, open: true }, global })
+    mocks.api.mockResolvedValueOnce(new Response('{}'))
+    await wrapper
+      .findAll('button')
+      .find((x) => x.text() === 'txtConversion.repair')!
+      .trigger('click')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledWith('/api/v1/books/10/repair-converted-epub', { method: 'POST' })
+    expect(wrapper.emitted('completed')).toHaveLength(1)
+    wrapper.unmount()
+  })
+  it('keeps the dialog open and shows a translated message when repair is unsafe', async () => {
+    mocks.hasPermission.mockReturnValue(true)
+    const wrapper = mount(TxtConversionDialog, { props: { bookId: 10, open: true }, global })
+    mocks.api.mockResolvedValueOnce(new Response('{}', { status: 409 }))
+    await wrapper
+      .findAll('button')
+      .find((x) => x.text() === 'txtConversion.repair')!
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').text()).toBe('txtConversion.repairFailed')
+    expect(wrapper.emitted('completed')).toBeUndefined()
     wrapper.unmount()
   })
 })

@@ -14054,7 +14054,10 @@
     "start": "Convert",
     "busy": "Converting…",
     "cancel": "Cancel",
-    "failed": "Conversion failed. Please retry."
+    "failed": "Conversion failed. Please retry.",
+    "repair": "Reattach existing EPUB",
+    "repairNote": "For a same-name EPUB in the same directory that was converted from this TXT and split into another entry. Keep original metadata, both files and reading history. Conflicting records prevent repair.",
+    "repairFailed": "Cannot safely reattach. Check edition identity, reading-state conflicts and permissions."
   },
   "titles": {
     "dashboard": "Dashboard",

@@ -3,9 +3,11 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui'
 import { api } from '@/lib/api'
+import { usePermissions } from '@/features/auth/composables/usePermissions'
 const props = defineProps<{ bookId: number; open: boolean }>()
 const emit = defineEmits<{ 'update:open': [boolean]; completed: [] }>()
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
 const encoding = ref('auto')
 const chapters = ref<'auto' | 'chinese' | 'english' | 'single'>('auto')
 const busy = ref(false)
@@ -15,6 +17,23 @@ function handleOpen(open: boolean) {
 }
 function handleCancel() {
   handleOpen(false)
+}
+async function handleRepair() {
+  if (busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    const response = await api(`/api/v1/books/${props.bookId}/repair-converted-epub`, { method: 'POST' })
+    if (!response.ok) {
+      error.value = t('txtConversion.repairFailed')
+      return
+    }
+    emit('completed')
+  } catch {
+    error.value = t('txtConversion.repairFailed')
+  } finally {
+    busy.value = false
+  }
 }
 async function handleConvert() {
   if (busy.value) return
@@ -67,6 +86,10 @@ async function handleConvert() {
             <option value="single">{{ t('txtConversion.single') }}</option>
           </select>
         </label>
+        <div v-if="hasPermission('library_delete_books')" class="my-3 rounded border border-border p-3 text-sm">
+          <p class="text-muted-foreground">{{ t('txtConversion.repairNote') }}</p>
+          <button :disabled="busy" class="mt-2 rounded border border-border px-3 py-2" @click="handleRepair">{{ t('txtConversion.repair') }}</button>
+        </div>
         <p v-if="error" role="alert" class="my-3 text-sm text-destructive">{{ error }}</p>
         <div class="flex justify-end gap-2 mt-4">
           <button :disabled="busy" class="rounded border border-border px-3 py-2" @click="handleCancel">{{ t('txtConversion.cancel') }}</button>

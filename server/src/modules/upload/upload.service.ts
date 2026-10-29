@@ -1,3 +1,4 @@
+import { repairConvertedEdition } from './repair-converted-edition';
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { access as fsAccess, readFile, stat, mkdtemp, rm } from 'fs/promises';
@@ -276,6 +277,26 @@ export class UploadService {
         shouldCleanupDestination && destinationPath ? this.storage.cleanup(destinationPath) : Promise.resolve(),
       ]);
       throw err;
+    }
+  }
+
+  async repairConvertedEpub(bookId: number, user: RequestUser) {
+    const startedAt = Date.now();
+    this.logger.log(`[book.repair_converted_edition] [start] bookId=${bookId} userId=${user.id} - edition repair started`);
+    try {
+      const [book] = await this.db.select({ libraryId: books.libraryId }).from(books).where(eq(books.id, bookId)).limit(1);
+      if (!book) throw new NotFoundException('Book not found');
+      await this.libraryService.verifyUserAccessLevel(user.id, book.libraryId, user.isSuperuser, 'editor');
+      const result = await repairConvertedEdition(this.db, bookId, book.libraryId);
+      this.logger.log(
+        `[book.repair_converted_edition] [end] bookId=${bookId} userId=${user.id} durationMs=${Date.now() - startedAt} fileId=${result.fileId} removedDuplicateBookId=${result.removedDuplicateBookId} - edition repair completed`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.warn(
+        `[book.repair_converted_edition] [fail] bookId=${bookId} userId=${user.id} durationMs=${Date.now() - startedAt} error="${sanitizeLogValue(error instanceof Error ? error.message : String(error))}" - edition repair failed`,
+      );
+      throw error;
     }
   }
 
