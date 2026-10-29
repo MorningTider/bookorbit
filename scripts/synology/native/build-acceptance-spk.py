@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble a private DSM installation candidate. This is never a stable release entry."""
+"""Assemble DSM candidates or evidence-bound self-use stable packages."""
 import argparse
 import gzip
 import hashlib
@@ -48,12 +48,13 @@ def production_acceptance(path):
     return digest(pathlib.Path(path))
 
 
-def build(stage,report,output,revision=10000,production_report=None):
+def build(stage,report,output,revision=10000,production_report=None,private_stable_report=None):
     here=pathlib.Path(__file__).resolve().parent
     repo=here.parents[2]
     stage=pathlib.Path(stage).resolve(strict=True);output=pathlib.Path(output).absolute()
     if output.exists():raise ValueError('SPK output directory must be new')
     if not 10000<=revision<=19999:raise ValueError('Unsupported acceptance revision')
+    if production_report and private_stable_report:raise ValueError('Select one production acceptance mode')
     subprocess.run(['git','diff-index','--quiet','HEAD','--'],cwd=repo,check=True)
     subprocess.run(['git','ls-files','--error-unmatch','scripts/synology/native/native-service.py'],cwd=repo,stdout=subprocess.PIPE,check=True)
     privilege=json.loads((here/'spk/conf/privilege').read_text())
@@ -76,6 +77,12 @@ def build(stage,report,output,revision=10000,production_report=None):
     metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packageVersion':'3.5.0-'+str(revision),'payloadInventorySha256':digest(stage.with_name(stage.name+'.inventory.json')),'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
     if production_report:
         metadata.update(status='private-production-migration-candidate-not-public-release',productionEnabled=True,installedUpgradeAcceptanceSha256=production_acceptance(production_report))
+    stable_policy=None
+    if private_stable_report:
+        stable_spec=importlib.util.spec_from_file_location('private_stable_policy',here/'private-stable-policy.py')
+        stable_policy=importlib.util.module_from_spec(stable_spec);stable_spec.loader.exec_module(stable_policy)
+        proof_sha=stable_policy.validate(private_stable_report,metadata['sourceCommit'],metadata['payloadInventorySha256'],metadata['controllerSha256'],metadata['applicationMigrationSha256'],revision)
+        stable_policy.apply_metadata(metadata,proof_sha)
     with tempfile.TemporaryDirectory(prefix='bookorbit-spk-') as directory:
         work=pathlib.Path(directory);outer=work/'outer';outer.mkdir()
         with (outer/'package.tgz').open('wb') as stream:
@@ -91,6 +98,7 @@ def build(stage,report,output,revision=10000,production_report=None):
         fields={'package':'bookorbit-native','version':version,'arch':'x86_64','os_min_ver':'7.4.1-90080','displayname':'BookOrbit 原生验收','maintainer':'MorningTider','description':'Private native installation acceptance. Isolated database only. Production mode disabled.','description_chs':'BookOrbit 原生安装验收候选，仅允许隔离数据库，尚未启用生产模式。','thirdparty':'yes','startable':'yes','precheckstartstop':'yes','install_dep_packages':'postgresql18>=18.6-10020','beta':'yes','checksum':hashlib.md5((outer/'package.tgz').read_bytes()).hexdigest()}
         if production_report:
             fields.update(displayname='BookOrbit',description='Private native production migration candidate. Requires explicit production configuration.',description_chs='BookOrbit 原生生产迁移候选，需显式生产配置。')
+        if stable_policy:stable_policy.apply_info(fields)
         (outer/'INFO').write_text(''.join(key+'='+json.dumps(value,ensure_ascii=False)+'\n' for key,value in fields.items()))
         for name in ['PACKAGE_ICON.PNG','PACKAGE_ICON_256.PNG']:shutil.copyfile(repo/'docs/images/bookorbit-icon.png',outer/name)
         output.mkdir(parents=True)
