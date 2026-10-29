@@ -390,3 +390,11 @@ TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF
 网络恢复后确认旧包10008仍正常，重新通过DSM升级10009成功。只读核心验收最初因18本基准失败；查询生产及删除审计确认有声书ID2/9已于2026-10-29 09:32删除，早于本次迁移，实际总数为16，无TXT丢失。按16本核验12项核心API通过；两次真实扫描、10本TXT阅读、全部文件SHA256、阅读记录指纹、安装后标题提取合计8项通过，收据production-api-10009-verified-count.json及production-txt-10009.json。独立测试服务已停止。自用正式10010已由相同源码和新生产验收绑定生成，SHA256 139930b2a40e4e0ea85fd83d2a511da0ab2fddf797546f4031ef3a64a4b4d415，正在DSM上传，最终安装状态待验收。
 
 10010 已通过DSM升级并恢复running，实际releaseChannel=stable、publicationScope=private、sourceCommit=164dc3ed，INFO无beta=yes。最终12项生产核心API和8项TXT专项验收全部通过（production-api-10010.json、production-txt-10010.json）；10本TXT仍独立，重复扫描未重并，阅读记录与全部源文件保持一致。最终自用包位于 local/synology-native/spk/txt-title-private-stable-10010/bookorbit-native_x86_64_3.5.0-10010.spk，SHA256如上。10009仅为验收中间版本，最终交付10010；公开发行不在本次范围。
+
+### 2026-10-29 页面入库与自动元数据验证
+
+按用户要求不再备份，并清理历史备份：本机local/synology-native/spk下12个SPK（4624947200字节）已删；NAS /volume1/database/pg/backups下31个历史目录（95812334字节，含逻辑导出、升级配置和应用归档）已删，历史条目提及的该目录收据和备份不再可用。在线数据库、配置、原书籍未删除；保留的旧数据库/容器不在此次文件备份清理范围。NAS homes/MorningTider、database/pg、BookOrbit appdata、tmp的限定检查未发现BookOrbit SPK，不能据此声称整盘所有路径均无安装包。
+
+通过真实页面创建“自动刮削验证”书库ID3，每文件一本，目录只放余罪、云南虫谷、南海归墟三份副本。创建后自动扫描468，自动加入元数据抓取，无手动运行；3本均补齐作者、简介、封面，页面从未抓取数0、简介/封面缺失数0。证实正常扫描导入链路有效；此前直接数据库拆分不会走scanner创建事件，后续扫描已有条目也不会补触发。
+
+从页面为正式电子书库运行一次补抓，10本处理结束队列为空，9本有简介及封面，精绝古城仍缺两项，不能认定全部元数据抓取成功。该轮日志有外部服务连接失败/503，具体单书候选不足原因尚未完全锁定。临时库已通过页面删除，3份测试副本已删，正式书库和阅读条目保留；没有直接数据库写入。本轮未构建新包。
