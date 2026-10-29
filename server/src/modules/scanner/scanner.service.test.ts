@@ -3718,6 +3718,40 @@ describe('book_per_file mode — runScan', () => {
 // ── book_per_file mode — scanBookFolder ──────────────────────────────────────
 
 describe('book_per_file mode — scanBookFolder', () => {
+  it.each(['txt', 'epub'])('keeps both explicit formats on the original book after a watcher event for %s', async (changedFormat) => {
+    const txt = makeBookFile({ id: 41, bookId: 7, absolutePath: '/library/余罪.txt', relPath: '余罪.txt', format: 'txt', ino: 4101n });
+    const epub = makeBookFile({ id: 42, bookId: 7, absolutePath: '/library/余罪.epub', relPath: '余罪.epub', format: 'epub', ino: 4201n });
+    const owner = { id: 7, libraryId: 1, libraryFolderId: 1, folderPath: txt.absolutePath, status: 'present', primaryFileId: 41 };
+    const changed = changedFormat === 'txt' ? txt : epub;
+    const repo = makeRepo({
+      findLibrarySettings: vi.fn().mockResolvedValue({
+        allowedFormats: [],
+        formatPriority: DEFAULT_FORMAT_PRIORITY,
+        metadataPrecedence: ['embedded'],
+        excludePatterns: [],
+        organizationMode: 'book_per_file',
+      }),
+      findBookFileByAbsolutePath: vi.fn().mockResolvedValue({ file: changed, libraryId: 1 }),
+      findBookById: vi.fn().mockResolvedValue(owner),
+      findBooksByFolderPath: vi.fn().mockResolvedValue([owner]),
+      findBookFilesByBookIds: vi.fn().mockResolvedValue([txt, epub]),
+      findBookFilesByBookId: vi.fn().mockResolvedValue([txt, epub]),
+    });
+    mockStat.mockImplementation(((path: string) =>
+      Promise.resolve({
+        isFile: () => true,
+        ino: path.endsWith('.txt') ? 4101n : 4201n,
+        size: 1024n,
+        mtime: new Date('2024-01-01'),
+      })) as never);
+    const { service } = makeService(repo);
+    await (service as any).scanBookFolder(changed.absolutePath, 1);
+    expect(repo.createBook).not.toHaveBeenCalled();
+    expect(repo.deleteBookFile).not.toHaveBeenCalled();
+    expect(repo.findBooksByFolderPath).toHaveBeenCalledWith(txt.absolutePath, 1);
+    expect(repo.updateBookFile.mock.calls.every(([, values]) => values.bookId === undefined || values.bookId === 7)).toBe(true);
+  });
+
   it('builds a single-file candidate from the exact file path (no folder resolution)', async () => {
     const repo = makeRepo({
       findLibrarySettings: vi.fn().mockResolvedValue({

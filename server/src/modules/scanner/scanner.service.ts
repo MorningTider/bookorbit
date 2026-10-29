@@ -1222,7 +1222,32 @@ export class ScannerService implements OnApplicationBootstrap {
       ],
     };
 
-    const maps = await this.loadCandidateMaps(filePath, libraryId);
+    const attached = await this.scannerRepo.findBookFileByAbsolutePath(filePath, libraryId);
+    const owner = attached ? await this.scannerRepo.findBookById(attached.file.bookId) : null;
+    if (owner && owner.libraryId === libraryId && owner.libraryFolderId === libraryFolder.id) {
+      candidate.folderPath = owner.folderPath;
+      const files = await this.scannerRepo.findBookFilesByBookId(owner.id);
+      for (const file of files) {
+        if (file.absolutePath === filePath) continue;
+        const current = await stat(file.absolutePath, { bigint: true }).catch((error: NodeJS.ErrnoException) => {
+          if (error.code === 'ENOENT') return null;
+          throw error;
+        });
+        if (!current?.isFile()) continue;
+        const kind = classifyFile(file.absolutePath);
+        candidate.files.push({
+          absolutePath: file.absolutePath,
+          relPath: relative(libraryFolder.path, file.absolutePath),
+          ino: current.ino,
+          sizeBytes: Number(current.size),
+          mtime: current.mtime,
+          birthtime: current.birthtime,
+          format: kind.format,
+          role: kind.role,
+        });
+      }
+    }
+    const maps = await this.loadCandidateMaps(candidate.folderPath, libraryId);
     const result = await this.processCandidate(
       candidate,
       libraryId,
