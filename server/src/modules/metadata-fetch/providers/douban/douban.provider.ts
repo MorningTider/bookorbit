@@ -5,7 +5,7 @@ import { fetchWithThrottle } from '../../fetch-with-throttle';
 import { sanitizeLogValue } from '../../../../common/utils/log-sanitize.utils';
 import type { IdentifiableProvider } from '../metadata-provider';
 import { readBoundedText } from '../../../../common/utils/bounded-response';
-import { doubanCoverUrl, parseDoubanPage } from './douban-page';
+import { doubanCoverUrl, parseDoubanPage, parseDoubanSearchPage } from './douban-page';
 import type { MetadataSearchParams } from '../metadata-search-params';
 
 export function mapDoubanSuggestions(data: unknown): MetadataCandidate[] {
@@ -63,6 +63,18 @@ export class DoubanProvider implements IdentifiableProvider {
       let result = await suggest(query);
       if (!result.length && !params.isbn?.trim() && params.title?.trim() && params.author?.trim())
         result = await suggest(params.title.trim().slice(0, 200));
+      if (!result.length && !params.isbn?.trim()) {
+        const url = new URL('https://www.douban.com/search');
+        url.searchParams.set('q', (params.title?.trim() || query).slice(0, 200));
+        url.searchParams.set('cat', '1001');
+        const response = await fetchWithThrottle(url, {
+          signal,
+          redirect: 'error',
+          headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
+        });
+        if (!response.ok) throw new BadGatewayException(`豆瓣搜索访问失败 (HTTP ${response.status})`);
+        result = parseDoubanSearchPage(await readBoundedText(response, 2 * 1024 * 1024));
+      }
       const details = await Promise.allSettled(result.slice(0, 3).map((candidate) => this.readDetails(candidate.providerId, signal)));
       signal.throwIfAborted();
       result = result.map((candidate, index) => {

@@ -102,3 +102,51 @@ export function parseDoubanPage(html: string, providerId: string): MetadataCandi
     ...(coverUrl ? { coverUrl } : {}),
   };
 }
+
+export function parseDoubanSearchPage(html: string): MetadataCandidate[] {
+  const $ = load(html);
+  if (/验证|验证码|访问受限/.test($('title').text())) throw new BadGatewayException('豆瓣要求访问验证，无法搜索图书');
+  if (!$('.search-result').length) throw new BadGatewayException('豆瓣未返回有效的图书搜索页');
+  const results: MetadataCandidate[] = [];
+  const seen = new Set<string>();
+  $('.result-list .result')
+    .slice(0, 30)
+    .each((_, element) => {
+      if (results.length >= 10) return;
+      const row = $(element);
+      const anchor = row.find('.title h3 a').first();
+      let target: URL;
+      try {
+        target = new URL(anchor.attr('href') ?? '', 'https://www.douban.com');
+        if (target.origin === 'https://www.douban.com' && target.pathname === '/link2/') target = new URL(target.searchParams.get('url') ?? '');
+      } catch {
+        return;
+      }
+      if (target.origin !== 'https://book.douban.com' || target.username || target.password) return;
+      const id = target.pathname.match(/^\/subject\/(\d{1,20})\/$/)?.[1];
+      const title = anchor.text().trim().slice(0, 200);
+      if (!id || !title || seen.has(id)) return;
+      seen.add(id);
+      const fields = row
+        .find('.subject-cast')
+        .text()
+        .split(' / ')
+        .map((value) => value.trim());
+      const year = Number(fields.at(-1));
+      const coverUrl = doubanCoverUrl(row.find('.pic img').attr('src'));
+      const description = row.find('.content > p').text().trim().slice(0, 20000);
+      results.push({
+        provider: MetadataProviderKey.DOUBAN,
+        providerId: id,
+        title,
+        authors: fields[0] ? [fields[0]] : [],
+        language: 'zh',
+        sourceUrl: target.href,
+        ...(fields.length >= 3 && fields[1] ? { publisher: fields[1] } : {}),
+        ...(Number.isInteger(year) && year > 0 ? { publishedYear: year } : {}),
+        ...(coverUrl ? { coverUrl } : {}),
+        ...(description ? { description } : {}),
+      });
+    });
+  return results;
+}

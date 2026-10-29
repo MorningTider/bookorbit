@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { doubanCoverUrl, parseDoubanPage } from './douban-page';
+import { doubanCoverUrl, parseDoubanPage, parseDoubanSearchPage } from './douban-page';
 const page = `<html><head><link rel="canonical" href="https://book.douban.com/subject/42/"></head><body>
 <h1><span property="v:itemreviewed">测试图书</span></h1><div id="mainpic"><img src="https://img9.doubanio.com/view/subject/s/public/cover.jpg"></div>
 <div id="info"><span><span class="pl">作者</span>: <a>作者甲</a> / <a>作者乙</a></span><br>
@@ -48,5 +48,44 @@ describe('Douban detail parser', () => {
     ])
       expect(doubanCoverUrl(url)).toBeUndefined();
     expect(doubanCoverUrl('//img9.doubanio.com/view/subject/s/public/a.jpg')).toBe('https://img9.doubanio.com/view/subject/l/public/a.jpg');
+  });
+});
+
+describe('Douban public search', () => {
+  const row = (url: string, title = '鬼吹灯之龙岭迷窟') =>
+    `<div class="result"><div class="pic"><img src="https://img9.doubanio.com/view/subject/s/public/a.jpg"></div><div class="content"><div class="title"><h3><a href="${url}">${title}</a></h3><span class="subject-cast">天下霸唱 / 安徽文艺出版社 / 2006</span></div><p>图书简介</p></div></div>`;
+  const wrap = (body: string) => `<div class="search-result"><div class="result-list">${body}</div></div>`;
+  it('parses encoded book links and retains author, edition and cover', () => {
+    expect(parseDoubanSearchPage(wrap(row('https://www.douban.com/link2/?url=https%3A%2F%2Fbook.douban.com%2Fsubject%2F1916726%2F')))).toMatchObject([
+      {
+        providerId: '1916726',
+        title: '鬼吹灯之龙岭迷窟',
+        authors: ['天下霸唱'],
+        publisher: '安徽文艺出版社',
+        publishedYear: 2006,
+        description: '图书简介',
+        coverUrl: 'https://img9.doubanio.com/view/subject/l/public/a.jpg',
+      },
+    ]);
+  });
+  it('rejects movies, forged hosts, credentials and redirect destinations', () => {
+    const urls = [
+      'https://movie.douban.com/subject/42/',
+      'https://book.douban.com.evil.test/subject/42/',
+      'https://user@book.douban.com/subject/42/',
+      'https://evil.test/link2/?url=https%3A%2F%2Fbook.douban.com%2Fsubject%2F42%2F',
+    ];
+    expect(parseDoubanSearchPage(wrap(urls.map((url) => row(url)).join('')))).toEqual([]);
+  });
+  it('deduplicates and bounds candidates and recognizes genuine empty pages', () => {
+    expect(parseDoubanSearchPage(wrap(row('https://book.douban.com/subject/42/').repeat(2)))).toHaveLength(1);
+    expect(parseDoubanSearchPage(wrap(Array.from({ length: 35 }, (_, i) => row(`https://book.douban.com/subject/${i + 1}/`)).join('')))).toHaveLength(
+      10,
+    );
+    expect(parseDoubanSearchPage(wrap(''))).toEqual([]);
+  });
+  it('reports verification and changed markup instead of pretending no matches', () => {
+    expect(() => parseDoubanSearchPage('<title>安全验证</title>')).toThrow('验证');
+    expect(() => parseDoubanSearchPage('<h1>unrelated</h1>')).toThrow('有效');
   });
 });

@@ -73,6 +73,24 @@ describe('DoubanProvider', () => {
     expect(fetchWithThrottle).toHaveBeenCalledTimes(4);
   });
 
+  it('falls back to public book search only after both suggestions are empty', async () => {
+    fetchWithThrottle
+      .mockResolvedValueOnce(new Response('[]'))
+      .mockResolvedValueOnce(new Response('[]'))
+      .mockResolvedValueOnce(
+        new Response(
+          '<div class="search-result"><div class="result-list"><div class="result"><div class="title"><h3><a href="https://book.douban.com/subject/1916726/">鬼吹灯之龙岭迷窟</a></h3><span class="subject-cast">天下霸唱 / 出版社 / 2006</span></div></div></div></div>',
+        ),
+      )
+      .mockRejectedValueOnce(new Error('detail unavailable'));
+    const provider = new DoubanProvider({ getConfig: () => Promise.resolve({ douban: { enabled: true } }) } as never);
+    expect(await provider.search({ title: '龙岭迷窟', author: '天下霸唱' })).toMatchObject([{ providerId: '1916726', authors: ['天下霸唱'] }]);
+    const url = new URL(String(fetchWithThrottle.mock.calls[2]?.[0]));
+    expect(url.origin).toBe('https://www.douban.com');
+    expect(url.searchParams.get('q')).toBe('龙岭迷窟');
+    expect(url.searchParams.get('cat')).toBe('1001');
+  });
+
   it('rejects unsafe lookup identities without calling a remote server', async () => {
     const provider = new DoubanProvider({ getConfig: () => Promise.resolve({ douban: { enabled: true } }) } as never);
     expect(await provider.lookupById('../secret')).toBeNull();
