@@ -58,3 +58,5 @@ BO-C09启动回归补充：保留native-service.py的600秒有界就绪等待、
 BO-C09公开发行材料回归：verify-sharp-sources.py读取sharp-source-evidence-lock.json，将官方强摘要、Git文件身份与Google对象MD5弱对照分别记录。修改Sharp版本或配方须重新核对28项来源及补丁，不按旧锁自动放行；来源完整、对应构建依赖与公开批准仍是不同状态，不能直接将upstreamIdentityVerified计数当作公开发行通过。
 
 BO-C09自用正式入口：build-private-stable-spk.py、private-stable-policy.py及对应测试应随上游同步保留。已有候选默认仍是Beta，正式入口要求与生产验收一致的源码/清单/控制器/迁移；改变应用或运行库后不能复用旧收据。private-stable metadata不等于publicRedistributionApproved，DSM描述和Beta标记须检查实际打包INFO与安装界面。
+
+2026-10-29 TXT 组织与标题修复：上游 v3.5.0 的 walk.ts 未改，子文件夹合书来自原 book_per_folder 配置。txt-format.extractor.ts 增加标题文字/装饰线/网址校验（提交164dc3ed，12项提取器用例）。split-ebook-library.py 为有边界的一次性数据修复，13项保护测试；probe-txt-library-split.py 验证重复扫描、10个TXT阅读、文件哈希和阅读历史。probe-installed-native.py 支持显式 expected-books，避免数据增长后仍固定11本。上游合并时保留提取器回归，勿将迁移工具当常规启动迁移执行。
