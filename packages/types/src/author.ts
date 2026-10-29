@@ -63,6 +63,10 @@ export type MergeAuthorsResult = {
 };
 
 export const AuthorMetadataProviderKey = {
+  BAIDU_BAIKE: "baiduBaike",
+  DOUBAN: "douban",
+  FANQIE: "fanqie",
+  QIDIAN: "qidian",
   AUDNEXUS: "audnexus",
   GOODREADS: "goodreads",
 } as const;
@@ -164,6 +168,10 @@ export const ALL_AUTHOR_METADATA_FIELDS: AuthorMetadataField[] = [
 // What each provider can actually return. Audnexus exposes only asin, name,
 // description and image, so listing it against any other field would be inert.
 export const AUTHOR_PROVIDER_SUPPORTED_FIELDS: Record<AuthorMetadataProviderKey, AuthorMetadataField[]> = {
+  [AuthorMetadataProviderKey.BAIDU_BAIKE]: ["description", "photo", "birthDate"],
+  [AuthorMetadataProviderKey.DOUBAN]: ["description"],
+  [AuthorMetadataProviderKey.FANQIE]: ["description", "photo"],
+  [AuthorMetadataProviderKey.QIDIAN]: ["description", "photo"],
   [AuthorMetadataProviderKey.AUDNEXUS]: ["description", "photo"],
   [AuthorMetadataProviderKey.GOODREADS]: [...ALL_AUTHOR_METADATA_FIELDS],
 };

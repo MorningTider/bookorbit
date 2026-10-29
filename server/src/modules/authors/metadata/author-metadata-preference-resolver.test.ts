@@ -9,14 +9,15 @@ describe('AuthorMetadataPreferenceResolver', () => {
     const prefs = resolver.getDefaultPreferences();
 
     expect(Object.keys(prefs.fields).sort()).toEqual([...ALL_AUTHOR_METADATA_FIELDS].sort());
-    expect(prefs.fields.description.providers).toEqual([AuthorMetadataProviderKey.GOODREADS, AuthorMetadataProviderKey.AUDNEXUS]);
+    expect(prefs.fields.description.providers).toEqual(['baiduBaike', 'douban', 'qidian', 'fanqie', 'goodreads', 'audnexus']);
     expect(prefs.fields.description.mergeStrategy).toBe('fillMissing');
   });
 
   it('lists only Goodreads for fields Audnexus never returns', () => {
     const prefs = resolver.getDefaultPreferences();
 
-    for (const field of ['birthDate', 'deathDate', 'website', 'genres', 'influences'] as const) {
+    expect(prefs.fields.birthDate.providers).toEqual(['baiduBaike', 'goodreads']);
+    for (const field of ['deathDate', 'website', 'genres', 'influences'] as const) {
       expect(prefs.fields[field].providers).toEqual([AuthorMetadataProviderKey.GOODREADS]);
     }
   });
@@ -67,7 +68,7 @@ describe('AuthorMetadataPreferenceResolver', () => {
   it('falls back to defaults for a malformed field entry', () => {
     const resolved = resolver.resolve({ fields: { description: 'nonsense' } } as never);
 
-    expect(resolved.fields.description.providers).toEqual([AuthorMetadataProviderKey.GOODREADS, AuthorMetadataProviderKey.AUDNEXUS]);
+    expect(resolved.fields.description.providers).toEqual(['baiduBaike', 'douban', 'qidian', 'fanqie', 'goodreads', 'audnexus']);
   });
 
   it('drops a provider that cannot return the field', () => {

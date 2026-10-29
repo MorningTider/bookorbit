@@ -5932,16 +5932,16 @@
     },
     "match": {
       "title": "匹配正确的作者",
-      "description": "搜索姓名，或粘贴 Goodreads、Audible 链接，为 {name} 选择对应的作者。",
+      "description": "搜索姓名，或粘贴支持的来源链接，为 {name} 选择对应的作者。",
       "search": {
         "label": "姓名",
         "submit": "搜索"
       },
       "reference": {
-        "label": "Goodreads 或 Audible 链接或标识",
+        "label": "作者来源链接或标识",
         "placeholder": "goodreads.com/author/show/12345",
         "submit": "查询",
-        "unrecognised": "请粘贴 Goodreads 或 Audible 作者链接，或输入 Goodreads ID、Audible ASIN。",
+        "unrecognised": "支持百度百科词条、起点或番茄作者主页、豆瓣图书作者简介来源，以及 Goodreads、Audible 作者链接。",
         "notFound": "未找到使用该标识的作者。",
         "failed": "查询失败，请稍后重试。"
       },

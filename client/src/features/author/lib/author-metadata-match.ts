@@ -6,6 +6,10 @@ export type AuthorProviderReference = {
 }
 
 const PROVIDER_LABELS: Record<AuthorMetadataProviderKey, string> = {
+  baiduBaike: '百度百科',
+  douban: '豆瓣读书',
+  fanqie: '番茄小说',
+  qidian: '起点中文网',
   [AuthorMetadataProviderKey.GOODREADS]: 'Goodreads',
   [AuthorMetadataProviderKey.AUDNEXUS]: 'Audnexus',
 }
@@ -29,6 +33,27 @@ export function parseAuthorProviderReference(input: string): AuthorProviderRefer
   const value = input.trim()
   if (!value) return null
 
+  try {
+    const url = new URL(value)
+    if (url.protocol === 'https:' && !url.username && !url.password && !url.port) {
+      const rules: [string[], RegExp, AuthorMetadataProviderKey][] = [
+        [['wapbaike.baidu.com', 'baike.baidu.com'], /^\/item\/([^/]+)\/(\d{1,20})\/?$/, AuthorMetadataProviderKey.BAIDU_BAIKE],
+        [['book.douban.com'], /^\/subject\/(\d{1,20})\/?$/, AuthorMetadataProviderKey.DOUBAN],
+        [['m.qidian.com', 'www.qidian.com'], /^\/author\/(\d{1,20})\/?$/, AuthorMetadataProviderKey.QIDIAN],
+        [['fanqienovel.com'], /^\/author-page\/(\d{1,25})\/?$/, AuthorMetadataProviderKey.FANQIE],
+      ]
+      for (const [hosts, pattern, provider] of rules) {
+        const match = url.pathname.match(pattern)
+        if (hosts.includes(url.hostname) && match) {
+          const providerId = provider === AuthorMetadataProviderKey.BAIDU_BAIKE ? `${decodeURIComponent(match[1]!)}/${match[2]}` : match[1]!
+          return providerId.length <= 128 ? { provider, providerId } : null
+        }
+      }
+    }
+  } catch {
+    /* A bare legacy provider identity is handled below. */
+  }
+
   const goodreads = value.match(GOODREADS_AUTHOR_URL)?.[1] ?? (BARE_GOODREADS_ID.test(value) ? value : null)
   if (goodreads) return { provider: AuthorMetadataProviderKey.GOODREADS, providerId: goodreads }
 
@@ -40,6 +65,13 @@ export function parseAuthorProviderReference(input: string): AuthorProviderRefer
 
 /** The provider's own page for an author, the same link the server gives a candidate as `sourceUrl`. */
 export function authorProviderSourceUrl(provider: string, providerId: string): string | null {
+  if (provider === AuthorMetadataProviderKey.BAIDU_BAIKE) {
+    const match = providerId.match(/^([^/]{1,100})\/(\d{1,20})$/)
+    return match ? `https://wapbaike.baidu.com/item/${encodeURIComponent(match[1]!)}/${match[2]}` : null
+  }
+  if (provider === AuthorMetadataProviderKey.DOUBAN && /^\d{1,20}$/.test(providerId)) return `https://book.douban.com/subject/${providerId}/`
+  if (provider === AuthorMetadataProviderKey.QIDIAN && /^\d{1,20}$/.test(providerId)) return `https://m.qidian.com/author/${providerId}/`
+  if (provider === AuthorMetadataProviderKey.FANQIE && /^\d{1,25}$/.test(providerId)) return `https://fanqienovel.com/author-page/${providerId}`
   const id = encodeURIComponent(providerId)
   if (provider === AuthorMetadataProviderKey.GOODREADS) return `https://www.goodreads.com/author/show/${id}`
   if (provider === AuthorMetadataProviderKey.AUDNEXUS) return `https://www.audible.com/author/${id}`

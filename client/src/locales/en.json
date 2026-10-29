@@ -5932,16 +5932,16 @@
     },
     "match": {
       "title": "Find the right author",
-      "description": "Pick the person behind {name}, from a name search or a pasted Goodreads or Audible link.",
+      "description": "Search a name or paste a supported source link to find the person behind {name}.",
       "search": {
         "label": "Name",
         "submit": "Search"
       },
       "reference": {
-        "label": "Goodreads or Audible link or ID",
+        "label": "Author source link or ID",
         "placeholder": "goodreads.com/author/show/12345",
         "submit": "Look up",
-        "unrecognised": "Paste a Goodreads or Audible author link, a Goodreads ID or an Audible ASIN.",
+        "unrecognised": "Use a Baidu Baike entry, Qidian or Fanqie author page, Douban book biography source, Goodreads author link or Audible author link.",
         "notFound": "No author has that ID.",
         "failed": "The lookup failed. Try again in a moment."
       },

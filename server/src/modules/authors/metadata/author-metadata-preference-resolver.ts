@@ -11,22 +11,30 @@ import {
   MergeStrategy,
 } from '@bookorbit/types';
 
-// Goodreads carries the richer biography for literary and academic authors and
-// was the only source with a photo for every author sampled, so it leads.
-// Audnexus still wins outright for technical and business authors, where
-// Goodreads pages are frequently bare, and first-wins ordering falls through to
-// it whenever Goodreads has nothing.
-const DESCRIPTION_PROVIDERS: AuthorMetadataProviderKey[] = [AuthorMetadataProviderKey.GOODREADS, AuthorMetadataProviderKey.AUDNEXUS];
-const PHOTO_PROVIDERS: AuthorMetadataProviderKey[] = [AuthorMetadataProviderKey.GOODREADS, AuthorMetadataProviderKey.AUDNEXUS];
+// Existing stored field orders remain unchanged; new defaults include domestic sources.
+const DESCRIPTION_PROVIDERS: AuthorMetadataProviderKey[] = [
+  AuthorMetadataProviderKey.BAIDU_BAIKE,
+  AuthorMetadataProviderKey.DOUBAN,
+  AuthorMetadataProviderKey.QIDIAN,
+  AuthorMetadataProviderKey.FANQIE,
+  AuthorMetadataProviderKey.GOODREADS,
+  AuthorMetadataProviderKey.AUDNEXUS,
+];
+const PHOTO_PROVIDERS: AuthorMetadataProviderKey[] = [
+  AuthorMetadataProviderKey.BAIDU_BAIKE,
+  AuthorMetadataProviderKey.QIDIAN,
+  AuthorMetadataProviderKey.FANQIE,
+  AuthorMetadataProviderKey.GOODREADS,
+  AuthorMetadataProviderKey.AUDNEXUS,
+];
 
-// Audnexus returns only asin/name/description/image, so Goodreads is the sole
-// source for everything below.
+// Keep richer fields restricted to providers that actually return them.
 const GOODREADS_ONLY: AuthorMetadataProviderKey[] = [AuthorMetadataProviderKey.GOODREADS];
 
 const FIELD_DEFAULT_PROVIDERS: Record<AuthorMetadataField, AuthorMetadataProviderKey[]> = {
   description: DESCRIPTION_PROVIDERS,
   photo: PHOTO_PROVIDERS,
-  birthDate: GOODREADS_ONLY,
+  birthDate: [AuthorMetadataProviderKey.BAIDU_BAIKE, ...GOODREADS_ONLY],
   deathDate: GOODREADS_ONLY,
   website: GOODREADS_ONLY,
   genres: GOODREADS_ONLY,

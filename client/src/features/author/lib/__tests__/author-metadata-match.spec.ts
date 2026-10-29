@@ -50,3 +50,21 @@ describe('author provider helpers', () => {
     expect(candidateLifeYears({ provider: 'audnexus', providerId: 'B1', name: 'A' })).toEqual({ born: null, died: null })
   })
 })
+
+describe('domestic author links', () => {
+  it.each([
+    ['https://wapbaike.baidu.com/item/天下霸唱/6447807', 'baiduBaike', '天下霸唱/6447807'],
+    ['https://book.douban.com/subject/35650454/', 'douban', '35650454'],
+    ['https://m.qidian.com/author/4362771/', 'qidian', '4362771'],
+    ['https://fanqienovel.com/author-page/1871828692239433', 'fanqie', '1871828692239433'],
+  ])('accepts and reconstructs trusted source %s', (input, provider, providerId) => {
+    expect(parseAuthorProviderReference(input)).toEqual({ provider, providerId })
+    expect(authorProviderSourceUrl(provider, providerId)).toBeTruthy()
+  })
+  it.each(['http://m.qidian.com/author/42/', 'https://m.qidian.com.evil.test/author/42/', 'https://u@fanqienovel.com/author-page/42'])(
+    'rejects unsafe domestic links %s',
+    (input) => {
+      expect(parseAuthorProviderReference(input)).toBeNull()
+    },
+  )
+})
