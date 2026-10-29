@@ -1,3 +1,4 @@
+import { staticAssetCacheOptions } from './common/static-asset-cache';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
@@ -123,6 +124,7 @@ async function bootstrap() {
     await app.register(fastifyStatic as never, {
       root: join(__dirname, '..', 'public'),
       prefix: '/',
+      ...staticAssetCacheOptions,
     });
   }
 
