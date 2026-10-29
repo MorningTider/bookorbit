@@ -56,3 +56,5 @@ BO-C08上线确认：2026-10-29由原生10004交付，应用源码77afa4e5；115
 BO-C09启动回归补充：保留native-service.py的600秒有界就绪等待、临时进程记录无fsync策略及可信子进程身份检查。verify-native-lifecycle.py新增--readiness-delay参数，候选打包须绑定修改后控制器的真实普通账号收据。不要通过延长测试外层超时来掩盖控制器仍停留180秒，也不要去除配置/数据库备份的持久化同步。
 
 BO-C09公开发行材料回归：verify-sharp-sources.py读取sharp-source-evidence-lock.json，将官方强摘要、Git文件身份与Google对象MD5弱对照分别记录。修改Sharp版本或配方须重新核对28项来源及补丁，不按旧锁自动放行；来源完整、对应构建依赖与公开批准仍是不同状态，不能直接将upstreamIdentityVerified计数当作公开发行通过。
+
+BO-C09自用正式入口：build-private-stable-spk.py、private-stable-policy.py及对应测试应随上游同步保留。已有候选默认仍是Beta，正式入口要求与生产验收一致的源码/清单/控制器/迁移；改变应用或运行库后不能复用旧收据。private-stable metadata不等于publicRedistributionApproved，DSM描述和Beta标记须检查实际打包INFO与安装界面。

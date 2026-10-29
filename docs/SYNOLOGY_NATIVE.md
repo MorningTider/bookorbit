@@ -364,3 +364,17 @@ TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF
 复核入口：python3 scripts/synology/native/verify-sharp-sources.py --receipt ACQUISITION_RECEIPT --output NEW_OUTPUT_DIRECTORY；默认读取同目录sharp-source-evidence-lock.json，必要时用--lock显式指定审查版本。输出目录必须全新，失败项保留原因，不静默改写原有归档或批准状态。
 
 来源验证器退出语义补充：存在未核对通过的来源时返回非零退出码，同时保留详细失败收据；不接受空来源集合。此前28项上游对照的结果不因此改写，公开批准字段仍为false。
+
+## 2026-10-29 自用正式版10008已部署
+
+用户明确选择先完成自用正式包，公开发布以后处理。新增build-private-stable-spk.py入口与private-stable-policy.py：必须绑定当前安装的应用源码、payload清单、控制器、数据库迁移指纹和版本一致的12项生产API通过收据，继续要求普通账号生命周期验收。默认候选打包仍为Beta，自用正式入口才移除INFO的beta字段，描述改为“BookOrbit 图书管理服务（群晖原生版）。”公开发行批准字段保持false，不能将自用正式包当成公开分发审核完成。
+
+打包提交d169dc5c68c462ba1d3f04a197647a922a6ebb62，应用沿用0ded7f49已验证产物，控制器a400266f384063e599907eeca2b9d38bae7a77ffe43135017c09489094e145a3不变。自用策略8项及全部原生Python回归178项通过。正式SPK3.5.0-10008，SHA256 838de3a15f3fbf2c7a20647f54f63f488613d9873cdab8f36f1ff18f6803e989；INFO实际版本、无Beta、说明及payload MD5逐项核对通过。文件local/synology-native/spk/private-stable-10008/bookorbit-native_x86_64_3.5.0-10008.spk。
+
+本轮LAN SSH不可达，改用用户提供的100.86.77.124，DSM由用户完成Secure SignIn后访问套件中心。通过DSM正常上传升级，服务器日志证实10007到10008成功，09:10:37启动到09:10:51返回0，约14秒。未卸载、未更改数据库结构、未重启NAS。
+
+完整PG备份/volume1/database/pg/backups/logical-20261029T010058Z-2186563a已通过verify_backup；配置和验收审计目录/volume1/database/pg/backups/bookorbit-private-stable-10008-20261029。升级前后配置SHA256 e7a939f13b786ea0819172f7ea77f0687f6574549de307604e05738768303a32一致。已安装元数据releaseChannel=stable、publicationScope=private、productionEnabled=true，实际控制器指纹一致，INFO没有beta=yes，synopkg status为running。
+
+12项生产API全部通过，11本图书、详情并发、宿主Range及原生进程正常，收据production-api-10008.json留在上述NAS私有审计目录。公网真实前端5个官方图标与19项中文说明验证通过，接口数据为合成，报告local/synology-native/reports/browser-provider-branding-10008-public.json。DSM详情已实际检查10008、无BETA和新中文说明，截图/private/tmp/bookorbit-private-stable-10008-dsm.png。
+
+自用正式版交付范围是当前群晖的正常升级与运行。Android实机、七猫正文和未执行的整机重启测试保留原有边界，不将其写成新增已实现能力；公开再分发材料不再作为本次自用交付前置条件。

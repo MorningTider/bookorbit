@@ -75,3 +75,6 @@ git merge --no-ff upgrade/upstream-v3.6.0
 - 数据库回滚：优先恢复升级前的数据库备份和对应应用版本。数据库主版本升级或 schema 迁移后，不能假定旧应用可直接打开新数据目录。
 - SPK 回滚：先验证旧版本能否读取升级后的数据。若不能，必须恢复升级前的数据备份；不能只降级应用包而忽略数据库兼容性。
 
+## 自用正式SPK
+
+以scripts/synology/native/build-private-stable-spk.py作为自用正式入口，传入--stage、--lifecycle-report、--private-stable-readiness、递增的--revision和全新--output。真实生产收据的源码/清单/控制器/迁移必须与候选一致，不能将旧验收套在新应用源码上。需要重新验收时继续先走候选流程。安装通过DSM套件中心正常上传升级，前后核对配置指纹、实际版本、数据库健康与书籍访问。公开发行批准与自用稳定标记分开维护。
