@@ -37,7 +37,10 @@ export class TxtFormatExtractor implements FormatExtractor {
       );
     const titleLine = explicitTitle ?? (isChapter || /[。！？]/.test(firstLine ?? '') ? undefined : firstLine);
     const rawTitle = titleLine && titleLine.length <= 200 ? titleLine : titleFromPath(absolutePath);
-    const title = rawTitle.replace(/^(?:书名|title)\s*[:：]\s*/i, '').trim() || titleFromPath(absolutePath);
+    const candidateTitle = rawTitle.replace(/^(?:书名|title)\s*[:：]\s*/i, '').trim();
+    const isTitleText =
+      /[\p{L}\p{N}]/u.test(candidateTitle) && !/[\u2500-\u257f]/u.test(candidateTitle) && !/(?:https?:\/\/|www\.)/i.test(candidateTitle);
+    const title = isTitleText ? candidateTitle : titleFromPath(absolutePath);
     const authorLine = lines.find((line) => /^(?:作者|作\s*者|author)\s*[:：]/i.test(line));
     const author = authorLine?.replace(/^(?:作者|作\s*者|author)\s*[:：]\s*/i, '').trim();
     return {

@@ -58,4 +58,20 @@ describe('TxtFormatExtractor', () => {
       await expect(new TxtFormatExtractor().extract(path)).resolves.toMatchObject({ title: '剑来' });
     },
   );
+  it.each(['┏━━┳━━━━━━━━━━━┓', '┃ 小说下载网站 ┃', 'https://example.org/books', '书名：★★★★★'])(
+    'falls back to the filename for non-title header content: %s',
+    async (header) => {
+      const path = join(directory, '云南虫谷.txt');
+      await writeFile(path, `${header}\n第一章 初见\n这是正文。`);
+      await expect(new TxtFormatExtractor().extract(path)).resolves.toMatchObject({ title: '云南虫谷' });
+    },
+  );
+  it('prefers a valid explicit title after a decorative banner', async () => {
+    const path = join(directory, 'fallback.txt');
+    await writeFile(path, '┏━━┳━━━━┓\n书名：云南虫谷\n作者：天下霸唱\n第一章 初见');
+    await expect(new TxtFormatExtractor().extract(path)).resolves.toMatchObject({
+      title: '云南虫谷',
+      authors: [{ name: '天下霸唱', sortName: null }],
+    });
+  });
 });
