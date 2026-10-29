@@ -50,6 +50,7 @@ type ListAuthorBooksParams = {
 }
 
 export type UpdateAuthorPayload = AuthorFactsPayload & {
+  previewImage?: AuthorMetadataMatchPayload
   name?: string
   sortName?: string | null
   description?: string | null
@@ -195,7 +196,10 @@ export async function updateAuthor(authorId: number, payload: UpdateAuthorPayloa
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(i18n.global.t('customUi.runtimeMessages.failedToUpdateAuthor'))
+  if (!res.ok)
+    throw new Error(
+      i18n.global.t(payload.previewImage ? 'author.detail.edit.previewImageSaveFailed' : 'customUi.runtimeMessages.failedToUpdateAuthor'),
+    )
   return res.json()
 }
 

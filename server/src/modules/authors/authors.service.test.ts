@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { EMPTY_CONTENT_FILTER_RULES } from '@bookorbit/types';
+import { AuthorMetadataProviderKey, EMPTY_CONTENT_FILTER_RULES } from '@bookorbit/types';
 
 import { AUTHOR_ENRICHMENT_REASONS } from './author-enrichment-reasons';
 import { AuthorMetadataPreferenceResolver } from './metadata/author-metadata-preference-resolver';
@@ -796,6 +796,46 @@ describe('AuthorsService', () => {
     authorsRepo.findRelatedLibraryIds.mockResolvedValue([1]);
 
     await expect(service.update(reqUser(), 31, { name: '   ' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  describe('saving a preview portrait with author edits', () => {
+    const previewImage = { provider: AuthorMetadataProviderKey.BAIDU_BAIKE, providerId: 'Author/42' };
+    beforeEach(() => {
+      authorsRepo.findVisibleAuthorIds.mockResolvedValue([32]);
+      authorsRepo.findRelatedLibraryIds.mockResolvedValue([1]);
+      authorsRepo.findByIdForEnrichment.mockResolvedValue({ id: 32, name: 'Author' });
+      authorsRepo.findById.mockResolvedValue({ id: 32, name: 'Author', bookCount: 1 });
+      authorsRepo.updateAuthorById.mockResolvedValue({ id: 32 });
+      authorMetadataFetchService.lookupByIdDetailed.mockResolvedValue({
+        candidate: { name: 'Author', imageUrl: 'https://bkimg.cdn.bcebos.com/a.jpg' },
+      });
+      authorImageStorage.saveFromUrl.mockResolvedValue(true);
+    });
+    it('persists the chosen portrait and manual text together without applying unrelated provider fields', async () => {
+      await service.update(reqUser(), 32, { description: 'Manual text', previewImage });
+      expect(authorImageStorage.saveFromUrl).toHaveBeenCalledWith(32, 'https://bkimg.cdn.bcebos.com/a.jpg');
+      expect(authorsRepo.updateAuthorById).toHaveBeenCalledWith(32, { description: 'Manual text', hasPhoto: true });
+      expect(enrichmentExecutor.applyMatch).not.toHaveBeenCalled();
+    });
+    it.each([false, 'throw'])('does not save edited fields or return success when the portrait cannot be stored: %s', async (result) => {
+      if (result === 'throw') authorImageStorage.saveFromUrl.mockRejectedValue(new Error('download failed'));
+      else authorImageStorage.saveFromUrl.mockResolvedValue(false);
+      await expect(service.update(reqUser(), 32, { description: 'Manual text', previewImage })).rejects.toBeInstanceOf(ServiceUnavailableException);
+      expect(authorsRepo.updateAuthorById).not.toHaveBeenCalled();
+    });
+    it('rejects a different person before downloading or changing any fields', async () => {
+      authorMetadataFetchService.lookupByIdDetailed.mockResolvedValue({
+        candidate: { name: 'Other author', imageUrl: 'https://bkimg.cdn.bcebos.com/a.jpg' },
+      });
+      await expect(service.update(reqUser(), 32, { previewImage })).rejects.toBeInstanceOf(BadRequestException);
+      expect(authorImageStorage.saveFromUrl).not.toHaveBeenCalled();
+      expect(authorsRepo.updateAuthorById).not.toHaveBeenCalled();
+    });
+    it('checks library mutation access before resolving the preview', async () => {
+      libraryService.findEditableLibraryIds.mockResolvedValue([]);
+      await expect(service.update(reqUser(), 32, { previewImage })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(authorMetadataFetchService.lookupByIdDetailed).not.toHaveBeenCalled();
+    });
   });
 
   describe('author facts', () => {

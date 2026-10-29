@@ -5864,7 +5864,9 @@
         "lifeDateHint": "Born and died take a year, or a full date as year-month-day.",
         "lifeDateInvalid": "Enter a year or a real date as year-month-day.",
         "genres": "Genres",
-        "influences": "Influences"
+        "influences": "Influences",
+        "savePreviewImage": "Save this preview portrait with the author. A failed download will fail the save.",
+        "previewImageSaveFailed": "The portrait could not be saved. Please retry. Your edits remain in the form."
       },
       "merge": {
         "searchPlaceholder": "Search authors to merge into this author",

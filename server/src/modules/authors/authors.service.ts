@@ -399,6 +399,26 @@ export class AuthorsService {
         values.influences = normalizeAuthorList(dto.influences);
       }
 
+      if (dto.previewImage) {
+        const existing = await this.authorsRepo.findByIdForEnrichment(authorId);
+        if (!existing) throw new NotFoundException('Author not found');
+        const { provider, providerId } = dto.previewImage;
+        const lookup = await this.authorMetadataFetchService.lookupByIdDetailed(provider, providerId, 'us', {
+          directive: SINGLE_REFRESH_CACHE_DIRECTIVE,
+        });
+        if (lookup.failure) throw new ServiceUnavailableException('Cannot load the preview portrait. Please retry saving.');
+        const candidate = lookup.candidate;
+        if (!candidate?.imageUrl) throw new BadRequestException('The selected author preview has no portrait');
+        const sameName = (name: string) => name.normalize('NFKC').replace(/\s/g, '');
+        if (sameName(candidate.name) !== sameName(existing.name)) throw new BadRequestException('The preview portrait belongs to another author');
+        try {
+          if (!(await this.authorImageStorage.saveFromUrl(authorId, candidate.imageUrl))) throw new Error('Portrait download returned no image');
+        } catch {
+          throw new ServiceUnavailableException('Cannot save the preview portrait. Please retry saving.');
+        }
+        values.hasPhoto = true;
+      }
+
       const fieldNames = Object.keys(values);
       if (fieldNames.length === 0) {
         const detail = await this.findOne(user, authorId);

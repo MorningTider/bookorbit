@@ -1,4 +1,6 @@
-import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, IsUrl, Matches, Max, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { PinAuthorMetadataMatchDto } from './pin-author-metadata-match.dto';
+import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, IsUrl, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 const MAX_AUTHOR_LIST_ITEMS = 50;
 const MIN_LIFE_YEAR = -9999;
@@ -9,6 +11,11 @@ const MAX_LIFE_YEAR = 9999;
  * server feature; clients must only send them to servers advertising it.
  */
 export class UpdateAuthorDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PinAuthorMetadataMatchDto)
+  previewImage?: PinAuthorMetadataMatchDto;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)

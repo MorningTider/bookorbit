@@ -7,7 +7,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowUpDown, ChevronDown, ChevronLeft, ImageMinus, Layers, LayoutGrid, List, Upload } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
-import type { AuthorDetail, AuthorSummary, BookCard } from '@bookorbit/types'
+import type { AuthorDetail, AuthorMetadataCandidate, AuthorSummary, BookCard } from '@bookorbit/types'
 import VirtualBookGrid from '@/features/book/components/VirtualBookGrid.vue'
 import BookListRow from '@/features/book/components/BookListRow.vue'
 import DeleteBookDialog from '@/features/book/components/DeleteBookDialog.vue'
@@ -23,6 +23,7 @@ import AuthorHeader from '../components/AuthorHeader.vue'
 import AuthorConfirmDialog from '../components/AuthorConfirmDialog.vue'
 import AuthorFactsFields from '../components/AuthorFactsFields.vue'
 import AuthorMatchSheet from '../components/AuthorMatchSheet.vue'
+import { toDisplayCoverUrl } from '@/features/book/lib/metadata-fetch'
 import { authorFactsDraft, authorFactsPayload, sameFactsDraft, type AuthorFactsDraft, type AuthorFactsField } from '../lib/author-facts'
 import {
   deleteAuthorImage,
@@ -124,6 +125,9 @@ const authorImageInput = ref<HTMLInputElement | null>(null)
 const draftName = ref('')
 const draftSortName = ref('')
 const draftDescription = ref('')
+const draftPreviewImage = ref<AuthorMetadataCandidate | null>(null)
+const includePreviewImage = ref(true)
+const previewImageToSave = computed(() => (!author.value?.imageUrl && includePreviewImage.value ? draftPreviewImage.value : null))
 const draftFacts = ref<AuthorFactsDraft>(authorFactsDraft(null))
 const invalidFacts = ref<AuthorFactsField[]>([])
 const seededDrafts = ref<{ name: string; sortName: string; description: string; facts: AuthorFactsDraft } | null>(null)
@@ -202,7 +206,9 @@ function seedDrafts(value: AuthorDetail | null) {
   const seeded = {
     name: value?.name ?? '',
     sortName: value?.sortName ?? '',
-    description: value?.description ?? '',
+    description: value?.description?.trim()
+      ? value.description
+      : ((editOpen.value ? metadataPreview.value?.description?.slice(0, 10000) : null) ?? ''),
     facts: authorFactsDraft(value),
   }
   draftName.value = seeded.name
@@ -250,7 +256,12 @@ function goBack() {
 
 function toggleEdit() {
   editOpen.value = !editOpen.value
-  if (editOpen.value) mergeOpen.value = false
+  if (editOpen.value) {
+    mergeOpen.value = false
+    draftPreviewImage.value = !author.value?.imageUrl && metadataPreview.value?.imageUrl ? metadataPreview.value : null
+    includePreviewImage.value = true
+    if (!draftsDirty.value) seedDrafts(author.value)
+  }
 }
 
 function toggleMerge() {
@@ -308,7 +319,11 @@ async function saveAuthorEdits() {
       sortName: draftSortName.value.trim() || null,
       description: draftDescription.value.trim() || null,
       ...facts.payload,
+      ...(previewImageToSave.value
+        ? { previewImage: { provider: previewImageToSave.value.provider, providerId: previewImageToSave.value.providerId } }
+        : {}),
     })
+    if (previewImageToSave.value && !updated.imageUrl) throw new Error(t('author.detail.edit.previewImageSaveFailed'))
     author.value = updated
     seedDrafts(updated)
     editOpen.value = false
@@ -642,6 +657,11 @@ defineOptions({ name: 'AuthorDetailView' })
             <AuthorFactsFields v-model="draftFacts" :invalid="invalidFacts" />
             <div class="space-y-1.5">
               <p class="text-xs text-muted-foreground">{{ t('author.detail.edit.image') }}</p>
+              <label v-if="draftPreviewImage && !author.imageUrl" class="flex items-center gap-3 rounded-md border border-input p-3 text-sm">
+                <img :src="toDisplayCoverUrl(draftPreviewImage.imageUrl)" :alt="author.name" class="h-16 w-12 rounded object-cover" />
+                <input v-model="includePreviewImage" type="checkbox" data-testid="save-preview-image" />
+                <span>{{ t('author.detail.edit.savePreviewImage') }}</span>
+              </label>
               <input ref="authorImageInput" type="file" accept="image/*" class="hidden" :disabled="authorImageBusy" @change="onAuthorImageSelected" />
               <div class="flex flex-wrap items-center gap-2">
                 <button

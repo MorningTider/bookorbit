@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, ref, type Ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
-import type { AuthorDetail, BookCard } from '@bookorbit/types'
+import type { AuthorDetail, AuthorMetadataCandidate, BookCard } from '@bookorbit/types'
 import AuthorDetailView from './AuthorDetailView.vue'
 import { deleteAuthorImage, refreshAuthorMetadata, updateAuthor, uploadAuthorImage } from '../api/author'
 import { i18n } from '@/i18n'
@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   cancelMetadataPreview: vi.fn<() => void>(),
   api: vi.fn<(url: string, init?: RequestInit) => Promise<{ ok: boolean }>>(),
   author: null as unknown as Ref<AuthorDetail | null>,
+  preview: null as unknown as Ref<AuthorMetadataCandidate | null>,
   loadingAuthor: null as unknown as Ref<boolean>,
   authorError: null as unknown as Ref<string | null>,
   authorNotFound: null as unknown as Ref<boolean>,
@@ -132,7 +133,7 @@ vi.mock('@/features/book/composables/useSeriesCollapsePreference', () => ({
 
 vi.mock('../composables/useAuthorMetadataPreview', () => ({
   useAuthorMetadataPreview: () => ({
-    preview: ref(null),
+    preview: mocks.preview,
     loading: ref(false),
     error: ref(null),
     cancel: mocks.cancelMetadataPreview,
@@ -248,6 +249,7 @@ describe('AuthorDetailView', () => {
     mocks.loadMetadataPreview.mockResolvedValue()
     mocks.api.mockResolvedValue({ ok: true })
     mocks.author = ref(makeAuthor())
+    mocks.preview = ref(null)
     mocks.loadingAuthor = ref(false)
     mocks.authorError = ref(null)
     mocks.authorNotFound = ref(false)
@@ -421,6 +423,59 @@ describe('AuthorDetailView', () => {
     const after = editFields(wrapper)
     expect((after.name.element as HTMLInputElement).value).toBe('Другой автор')
     expect((after.description.element as HTMLTextAreaElement).value).toBe('Author 8 biography')
+  })
+
+  it('saves the displayed preview portrait with edited fields using a source identity, not a URL', async () => {
+    mocks.preview.value = {
+      provider: 'baiduBaike',
+      providerId: 'Author/42',
+      name: 'Author',
+      description: 'Preview biography',
+      imageUrl: 'https://bkimg.cdn.bcebos.com/pic/a.jpg',
+    } as AuthorMetadataCandidate
+    vi.mocked(updateAuthor).mockResolvedValue(makeAuthor({ imageUrl: '/api/v1/authors/7/image', description: 'My biography' }))
+    const wrapper = await openEditPanel()
+    expect((editFields(wrapper).description.element as HTMLTextAreaElement).value).toBe('Preview biography')
+    expect((wrapper.get('[data-testid="save-preview-image"]').element as HTMLInputElement).checked).toBe(true)
+    await editFields(wrapper).description.setValue('My biography')
+    await findButtonByLabel(wrapper, 'common.save').trigger('click')
+    await flushPromises()
+    expect(updateAuthor).toHaveBeenCalledWith(7, {
+      name: 'Author',
+      sortName: null,
+      description: 'My biography',
+      previewImage: { provider: 'baiduBaike', providerId: 'Author/42' },
+    })
+    expect(mocks.author.value?.imageUrl).toBe('/api/v1/authors/7/image')
+  })
+  it('allows opting out of saving the preview portrait', async () => {
+    mocks.preview.value = {
+      provider: 'qidian',
+      providerId: '42',
+      name: 'Author',
+      imageUrl: 'https://ccportrait.yuewen.com/a.jpg',
+    } as AuthorMetadataCandidate
+    vi.mocked(updateAuthor).mockResolvedValue(makeAuthor())
+    const wrapper = await openEditPanel()
+    await wrapper.get('[data-testid="save-preview-image"]').setValue(false)
+    await findButtonByLabel(wrapper, 'common.save').trigger('click')
+    await flushPromises()
+    expect(updateAuthor).toHaveBeenCalledWith(7, { name: 'Author', sortName: null, description: null })
+  })
+  it('keeps the edit form and draft text when saving a preview image fails', async () => {
+    mocks.preview.value = {
+      provider: 'qidian',
+      providerId: '42',
+      name: 'Author',
+      imageUrl: 'https://ccportrait.yuewen.com/a.jpg',
+    } as AuthorMetadataCandidate
+    vi.mocked(updateAuthor).mockRejectedValue(new Error('Portrait unavailable'))
+    const wrapper = await openEditPanel()
+    await editFields(wrapper).description.setValue('Keep this draft')
+    await findButtonByLabel(wrapper, 'common.save').trigger('click')
+    await flushPromises()
+    expect((editFields(wrapper).description.element as HTMLTextAreaElement).value).toBe('Keep this draft')
+    expect(mocks.author.value?.imageUrl).toBeNull()
   })
 
   it('stops treating the form as unsaved once the edits are saved', async () => {

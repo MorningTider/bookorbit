@@ -5864,7 +5864,9 @@
         "lifeDateHint": "出生和逝世日期可填写年份，或按年-月-日填写完整日期。",
         "lifeDateInvalid": "请输入年份，或按年-月-日填写有效日期。",
         "genres": "题材",
-        "influences": "影响来源"
+        "influences": "影响来源",
+        "savePreviewImage": "保存时一并保存此预览头像，下载失败将提示保存失败。",
+        "previewImageSaveFailed": "头像保存失败，请重试。编辑内容仍保留在表单中。"
       },
       "merge": {
         "searchPlaceholder": "搜索作者以合并到此作者",
