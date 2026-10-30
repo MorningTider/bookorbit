@@ -59,3 +59,7 @@ export interface RuleChapterAcquisitionRequest {
 export interface PublicChapterRulesUpdate {
   sources: PublicChapterRule[];
 }
+
+export interface BookSourceRetryRequest {
+  confirmedImportNotCompleted?: true;
+}

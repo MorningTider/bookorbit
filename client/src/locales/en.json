@@ -14400,7 +14400,12 @@
     "downloadSettings": "Novel download sources",
     "downloadSettingsHint": "Enable the provider above, then choose whether to include it in novel search and downloads. Turning this off does not affect metadata matching. Save changes to apply.",
     "downloadToggle": "Enable downloads from {source}",
-    "combinedScope": "Search all enabled novel download sources together. Each result shows its source; Qidian downloads contain public free chapters only."
+    "combinedScope": "Search all enabled novel download sources together. Each result shows its source; Qidian downloads contain public free chapters only.",
+    "reviewImport": "Review import before retrying",
+    "importReviewTitle": "Check the library before downloading again",
+    "importReviewDescription": "Check the target library and files for “{title}”. Download again only after confirming it was not imported and no files remain. Cancel if it is already imported to avoid duplicates.",
+    "confirmImportRetry": "Confirmed not imported, download again",
+    "viewImportedBook": "View imported book"
   },
   "uiText": {
     "sheetContent": {

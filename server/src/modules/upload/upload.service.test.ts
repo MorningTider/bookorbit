@@ -404,7 +404,41 @@ describe('UploadService', () => {
     expect(storage.moveToPath).not.toHaveBeenCalled();
   });
 
-  it('cleans up both paths when move fails', async () => {
+  it('holds new-upload watcher protection until slow file registration commits', async () => {
+    vi.useFakeTimers();
+    try {
+      db.select
+        .mockReturnValueOnce(selectChain([{ id: 1, allowedFormats: ['epub'], fileNamingPattern: null }]))
+        .mockReturnValueOnce(selectChain([{ id: 2, libraryId: 1, path: '/library' }]));
+      const watcher = new FileWatcherService({} as any, {} as any, {} as any, {} as any, selfWrites);
+      (watcher as any).subscriptions.set(1, []);
+      const processEvent = vi.spyOn(watcher as any, 'process').mockResolvedValue(undefined);
+      storage.moveToPath.mockImplementation(async () => {
+        await Promise.resolve();
+        expect(selfWrites.isSuppressed('/library/book/book.epub')).toBe(true);
+        (watcher as any).schedule('create', '/library/book/book.epub', 1);
+      });
+      let registering = false;
+      processor.createBookRecord.mockImplementation(async () => {
+        registering = true;
+        await new Promise((resolve) => setTimeout(resolve, 20_000));
+        return { bookId: 99, created: true };
+      });
+      const operation = service.upload(1, 2, 'raw.epub', {} as any, user);
+      await vi.waitFor(() => expect(registering).toBe(true));
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(processEvent).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await operation;
+      expect(selfWrites.isSuppressed('/library/book/book.epub')).toBe(false);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(processEvent).toHaveBeenCalledExactlyOnceWith('create', '/library/book/book.epub', 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cleans only temporary data when publication fails', async () => {
     db.select
       .mockReturnValueOnce(selectChain([{ id: 1, allowedFormats: ['epub'], fileNamingPattern: null }]))
       .mockReturnValueOnce(selectChain([{ id: 2, libraryId: 1, path: '/library' }]));
@@ -412,10 +446,11 @@ describe('UploadService', () => {
 
     await expect(service.upload(1, 2, 'raw.epub', {} as any, user)).rejects.toThrow('disk full');
     expect(storage.cleanup).toHaveBeenCalledWith('/tmp/upload.bin');
-    expect(storage.cleanup).toHaveBeenCalledWith('/library/book/book.epub');
+    expect(storage.cleanup).not.toHaveBeenCalledWith('/library/book/book.epub');
+    expect(selfWrites.isSuppressed('/library/book/book.epub')).toBe(false);
   });
 
-  it('cleans destination when DB write fails after move', async () => {
+  it('preserves a published file when DB registration fails', async () => {
     db.select
       .mockReturnValueOnce(selectChain([{ id: 1, allowedFormats: ['epub'], fileNamingPattern: null }]))
       .mockReturnValueOnce(selectChain([{ id: 2, libraryId: 1, path: '/library' }]));
@@ -423,7 +458,8 @@ describe('UploadService', () => {
 
     await expect(service.upload(1, 2, 'raw.epub', {} as any, user)).rejects.toThrow('insert failed');
     expect(storage.cleanup).toHaveBeenCalledWith('/tmp/upload.bin');
-    expect(storage.cleanup).toHaveBeenCalledWith('/library/book/book.epub');
+    expect(storage.cleanup).not.toHaveBeenCalledWith('/library/book/book.epub');
+    expect(selfWrites.isSuppressed('/library/book/book.epub')).toBe(false);
   });
 
   it('propagates access errors other than ENOENT', async () => {

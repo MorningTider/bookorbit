@@ -121,3 +121,14 @@ describe('Book source HTTP contract', () => {
     expect(jobs.list).not.toHaveBeenCalled();
   });
 });
+
+it('accepts only an explicit true confirmation for reviewed import retry', async () => {
+  jobs.retry.mockResolvedValue(job);
+  const response = await app.inject({ method: 'POST', url: '/api/v1/book-sources/jobs/11/retry', payload: { confirmedImportNotCompleted: true } });
+  expect(response.statusCode).toBe(202);
+  expect(jobs.retry).toHaveBeenCalledWith(11, user, true);
+  jobs.retry.mockClear();
+  const rejected = await app.inject({ method: 'POST', url: '/api/v1/book-sources/jobs/11/retry', payload: { confirmedImportNotCompleted: 'true' } });
+  expect(rejected.statusCode).toBe(400);
+  expect(jobs.retry).not.toHaveBeenCalled();
+});

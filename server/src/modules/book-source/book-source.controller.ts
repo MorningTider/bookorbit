@@ -1,3 +1,4 @@
+import { RetrySourceJobDto } from './dto/retry-source-job.dto';
 import { AcquireRuleChaptersDto } from './dto/public-chapter-rules.dto';
 import { AcquireQidianDto } from './dto/acquire-qidian.dto';
 import { Controller, Get, Param, ParseIntPipe, Post, Body, Query, HttpCode } from '@nestjs/common';
@@ -68,7 +69,7 @@ export class BookSourceController {
 
   @Post('book-sources/jobs/:id/retry')
   @HttpCode(202)
-  retry(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: RequestUser) {
-    return this.jobs.retry(id, user);
+  retry(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: RequestUser, @Body() dto: RetrySourceJobDto = {}) {
+    return dto.confirmedImportNotCompleted ? this.jobs.retry(id, user, true) : this.jobs.retry(id, user);
   }
 }

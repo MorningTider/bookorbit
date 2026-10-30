@@ -14400,7 +14400,12 @@
     "downloadSettings": "小说下载来源",
     "downloadSettingsHint": "先启用上方对应提供商，再选择是否用于小说搜索与下载。关闭此开关不影响元数据刮削，修改后请保存。",
     "downloadToggle": "开启{source}下载来源",
-    "combinedScope": "统一搜索设置中已开启的小说下载来源，结果标注对应书源。起点仅下载公开免费章节。"
+    "combinedScope": "统一搜索设置中已开启的小说下载来源，结果标注对应书源。起点仅下载公开免费章节。",
+    "reviewImport": "核对入库后重试",
+    "importReviewTitle": "重新下载前核对书库",
+    "importReviewDescription": "请先在目标书库核对《{title}》及其文件。只有确认尚未入库且没有残留文件时才重新下载；已入库请取消，以免重复。",
+    "confirmImportRetry": "已核对未入库，重新下载",
+    "viewImportedBook": "查看已入库书籍"
   },
   "uiText": {
     "sheetContent": {

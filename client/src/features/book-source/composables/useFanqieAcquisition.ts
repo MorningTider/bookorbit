@@ -6,6 +6,7 @@ import { toast } from 'vue-sonner'
 import { MetadataProviderKey, Permission } from '@bookorbit/types'
 import type {
   PublicChapterSource,
+  BookSourceRetryRequest,
   BookSourceJob,
   BookSourceJobPage,
   BookSourceJobStatus,
@@ -47,6 +48,7 @@ export function useFanqieAcquisition() {
   const nextCursor = ref<number | null>(null)
   const cursor = ref<number | null>(null)
   const taskError = ref<string | null>(null)
+  const reviewingImport = ref<BookSourceJob | null>(null)
   let timer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
   let refreshPromise: Promise<void> | null = null
@@ -213,12 +215,22 @@ export function useFanqieAcquisition() {
     }
   }
 
-  async function act(job: BookSourceJob, action: 'cancel' | 'retry') {
+  async function act(job: BookSourceJob, action: 'cancel' | 'retry', confirmedImportNotCompleted = false) {
     if (!canAcquire.value || pendingId.value) return
     pendingId.value = String(job.id)
     error.value = null
     try {
-      await readResponse<BookSourceJob>(await api(`/api/v1/book-sources/jobs/${job.id}/${action}`, { method: 'POST' }))
+      await readResponse<BookSourceJob>(
+        await api(`/api/v1/book-sources/jobs/${job.id}/${action}`, {
+          method: 'POST',
+          ...(confirmedImportNotCompleted
+            ? {
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirmedImportNotCompleted: true } satisfies BookSourceRetryRequest),
+              }
+            : {}),
+        }),
+      )
       await refreshJobs()
     } catch (cause) {
       error.value = sourceErrorMessage(cause, 'chapterSources.actionFailed')
@@ -231,6 +243,18 @@ export function useFanqieAcquisition() {
   }
   async function retry(job: BookSourceJob) {
     await act(job, 'retry')
+  }
+  function reviewImport(job: BookSourceJob) {
+    if (canAcquire.value && job.status === 'failed' && !job.retryable) reviewingImport.value = job
+  }
+  function cancelImportReview() {
+    if (!pendingId.value) reviewingImport.value = null
+  }
+  async function confirmImportRetry() {
+    const job = reviewingImport.value
+    if (!job || pendingId.value) return
+    await act(job, 'retry', true)
+    reviewingImport.value = null
   }
   async function nextPage() {
     if (nextCursor.value) {
@@ -260,6 +284,10 @@ export function useFanqieAcquisition() {
     loadChapterSources,
     acquireCustom,
     canRetry,
+    reviewingImport,
+    reviewImport,
+    cancelImportReview,
+    confirmImportRetry,
     libraryId,
     editableLibraries,
     canAcquire,

@@ -226,7 +226,7 @@ export class UploadService {
       throw uploadError.empty();
     }
     let destinationPath: string | null = null;
-    let shouldCleanupDestination = false;
+    let selfWritePath: string | null = null;
 
     try {
       await this.validator.validateContent(tempPath, format);
@@ -238,7 +238,8 @@ export class UploadService {
         throw uploadError.destinationConflict(`A file named "${basename(absolutePath)}" already exists at the target location`);
       }
 
-      shouldCleanupDestination = true;
+      selfWritePath = absolutePath;
+      this.selfWriteRegistry.begin([selfWritePath]);
       await this.storage.moveToPath(tempPath, absolutePath);
 
       const persistedAbsolutePath = (await resolveExistingPathSpelling(absolutePath, folder.path)) ?? absolutePath;
@@ -274,11 +275,10 @@ export class UploadService {
       this.logger.error(
         `[${event}] [fail] libraryId=${libraryId} userId=${user.id} folderId=${folder.id} durationMs=${Date.now() - startedAt} errorClass=${errorClass} error="${errorMessage}" - upload failed`,
       );
-      await Promise.allSettled([
-        this.storage.cleanup(tempPath),
-        shouldCleanupDestination && destinationPath ? this.storage.cleanup(destinationPath) : Promise.resolve(),
-      ]);
+      await this.storage.cleanup(tempPath);
       throw err;
+    } finally {
+      if (selfWritePath) this.selfWriteRegistry.end([selfWritePath]);
     }
   }
 

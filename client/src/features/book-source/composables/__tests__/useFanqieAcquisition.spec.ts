@@ -128,6 +128,22 @@ describe('Fanqie background acquisition', () => {
     wrapper.unmount()
   })
 
+  it('does not redownload an uncertain import before the explicit review confirmation', async () => {
+    const { model, wrapper } = harness()
+    await model.load()
+    mocks.api.mockClear()
+    model.reviewImport({ ...job, status: 'failed', retryable: false })
+    expect(model.reviewingImport.value?.id).toBe(job.id)
+    expect(mocks.api).not.toHaveBeenCalled()
+    await model.confirmImportRetry()
+    expect(mocks.api).toHaveBeenCalledWith(
+      '/api/v1/book-sources/jobs/11/retry',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ confirmedImportNotCompleted: true }) }),
+    )
+    expect(model.reviewingImport.value).toBeNull()
+    wrapper.unmount()
+  })
+
   it('sends an explicit cancel instead of aborting the browser request', async () => {
     const { model, wrapper } = harness()
     await model.load()

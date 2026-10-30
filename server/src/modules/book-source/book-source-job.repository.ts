@@ -1,5 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB } from '../../db/db.module';
 import * as schema from '../../db/schema';
@@ -70,7 +70,7 @@ export class BookSourceJobRepository {
     return job;
   }
 
-  async retry(id: number, userId: number) {
+  async retry(id: number, userId: number, confirmedImportNotCompleted = false) {
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(192834, ${userId})`);
       const [job] = await tx
@@ -79,13 +79,16 @@ export class BookSourceJobRepository {
         .where(and(eq(jobs.id, id), eq(jobs.userId, userId)))
         .limit(1);
       if (!job) throw new NotFoundException('下载任务不存在');
-      if (!['failed', 'cancelled'].includes(job.status) || !job.retryable) throw new ConflictException('当前任务不能重试。入库中断需先核对书库。');
+      const reviewed = confirmedImportNotCompleted && job.status === 'failed' && !job.retryable && job.resultBookId === null;
+      if (!['failed', 'cancelled'].includes(job.status) || (!job.retryable && !reviewed))
+        throw new ConflictException('当前任务不能重试。入库中断需先核对书库。');
       const [duplicate] = await tx
         .select({ id: jobs.id })
         .from(jobs)
         .where(
           and(
             eq(jobs.userId, userId),
+            ne(jobs.id, id),
             eq(jobs.libraryId, job.libraryId),
             eq(jobs.sourceBookId, job.sourceBookId),
             sql`(${jobs.status} not in ('failed', 'cancelled') or ${jobs.retryable} = false)`,
@@ -100,8 +103,8 @@ export class BookSourceJobRepository {
       if (count >= 20) throw new ConflictException('最多同时保留 20 个未完成下载任务');
       const [retried] = await tx
         .update(jobs)
-        .set({ status: 'queued', cancelRequested: false, error: null, updatedAt: new Date() })
-        .where(eq(jobs.id, id))
+        .set({ status: 'queued', retryable: true, cancelRequested: false, error: null, updatedAt: new Date() })
+        .where(and(eq(jobs.id, id), eq(jobs.userId, userId)))
         .returning();
       return retried;
     });

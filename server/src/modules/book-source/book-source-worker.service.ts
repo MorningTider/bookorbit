@@ -106,7 +106,7 @@ export class BookSourceWorker implements OnModuleDestroy {
           : '下载失败';
       await this.repository.finish(job.id, this.workerId, {
         status: controller.signal.aborted && !this.stopping && !importing ? 'cancelled' : 'failed',
-        error: (importing ? '入库未确认，请先核对书库。' : '') + message.slice(0, 250),
+        error: importing ? '入库未确认，请先核对书库。' : message.slice(0, 250),
       });
       this.logger.warn(
         `[book_source.job] [fail] jobId=${job.id} userId=${job.userId} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(message)}" - background acquisition failed`,

@@ -25,7 +25,7 @@ export function sourceJobResponse(job: typeof bookSourceJobs.$inferSelect): Book
     retryable: job.retryable,
     cancelRequested: job.cancelRequested,
     resultBookId: job.resultBookId,
-    error: job.error,
+    error: job.error?.startsWith('入库未确认') ? '文件下载完成，但入库未确认，请先核对书库。' : job.error,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
   };
@@ -86,7 +86,7 @@ export class BookSourceJobService {
     );
   }
 
-  async retry(id: number, user: RequestUser) {
+  async retry(id: number, user: RequestUser, confirmedImportNotCompleted = false) {
     return this.mutate('book_source.retry', `jobId=${id} userId=${user.id}`, async () => {
       const job = await this.repository.owned(id, user.id);
       if (!user.active) throw new ForbiddenException();
@@ -95,7 +95,7 @@ export class BookSourceJobService {
       await this.libraries.verifyUserAccessLevel(user.id, job.libraryId, user.isSuperuser, 'editor');
       if (job.sourceBookId.includes(':') && !job.sourceBookId.startsWith('qidian:')) await this.rules.get(job.sourceBookId.split(':')[0]!);
       if (!job.sourceBookId.includes(':') && !this.config.tomatoBinaryPath) throw new ServiceUnavailableException('番茄下载器未配置');
-      return sourceJobResponse(await this.repository.retry(id, user.id));
+      return sourceJobResponse(await (confirmedImportNotCompleted ? this.repository.retry(id, user.id, true) : this.repository.retry(id, user.id)));
     });
   }
 

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { Loader2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import SourceBookPreview from './SourceBookPreview.vue'
 import ChapterRuleManager from './ChapterRuleManager.vue'
 import { useFanqieAcquisition } from './composables/useFanqieAcquisition'
@@ -18,6 +20,10 @@ const {
   loadChapterSources,
   acquireCustom,
   canRetry,
+  reviewingImport,
+  reviewImport,
+  cancelImportReview,
+  confirmImportRetry,
   title,
   libraryId,
   editableLibraries,
@@ -135,7 +141,9 @@ onMounted(load)
           <p role="status">
             {{ statusLabel(job) }}<span v-if="job.cancelRequested && job.status === 'downloading'">{{ t('chapterSources.cancelling') }}</span>
           </p>
-          <p v-if="job.resultBookId">{{ t('chapterSources.importedBook', { id: job.resultBookId }) }}</p>
+          <RouterLink v-if="job.resultBookId" :to="`/book/${job.resultBookId}`" class="inline-flex text-primary hover:underline">{{
+            t('chapterSources.viewImportedBook')
+          }}</RouterLink>
           <p v-if="job.error" class="text-destructive">{{ job.error }}</p>
           <Button
             v-if="job.status === 'queued' || job.status === 'downloading'"
@@ -153,6 +161,14 @@ onMounted(load)
             @click="retry(job)"
             >{{ t('chapterSources.retryDownload') }}</Button
           >
+          <Button
+            v-if="job.status === 'failed' && !job.retryable"
+            variant="outline"
+            size="sm"
+            :disabled="pendingId !== null || !canRetry(job)"
+            @click="reviewImport(job)"
+            >{{ t('chapterSources.reviewImport') }}</Button
+          >
         </li>
       </ul>
       <div class="flex gap-2">
@@ -162,5 +178,15 @@ onMounted(load)
     </section>
 
     <ChapterRuleManager v-if="canManageSources" @updated="loadChapterSources" />
+    <ConfirmDialog
+      :open="reviewingImport !== null"
+      :title="t('chapterSources.importReviewTitle')"
+      :description="t('chapterSources.importReviewDescription', { title: reviewingImport?.title || reviewingImport?.sourceBookId || '' })"
+      :confirm-label="t('chapterSources.confirmImportRetry')"
+      :busy="pendingId !== null"
+      :destructive="false"
+      @confirm="confirmImportRetry"
+      @cancel="cancelImportReview"
+    />
   </section>
 </template>
