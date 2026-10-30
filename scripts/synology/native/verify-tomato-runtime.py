@@ -17,7 +17,7 @@ import urllib.request
 EXPECTED='d9db872448e3cda78a18eaa3c7ee162ce631251ed51eb789f8e6676abe118722'
 
 
-def verify(binary,parent,output):
+def verify(binary,parent,output,guarded=False):
     if os.geteuid()==0:raise ValueError('Ordinary package account required')
     binary=pathlib.Path(binary).resolve(strict=True)
     data=binary.read_bytes()
@@ -29,7 +29,14 @@ def verify(binary,parent,output):
         with socket.socket() as probe:probe.bind(('127.0.0.1',0));port=probe.getsockname()[1]
         password=secrets.token_hex(32)
         env={'PATH':'/usr/bin:/bin','HOME':str(root),'LANG':'C.UTF-8','CARGO':'bookorbit-pinned-release','TOMATO_WEB_ADDR':'127.0.0.1:'+str(port),'TOMATO_WEB_PASSWORD':password,'TMPDIR':str(root)}
-        process=subprocess.Popen([str(executable),'--server','--data-dir',str(root)],cwd=str(root),env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+        command=[str(executable),'--server','--data-dir',str(root)]
+        if guarded:
+            package=binary.parent.parent
+            node=package/'bin/node';guard=package/'app/dist/modules/book-source/tomato-runtime-guard.js'
+            if not node.is_file() or not guard.is_file():raise ValueError('Installed native Node guard required')
+            env['LD_LIBRARY_PATH']=str(package/'lib')
+            command=[str(node),str(guard),str(executable),str(root),str(os.getpid()),'60000']
+        process=subprocess.Popen(command,cwd=str(root),env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
         checks={}
         opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
         base='http://127.0.0.1:'+str(port)
@@ -44,8 +51,18 @@ def verify(binary,parent,output):
                     break
                 except (OSError,ValueError):time.sleep(0.25)
             else:raise RuntimeError('Auxiliary helper readiness deadline exceeded')
+            helper_pid=process.pid
+            if guarded:
+                matches=[]
+                for entry in pathlib.Path('/proc').iterdir():
+                    if not entry.name.isdigit():continue
+                    try:command=(entry/'cmdline').read_bytes().split(b'\0')
+                    except OSError:continue
+                    if command and command[0]==str(executable).encode():matches.append(int(entry.name))
+                if len(matches)!=1:raise RuntimeError('Expected one guarded downloader child')
+                helper_pid=matches[0];checks['nativeNodeGuardStartup']=True
             inodes=set()
-            for fd in (pathlib.Path('/proc')/str(process.pid)/'fd').iterdir():
+            for fd in (pathlib.Path('/proc')/str(helper_pid)/'fd').iterdir():
                 try:
                     value=os.readlink(fd)
                     if value.startswith('socket:['):inodes.add(value[8:-1])
@@ -67,6 +84,7 @@ def verify(binary,parent,output):
                 try:process.wait(timeout=5)
                 except subprocess.TimeoutExpired:os.killpg(process.pid,signal.SIGKILL);process.wait(timeout=5)
     checks['processStopped']=process.poll() is not None
+    if guarded:checks['guardedChildStopped']=not (pathlib.Path('/proc')/str(helper_pid)).exists()
     report={'kind':'pinned-auxiliary-bootstrap','uid':os.geteuid(),'sha256':EXPECTED,'checks':checks,'passed':all(checks.values()),'bookDownloadPerformed':False,'temporaryDataRemoved':not root.exists()}
     fd=os.open(output,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as stream:json.dump(report,stream,indent=2)
@@ -75,4 +93,4 @@ def verify(binary,parent,output):
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--binary',required=True);parser.add_argument('--work-parent',required=True);parser.add_argument('--output',required=True);a=parser.parse_args();verify(a.binary,a.work_parent,a.output)
+    parser=argparse.ArgumentParser();parser.add_argument('--binary',required=True);parser.add_argument('--work-parent',required=True);parser.add_argument('--output',required=True);parser.add_argument('--guarded',action='store_true');a=parser.parse_args();verify(a.binary,a.work_parent,a.output,a.guarded)

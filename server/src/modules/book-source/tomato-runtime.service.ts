@@ -74,13 +74,7 @@ export class TomatoRuntimeService {
         {
           cwd: root,
           stdio: 'ignore',
-          env: {
-            LANG: 'C.UTF-8',
-            CARGO: 'bookorbit-pinned-release',
-            TOMATO_WEB_ADDR: `127.0.0.1:${port}`,
-            TOMATO_WEB_PASSWORD: password,
-            TMPDIR: root,
-          },
+          env: tomatoRuntimeEnvironment(root, port, password),
         },
       );
       let spawnError = false;
@@ -222,4 +216,17 @@ async function reservePort(): Promise<number> {
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+}
+
+export function tomatoRuntimeEnvironment(root: string, port: number, password: string, parent: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return {
+    LANG: 'C.UTF-8',
+    PATH: '/usr/bin:/bin',
+    HOME: root,
+    CARGO: 'bookorbit-pinned-release',
+    TOMATO_WEB_ADDR: `127.0.0.1:${port}`,
+    TOMATO_WEB_PASSWORD: password,
+    TMPDIR: root,
+    ...(parent.LD_LIBRARY_PATH ? { LD_LIBRARY_PATH: parent.LD_LIBRARY_PATH } : {}),
+  };
 }

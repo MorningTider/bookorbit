@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { describe, expect, it } from 'vitest';
 import { bookSourceConfig, storageConfig } from '../../config/config';
-import { TomatoRuntimeService } from './tomato-runtime.service';
+import { TomatoRuntimeService, tomatoRuntimeEnvironment } from './tomato-runtime.service';
 
 describe('TomatoRuntimeService configuration boundary', () => {
   async function service() {
@@ -53,4 +53,22 @@ it('cleans abandoned staging without following symlinks or removing live downloa
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+it('retains native loader libraries for the Node guard without leaking application credentials', () => {
+  const env = tomatoRuntimeEnvironment('/private/staging', 12345, 'loopback-only', {
+    LD_LIBRARY_PATH: '/package/lib',
+    DATABASE_URL: 'private-db',
+    JWT_SECRET: 'private-jwt',
+    LD_PRELOAD: '/unsafe.so',
+    HOME: '/administrator',
+  });
+  expect(env.LD_LIBRARY_PATH).toBe('/package/lib');
+  expect(env.HOME).toBe('/private/staging');
+  expect(env.PATH).toBe('/usr/bin:/bin');
+  expect(env.TOMATO_WEB_ADDR).toBe('127.0.0.1:12345');
+  expect(env).not.toHaveProperty('DATABASE_URL');
+  expect(env).not.toHaveProperty('JWT_SECRET');
+  expect(env).not.toHaveProperty('LD_PRELOAD');
+  expect(tomatoRuntimeEnvironment('/private/staging', 12345, 'loopback-only', {})).not.toHaveProperty('LD_LIBRARY_PATH');
 });
