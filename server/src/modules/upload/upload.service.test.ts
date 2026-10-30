@@ -1,3 +1,5 @@
+import { FileWatcherService } from '../scanner/file-watcher.service';
+import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
 vi.mock('fs/promises', async () => {
   const actual = await vi.importActual('fs/promises');
   return { ...actual, access: vi.fn(), lstat: vi.fn(), readdir: vi.fn(), stat: vi.fn() };
@@ -115,6 +117,7 @@ describe('UploadService', () => {
   const pathPolicy = { assertWithinRoot: vi.fn() };
 
   let service: UploadService;
+  let selfWrites: SelfWriteRegistry;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -122,6 +125,7 @@ describe('UploadService', () => {
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    selfWrites = new SelfWriteRegistry();
     service = new UploadService(
       db as any,
       appSettings as any,
@@ -131,6 +135,7 @@ describe('UploadService', () => {
       processor as any,
       moduleRef as any,
       pathPolicy as any,
+      selfWrites,
     );
 
     validator.sanitizeFilename.mockReturnValue('book.epub');
@@ -1056,6 +1061,71 @@ describe('UploadService', () => {
         },
       ]);
     }
+
+    it('marks an attachment as an in-flight self write before publishing it to the watcher', async () => {
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      storage.moveToPath.mockImplementation(async () => {
+        await Promise.resolve();
+        expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(true);
+      });
+      insertReturning.mockImplementation(async () => {
+        await Promise.resolve();
+        expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(true);
+        return [
+          {
+            id: 55,
+            format: 'epub',
+            role: 'content',
+            sizeBytes: 456,
+            absolutePath: '/library/Book Title/book.epub',
+            createdAt: new Date(),
+            durationSeconds: null,
+          },
+        ];
+      });
+      await service.addFileToBook(10, 'book.epub', {} as any, user);
+      expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(false);
+    });
+
+    it('keeps watcher protection across a slow transaction commit beyond the debounce interval', async () => {
+      vi.useFakeTimers();
+      try {
+        db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+        const watcher = new FileWatcherService({} as any, {} as any, {} as any, {} as any, selfWrites);
+        (watcher as any).subscriptions.set(1, []);
+        const processEvent = vi.spyOn(watcher as any, 'process').mockResolvedValue(undefined);
+        storage.moveToPath.mockImplementation(async () => {
+          await Promise.resolve();
+          (watcher as any).schedule('create', '/library/Book Title/book.epub', 1);
+        });
+        let waitingForCommit = false;
+        db.transaction.mockImplementation(async (callback) => {
+          const result = await callback(tx);
+          waitingForCommit = true;
+          await new Promise((resolve) => setTimeout(resolve, 20_000));
+          return result;
+        });
+        const operation = service.addFileToBook(10, 'book.epub', {} as any, user);
+        await vi.waitFor(() => expect(waitingForCommit).toBe(true));
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(true);
+        expect(processEvent).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(10_000);
+        await operation;
+        expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(false);
+        await vi.advanceTimersByTimeAsync(5_000);
+        expect(processEvent).toHaveBeenCalledExactlyOnceWith('create', '/library/Book Title/book.epub', 1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+    it.each(['move', 'commit'])('releases attachment protection after a failed %s', async (phase) => {
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      if (phase === 'move') storage.moveToPath.mockRejectedValue(new Error('failed move'));
+      else db.transaction.mockRejectedValue(new Error('failed commit'));
+      await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toThrow('failed');
+      expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(false);
+    });
 
     it('adds a file successfully to an existing book with a primary file', async () => {
       db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());

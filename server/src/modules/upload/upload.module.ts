@@ -1,3 +1,4 @@
+import { SelfWriteRegistryModule } from '../../common/self-write-registry.module';
 import { Module } from '@nestjs/common';
 
 import { AppSettingsModule } from '../app-settings/app-settings.module';
@@ -20,6 +21,7 @@ import { UploadSessionService } from './upload-session.service';
 
 @Module({
   imports: [
+    SelfWriteRegistryModule,
     AppSettingsModule,
     BookCoverStoreModule,
     LibraryModule,

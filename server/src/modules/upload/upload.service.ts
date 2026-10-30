@@ -1,3 +1,4 @@
+import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
 import { repairConvertedEdition } from './repair-converted-edition';
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
@@ -59,6 +60,7 @@ export class UploadService {
     private readonly processor: UploadProcessorService,
     private readonly moduleRef: ModuleRef,
     private readonly pathPolicy: PathPolicyService,
+    private readonly selfWriteRegistry: SelfWriteRegistry,
     @Optional() private readonly coverStore?: BookCoverStore,
   ) {}
 
@@ -341,6 +343,7 @@ export class UploadService {
 
     let destination: string | null = null;
     let shouldCleanupDestination = false;
+    let selfWritePath: string | null = null;
 
     try {
       await this.validator.validateContent(tempPath, format);
@@ -363,6 +366,8 @@ export class UploadService {
         throw uploadError.destinationConflict(`A file named "${filename}" already exists in this book's folder`);
       }
 
+      this.selfWriteRegistry.begin([destination]);
+      selfWritePath = destination;
       shouldCleanupDestination = true;
       await this.storage.moveToPath(tempPath, destination);
       // File is on disk. Do not delete it on any subsequent failure; the scanner
@@ -490,6 +495,8 @@ export class UploadService {
         shouldCleanupDestination && destination ? this.storage.cleanup(destination) : Promise.resolve(),
       ]);
       throw err;
+    } finally {
+      if (selfWritePath) this.selfWriteRegistry.end([selfWritePath]);
     }
   }
 

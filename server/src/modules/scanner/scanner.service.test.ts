@@ -3607,6 +3607,37 @@ describe('targeted book scan', () => {
 // ── book_per_file mode — runScan ──────────────────────────────────────────────
 
 describe('book_per_file mode — runScan', () => {
+  it('defers a whole owner while an attached file is being committed and never prunes its other formats', async () => {
+    const txt = '/library/story.txt',
+      epub = '/library/story.epub';
+    const repo = makeRepo({
+      findBooksByLibraryFolder: vi.fn().mockResolvedValue([{ id: 1, folderPath: txt, status: 'present', primaryFileId: 1 }]),
+      findBookFilesByLibraryFolder: vi
+        .fn()
+        .mockResolvedValue([
+          makeBookFile({ id: 1, bookId: 1, absolutePath: txt, format: 'txt' }),
+          makeBookFile({ id: 2, bookId: 1, absolutePath: epub, format: 'epub' }),
+        ]),
+    });
+    const { service, selfWriteRegistry } = makeService(repo);
+    const process = vi.spyOn(service as any, 'processCandidate');
+    selfWriteRegistry.begin([epub]);
+    const result = await (service as any).scanFolderCandidates(
+      1,
+      1,
+      [makeCandidate(txt, [makeFileStat({ absolutePath: txt, format: 'txt' })])],
+      1,
+      DEFAULT_FORMAT_PRIORITY,
+      ['embedded'],
+      'imported',
+    );
+    expect(process).not.toHaveBeenCalled();
+    expect(repo.deleteBookFile).not.toHaveBeenCalled();
+    expect(repo.markBooksAsMissing).not.toHaveBeenCalled();
+    expect(result).toEqual({ addedCount: 0, updatedCount: 0, missingCount: 0 });
+    selfWriteRegistry.end([epub]);
+  });
+
   it('calls findLooseFileCandidates instead of findBookCandidates when organizationMode is book_per_file', async () => {
     const repo = makeRepo({
       findLibrarySettings: vi.fn().mockResolvedValue({
@@ -3718,6 +3749,18 @@ describe('book_per_file mode — runScan', () => {
 // ── book_per_file mode — scanBookFolder ──────────────────────────────────────
 
 describe('book_per_file mode — scanBookFolder', () => {
+  it('does not create or reassign a file while an attachment upload is still registering it', async () => {
+    const repo = makeRepo();
+    const { service, selfWriteRegistry } = makeService(repo);
+    const path = '/library/large.epub';
+    selfWriteRegistry.begin([path]);
+    await (service as any).scanBookFolder(path, 1);
+    expect(repo.findLibraryFolders).not.toHaveBeenCalled();
+    expect(repo.createBook).not.toHaveBeenCalled();
+    expect(repo.updateBookFile).not.toHaveBeenCalled();
+    selfWriteRegistry.end([path]);
+  });
+
   it.each(['txt', 'epub'])('keeps both explicit formats on the original book after a watcher event for %s', async (changedFormat) => {
     const txt = makeBookFile({ id: 41, bookId: 7, absolutePath: '/library/余罪.txt', relPath: '余罪.txt', format: 'txt', ino: 4101n });
     const epub = makeBookFile({ id: 42, bookId: 7, absolutePath: '/library/余罪.epub', relPath: '余罪.epub', format: 'epub', ino: 4201n });

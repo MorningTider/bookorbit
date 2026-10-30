@@ -965,6 +965,12 @@ export class ScannerService implements OnApplicationBootstrap {
     const event = 'scanner.targeted_book_scan';
     const startedAt = Date.now();
     this.logger.log(`[${event}] [start] libraryId=${libraryId} path="${sanitizeLogValue(filePath)}" - targeted book scan started`);
+    if (this.selfWriteRegistry.isSuppressed(filePath)) {
+      this.logger.log(
+        `[${event}] [end] libraryId=${libraryId} path="${sanitizeLogValue(filePath)}" durationMs=${Date.now() - startedAt} deferredSelfWrite=true - targeted scan deferred until attachment registration`,
+      );
+      return;
+    }
     if (this.scanJobStore.isRunning(libraryId)) {
       this.logger.log(
         `[${event}] [end] libraryId=${libraryId} path="${sanitizeLogValue(filePath)}" durationMs=${Date.now() - startedAt} skippedDueToRunningFullScan=true - targeted book scan completed`,
@@ -1093,6 +1099,14 @@ export class ScannerService implements OnApplicationBootstrap {
     }
 
     const maps = await this.loadCandidateMaps(dirPath, libraryId);
+    if (settings.organizationMode === 'book_per_file') {
+      candidates = groupAttachedFormats(
+        groupLooseTxtEpubCandidates(candidates),
+        [...maps.bookByFolderPath.values()],
+        [...maps.fileByPath].map(([absolutePath, file]) => ({ absolutePath, bookId: file.bookId })),
+      );
+    }
+    const protectedBookIds = this.selfWrittenBookIds(maps);
     const totals = { added: 0, updated: 0 };
     const allRetainedFileIds = new Set<number>();
     const seenBookIds = new Set<number>();
@@ -1100,6 +1114,7 @@ export class ScannerService implements OnApplicationBootstrap {
     const importedBookIds: number[] = [];
     const candidateFolderPaths = new Set(candidates.map((candidate) => candidate.folderPath));
     for (const candidate of candidates) {
+      if (this.deferSelfWrittenCandidate(candidate, maps, protectedBookIds, seenBookIds, allRetainedFileIds)) continue;
       const result = await this.processCandidate(
         candidate,
         libraryId,
@@ -1134,6 +1149,38 @@ export class ScannerService implements OnApplicationBootstrap {
     this.logger.log(
       `[${event}] [end] libraryId=${libraryId} path="${sanitizeLogValue(dirPath)}" durationMs=${Date.now() - startedAt} candidateCount=${candidates.length} skippedDirCount=${skippedDirs.size} added=${totals.added} updated=${totals.updated} - targeted directory scan completed`,
     );
+  }
+
+  private selfWrittenBookIds(maps: ScanLookupMaps): Set<number> {
+    const result = new Set<number>();
+    for (const [path, file] of maps.fileByPath) {
+      if (this.selfWriteRegistry.isSuppressed(path)) result.add(file.bookId);
+    }
+    return result;
+  }
+
+  private deferSelfWrittenCandidate(
+    candidate: BookCandidate,
+    maps: ScanLookupMaps,
+    protectedBookIds: Set<number>,
+    seenBookIds: Set<number>,
+    retainedFileIds: Set<number>,
+  ): boolean {
+    const owners = new Set<number>();
+    for (const file of candidate.files) {
+      const owner = maps.fileByPath.get(file.absolutePath)?.bookId;
+      if (owner !== undefined) owners.add(owner);
+    }
+    if (
+      !candidate.files.some((file) => this.selfWriteRegistry.isSuppressed(file.absolutePath)) &&
+      ![...owners].some((id) => protectedBookIds.has(id))
+    )
+      return false;
+    for (const id of owners) {
+      seenBookIds.add(id);
+      for (const fileId of maps.fileIdsByBookId.get(id) ?? []) retainedFileIds.add(fileId);
+    }
+    return true;
   }
 
   private async loadCandidateMaps(folderPath: string, libraryId: number): Promise<ScanLookupMaps> {
@@ -1640,6 +1687,7 @@ export class ScannerService implements OnApplicationBootstrap {
       candidates = groupAttachedFormats(candidates, knownBooks, knownFiles);
       const isFirstScan = knownBooks.length === 0 && knownFiles.length === 0;
       const maps = ScannerService.buildLookupMaps(knownBooks, knownFiles);
+      const protectedBookIds = this.selfWrittenBookIds(maps);
 
       const seenBookIds = new Set<number>();
       const allRetainedFileIds = new Set<number>();
@@ -1648,6 +1696,10 @@ export class ScannerService implements OnApplicationBootstrap {
       const candidateFolderPaths = new Set(candidates.map((candidate) => candidate.folderPath));
 
       for (const candidate of candidates) {
+        if (this.deferSelfWrittenCandidate(candidate, maps, protectedBookIds, seenBookIds, allRetainedFileIds)) {
+          this.scanJobStore.increment(libraryId, { processed: 1 });
+          continue;
+        }
         const result = await this.processCandidate(
           candidate,
           libraryId,
