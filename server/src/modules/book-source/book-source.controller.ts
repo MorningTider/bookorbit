@@ -1,7 +1,7 @@
 import { RetrySourceJobDto } from './dto/retry-source-job.dto';
 import { AcquireRuleChaptersDto } from './dto/public-chapter-rules.dto';
 import { AcquireQidianDto } from './dto/acquire-qidian.dto';
-import { Controller, Get, Param, ParseIntPipe, Post, Body, Query, HttpCode } from '@nestjs/common';
+import { Controller, Delete, Get, Param, ParseIntPipe, Post, Body, Query, HttpCode } from '@nestjs/common';
 import { Permission } from '@bookorbit/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -59,6 +59,11 @@ export class BookSourceController {
   @Get('book-sources/jobs/:id')
   get(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: RequestUser) {
     return this.jobs.get(id, user);
+  }
+
+  @Delete('book-sources/jobs/:id')
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: RequestUser) {
+    return this.jobs.remove(id, user);
   }
 
   @Post('book-sources/jobs/:id/cancel')

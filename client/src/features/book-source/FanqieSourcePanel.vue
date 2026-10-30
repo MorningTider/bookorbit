@@ -9,8 +9,19 @@ import SourceBookPreview from './SourceBookPreview.vue'
 import ChapterRuleManager from './ChapterRuleManager.vue'
 import { useFanqieAcquisition } from './composables/useFanqieAcquisition'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+function taskTime(value: string) {
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
+}
+function taskSource(source?: string) {
+  return source === 'qidian' ? t('chapterSources.qidian') : !source || source === 'fanqie' ? t('chapterSources.fanqie') : source
+}
 const {
+  canRemove,
+  removingJob,
+  requestRemoval,
+  cancelRemoval,
+  confirmRemoval,
   enabledSources,
   canDownload,
   customSources,
@@ -135,42 +146,90 @@ onMounted(load)
       <p class="text-sm text-muted-foreground">{{ t('chapterSources.taskNote') }}</p>
       <p v-if="taskError" role="alert" class="text-sm text-destructive">{{ taskError }}</p>
       <p v-if="!jobs.length" class="text-sm text-muted-foreground">{{ t('chapterSources.noTasks') }}</p>
-      <ul class="space-y-2">
-        <li v-for="job in jobs" :key="job.id" class="space-y-2 rounded-lg border border-border p-3 text-sm">
-          <p class="font-medium">{{ job.title || job.sourceBookId }}</p>
-          <p role="status">
-            {{ statusLabel(job) }}<span v-if="job.cancelRequested && job.status === 'downloading'">{{ t('chapterSources.cancelling') }}</span>
-          </p>
-          <RouterLink v-if="job.resultBookId" :to="`/book/${job.resultBookId}`" class="inline-flex text-primary hover:underline">{{
-            t('chapterSources.viewImportedBook')
-          }}</RouterLink>
-          <p v-if="job.error" class="text-destructive">{{ job.error }}</p>
-          <Button
-            v-if="job.status === 'queued' || job.status === 'downloading'"
-            variant="outline"
-            size="sm"
-            :disabled="pendingId !== null || job.cancelRequested"
-            @click="cancel(job)"
-            >{{ t('chapterSources.cancelTask') }}</Button
-          >
-          <Button
-            v-if="(job.status === 'failed' || job.status === 'cancelled') && job.retryable"
-            variant="outline"
-            size="sm"
-            :disabled="pendingId !== null || !canRetry(job)"
-            @click="retry(job)"
-            >{{ t('chapterSources.retryDownload') }}</Button
-          >
-          <Button
-            v-if="job.status === 'failed' && !job.retryable"
-            variant="outline"
-            size="sm"
-            :disabled="pendingId !== null || !canRetry(job)"
-            @click="reviewImport(job)"
-            >{{ t('chapterSources.reviewImport') }}</Button
-          >
-        </li>
-      </ul>
+      <div v-if="jobs.length" class="overflow-x-auto rounded-lg border border-border">
+        <table class="w-full text-left text-sm" :aria-label="t('chapterSources.taskList')">
+          <thead class="bg-muted text-muted-foreground">
+            <tr>
+              <th scope="col" class="p-3">{{ t('chapterSources.taskBook') }}</th>
+              <th scope="col" class="p-3">{{ t('chapterSources.source') }}</th>
+              <th scope="col" class="p-3">{{ t('chapterSources.taskStatus') }}</th>
+              <th scope="col" class="whitespace-nowrap p-3">{{ t('chapterSources.taskCreated') }}</th>
+              <th scope="col" class="p-3">{{ t('chapterSources.taskActions') }}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <tr v-for="job in jobs" :key="job.id">
+              <td class="min-w-48 p-3 align-top">
+                <RouterLink v-if="job.resultBookId" :to="`/book/${job.resultBookId}`" class="font-medium text-primary hover:underline">{{
+                  job.title || job.sourceBookId
+                }}</RouterLink>
+                <p v-else class="font-medium">{{ job.title || job.sourceBookId }}</p>
+                <p class="mt-1 text-xs text-muted-foreground">{{ t('chapterSources.taskNumber', { id: job.id }) }}</p>
+              </td>
+              <td class="whitespace-nowrap p-3 align-top">
+                <span class="rounded-full bg-muted px-2 py-1 text-xs">{{ taskSource(job.source) }}</span>
+              </td>
+              <td class="min-w-40 p-3 align-top">
+                <span
+                  role="status"
+                  class="inline-flex rounded-full px-2 py-1 text-xs font-medium"
+                  :class="
+                    job.status === 'failed'
+                      ? 'bg-destructive/10 text-destructive'
+                      : job.status === 'completed'
+                        ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+                        : 'bg-muted text-foreground'
+                  "
+                >
+                  {{ statusLabel(job) }}<span v-if="job.cancelRequested && job.status === 'downloading'">{{ t('chapterSources.cancelling') }}</span>
+                </span>
+                <p v-if="job.error" class="mt-2 max-w-sm break-words text-destructive">{{ job.error }}</p>
+                <p class="mt-1 text-xs text-muted-foreground">{{ t('chapterSources.taskUpdated', { time: taskTime(job.updatedAt) }) }}</p>
+              </td>
+              <td class="whitespace-nowrap p-3 align-top">
+                <time :datetime="job.createdAt">{{ taskTime(job.createdAt) }}</time>
+              </td>
+              <td class="min-w-40 p-3 align-top">
+                <div class="flex flex-wrap gap-2">
+                  <RouterLink
+                    v-if="job.resultBookId"
+                    :to="`/book/${job.resultBookId}`"
+                    class="inline-flex items-center text-primary hover:underline"
+                    >{{ t('chapterSources.viewImportedBook') }}</RouterLink
+                  >
+                  <Button
+                    v-if="job.status === 'queued' || job.status === 'downloading'"
+                    variant="outline"
+                    size="sm"
+                    :disabled="pendingId !== null || job.cancelRequested"
+                    @click="cancel(job)"
+                    >{{ t('chapterSources.cancelTask') }}</Button
+                  >
+                  <Button
+                    v-if="(job.status === 'failed' || job.status === 'cancelled') && job.retryable"
+                    variant="outline"
+                    size="sm"
+                    :disabled="pendingId !== null || !canRetry(job)"
+                    @click="retry(job)"
+                    >{{ t('chapterSources.retryDownload') }}</Button
+                  >
+                  <Button
+                    v-if="job.status === 'failed' && !job.retryable"
+                    variant="outline"
+                    size="sm"
+                    :disabled="pendingId !== null || !canRetry(job)"
+                    @click="reviewImport(job)"
+                    >{{ t('chapterSources.reviewImport') }}</Button
+                  >
+                  <Button v-if="canRemove(job)" variant="outline" size="sm" :disabled="pendingId !== null" @click="requestRemoval(job)">{{
+                    t('chapterSources.removeTask')
+                  }}</Button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <div class="flex gap-2">
         <Button v-if="cursor" variant="outline" size="sm" @click="firstPage">{{ t('chapterSources.latestTasks') }}</Button>
         <Button v-if="nextCursor" variant="outline" size="sm" @click="nextPage">{{ t('chapterSources.olderTasks') }}</Button>
@@ -178,6 +237,15 @@ onMounted(load)
     </section>
 
     <ChapterRuleManager v-if="canManageSources" @updated="loadChapterSources" />
+    <ConfirmDialog
+      :open="removingJob !== null"
+      :title="t('chapterSources.removeTaskTitle')"
+      :description="t('chapterSources.removeTaskDescription', { title: removingJob?.title || removingJob?.sourceBookId || '' })"
+      :confirm-label="t('chapterSources.removeTask')"
+      :busy="pendingId !== null"
+      @confirm="confirmRemoval"
+      @cancel="cancelRemoval"
+    />
     <ConfirmDialog
       :open="reviewingImport !== null"
       :title="t('chapterSources.importReviewTitle')"

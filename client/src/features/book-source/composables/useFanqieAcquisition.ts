@@ -48,6 +48,7 @@ export function useFanqieAcquisition() {
   const nextCursor = ref<number | null>(null)
   const cursor = ref<number | null>(null)
   const taskError = ref<string | null>(null)
+  const removingJob = ref<BookSourceJob | null>(null)
   const reviewingImport = ref<BookSourceJob | null>(null)
   let timer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
@@ -256,6 +257,30 @@ export function useFanqieAcquisition() {
     await act(job, 'retry', true)
     reviewingImport.value = null
   }
+  function canRemove(job: BookSourceJob) {
+    return ['completed', 'failed', 'cancelled'].includes(job.status)
+  }
+  function requestRemoval(job: BookSourceJob) {
+    if (canAcquire.value && canRemove(job) && !pendingId.value) removingJob.value = job
+  }
+  function cancelRemoval() {
+    if (!pendingId.value) removingJob.value = null
+  }
+  async function confirmRemoval() {
+    const job = removingJob.value
+    if (!job || !canAcquire.value || pendingId.value || !canRemove(job)) return
+    pendingId.value = String(job.id)
+    error.value = null
+    try {
+      await readResponse<BookSourceJob>(await api(`/api/v1/book-sources/jobs/${job.id}`, { method: 'DELETE' }))
+      removingJob.value = null
+      await refreshJobs()
+    } catch (cause) {
+      error.value = sourceErrorMessage(cause, 'chapterSources.actionFailed')
+    } finally {
+      pendingId.value = null
+    }
+  }
   async function nextPage() {
     if (nextCursor.value) {
       cursor.value = nextCursor.value
@@ -275,6 +300,11 @@ export function useFanqieAcquisition() {
   })
   return {
     title,
+    canRemove,
+    removingJob,
+    requestRemoval,
+    cancelRemoval,
+    confirmRemoval,
     enabledSources,
     canDownload,
     customSources,

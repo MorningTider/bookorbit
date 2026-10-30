@@ -309,3 +309,38 @@ describe('novel source keyword browsing', () => {
     wrapper.unmount()
   })
 })
+
+describe('task record deletion', () => {
+  it('requires confirmation, keeps the result book, and refreshes the list after deletion', async () => {
+    mocks.hasPermission.mockReturnValue(true)
+    const { model, wrapper } = harness()
+    const completed = { ...job, status: 'completed' as const, resultBookId: 31 }
+    mocks.api.mockImplementation((_url: string, options?: { method: string }) =>
+      Promise.resolve(new Response(JSON.stringify(options?.method === 'DELETE' ? completed : { items: [], nextCursor: null }))),
+    )
+    model.requestRemoval(completed)
+    expect(mocks.api).not.toHaveBeenCalled()
+    await model.confirmRemoval()
+    expect(mocks.api).toHaveBeenCalledWith('/api/v1/book-sources/jobs/11', { method: 'DELETE' })
+    expect(model.removingJob.value).toBeNull()
+    expect(completed.resultBookId).toBe(31)
+    expect(mocks.api.mock.calls.some(([url]) => url.includes('/books/'))).toBe(false)
+    wrapper.unmount()
+  })
+  it('rejects running tasks, supports cancellation of the dialog and retains failed deletion for retry', async () => {
+    mocks.hasPermission.mockReturnValue(true)
+    const { model, wrapper } = harness()
+    for (const status of ['queued', 'downloading', 'importing'] as const) model.requestRemoval({ ...job, status })
+    expect(model.removingJob.value).toBeNull()
+    const completed = { ...job, status: 'completed' as const }
+    model.requestRemoval(completed)
+    model.cancelRemoval()
+    expect(model.removingJob.value).toBeNull()
+    model.requestRemoval(completed)
+    mocks.api.mockResolvedValueOnce(new Response('{"message":"Conflict"}', { status: 409 }))
+    await model.confirmRemoval()
+    expect(model.removingJob.value?.id).toBe(job.id)
+    expect(model.error.value).toBeTruthy()
+    wrapper.unmount()
+  })
+})

@@ -8,7 +8,7 @@ import { LibraryService } from '../library/library.service';
 import { BookSourceJobRepository } from './book-source-job.repository';
 import { BookSourceJobService } from './book-source-job.service';
 import type { RequestUser } from '../../common/types/request-user';
-const repository = { enqueue: vi.fn(), owned: vi.fn(), retry: vi.fn() };
+const repository = { remove: vi.fn(), enqueue: vi.fn(), owned: vi.fn(), retry: vi.fn() };
 const libraries = { verifyUserAccessLevel: vi.fn() };
 const user = { id: 7, active: true, isSuperuser: false } as RequestUser;
 const row = {
@@ -70,4 +70,14 @@ it('rejects enqueue and retry for a disabled download source before mutating the
   await expect(jobs.retry(1, user)).rejects.toThrow(ForbiddenException);
   expect(repository.enqueue).not.toHaveBeenCalled();
   expect(repository.retry).not.toHaveBeenCalled();
+});
+
+it('removes only the current active user task and does not invoke library mutations', async () => {
+  repository.remove.mockResolvedValue({ ...row, status: 'completed', resultBookId: 31 });
+  const instance = await service();
+  expect(await instance.remove(1, user)).toMatchObject({ id: 1, resultBookId: 31 });
+  expect(repository.remove).toHaveBeenCalledWith(1, user.id);
+  repository.remove.mockClear();
+  await expect(instance.remove(1, { ...user, active: false })).rejects.toThrow(ForbiddenException);
+  expect(repository.remove).not.toHaveBeenCalled();
 });

@@ -14,7 +14,16 @@ import { BookSourceController } from './book-source.controller';
 import { BookSourceJobService } from './book-source-job.service';
 import { BookSourceService } from './book-source.service';
 
-const jobs = { enqueueRule: vi.fn(), enqueueQidian: vi.fn(), enqueue: vi.fn(), list: vi.fn(), get: vi.fn(), cancel: vi.fn(), retry: vi.fn() };
+const jobs = {
+  remove: vi.fn(),
+  enqueueRule: vi.fn(),
+  enqueueQidian: vi.fn(),
+  enqueue: vi.fn(),
+  list: vi.fn(),
+  get: vi.fn(),
+  cancel: vi.fn(),
+  retry: vi.fn(),
+};
 const permissions = [Permission.LibraryUpload, Permission.BookRequestSelfFulfill];
 let user: RequestUser;
 let app: NestFastifyApplication;
@@ -131,4 +140,18 @@ it('accepts only an explicit true confirmation for reviewed import retry', async
   const rejected = await app.inject({ method: 'POST', url: '/api/v1/book-sources/jobs/11/retry', payload: { confirmedImportNotCompleted: 'true' } });
   expect(rejected.statusCode).toBe(400);
   expect(jobs.retry).not.toHaveBeenCalled();
+});
+
+it('deletes only through the permission-gated owned task route', async () => {
+  jobs.remove.mockResolvedValue({ ...job, status: 'completed', resultBookId: 31 });
+  const response = await app.inject({ method: 'DELETE', url: '/api/v1/book-sources/jobs/11' });
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({ id: 11, resultBookId: 31 });
+  expect(jobs.remove).toHaveBeenCalledWith(11, user);
+  jobs.remove.mockClear();
+  user.permissions = [Permission.LibraryUpload];
+  expect((await app.inject({ method: 'DELETE', url: '/api/v1/book-sources/jobs/11' })).statusCode).toBe(403);
+  expect(jobs.remove).not.toHaveBeenCalled();
+  user.permissions = [...permissions];
+  expect((await app.inject({ method: 'DELETE', url: '/api/v1/book-sources/jobs/invalid' })).statusCode).toBe(400);
 });

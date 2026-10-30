@@ -86,6 +86,13 @@ export class BookSourceJobService {
     );
   }
 
+  async remove(id: number, user: RequestUser) {
+    return this.mutate('book_source.remove', `jobId=${id} userId=${user.id}`, async () => {
+      if (!user.active) throw new ForbiddenException();
+      return sourceJobResponse(await this.repository.remove(id, user.id));
+    });
+  }
+
   async retry(id: number, user: RequestUser, confirmedImportNotCompleted = false) {
     return this.mutate('book_source.retry', `jobId=${id} userId=${user.id}`, async () => {
       const job = await this.repository.owned(id, user.id);

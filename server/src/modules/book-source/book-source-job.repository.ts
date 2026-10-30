@@ -110,6 +110,24 @@ export class BookSourceJobRepository {
     });
   }
 
+  async remove(id: number, userId: number) {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(192834, ${userId})`);
+      const [removed] = await tx
+        .delete(jobs)
+        .where(and(eq(jobs.id, id), eq(jobs.userId, userId), inArray(jobs.status, ['completed', 'failed', 'cancelled'])))
+        .returning();
+      if (removed) return removed;
+      const [existing] = await tx
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(and(eq(jobs.id, id), eq(jobs.userId, userId)))
+        .limit(1);
+      if (!existing) throw new NotFoundException('下载任务不存在');
+      throw new ConflictException('请先取消下载并等待任务结束，再删除记录');
+    });
+  }
+
   async claim(workerId: string) {
     return this.db.transaction(async (tx) => {
       // Serialize claims and stale-lease recovery across application replicas.
