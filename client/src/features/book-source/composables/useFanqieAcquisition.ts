@@ -1,7 +1,8 @@
 import { sourceResponseError, sourceErrorMessage } from './source-errors'
 import { i18n } from '@/i18n'
 import { selectSourceDestination } from './source-destination'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
 import { MetadataProviderKey, Permission } from '@bookorbit/types'
 import type {
   PublicChapterSource,
@@ -62,6 +63,13 @@ export function useFanqieAcquisition() {
   )
   const fanqieEnabled = computed(() => metadata.providers.value.some((provider) => provider.key === source.value))
   const configured = computed(() => status.value?.[source.value]?.configured === true)
+
+  watch(source, () => {
+    metadata.cancel()
+    metadata.results.value = []
+    if (metadata.hasSearched) metadata.hasSearched.value = false
+    error.value = null
+  })
 
   async function readResponse<T>(response: Response): Promise<T> {
     const data: unknown = await response.json().catch(() => null)
@@ -133,6 +141,7 @@ export function useFanqieAcquisition() {
         }),
       )
       cursor.value = null
+      toast.success(i18n.global.t('chapterSources.queuedNotice'))
       await refreshJobs()
     } catch (cause) {
       error.value = sourceErrorMessage(cause, 'chapterSources.submitFailed')
@@ -171,6 +180,7 @@ export function useFanqieAcquisition() {
         title: title.value.trim(),
         providers: [source.value === 'qidian' ? MetadataProviderKey.QIDIAN : MetadataProviderKey.FANQIE],
         mediaKind: 'ebook',
+        resultsPerProvider: 20,
       })
     } catch {
       error.value = i18n.global.t('chapterSources.searchFailed')
@@ -191,6 +201,7 @@ export function useFanqieAcquisition() {
         }),
       )
       cursor.value = null
+      toast.success(i18n.global.t('chapterSources.queuedNotice'))
       await refreshJobs()
     } catch (cause) {
       error.value = sourceErrorMessage(cause, 'chapterSources.submitFailed')
@@ -262,6 +273,7 @@ export function useFanqieAcquisition() {
     statusLabel,
     results: computed(() => metadata.results.value.filter((candidate) => candidate.provider === source.value)),
     isSearching: metadata.isStreaming,
+    hasSearched: metadata.hasSearched,
     providerErrors: metadata.interruptedProviders,
     load,
     search,

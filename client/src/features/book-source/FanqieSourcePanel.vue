@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { onMounted } from 'vue'
 import { Loader2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import SourceBookPreview from './SourceBookPreview.vue'
 import ChapterRuleManager from './ChapterRuleManager.vue'
 import { useFanqieAcquisition } from './composables/useFanqieAcquisition'
 
@@ -34,6 +35,7 @@ const {
   error,
   results,
   isSearching,
+  hasSearched,
   providerErrors,
   load,
   search,
@@ -44,7 +46,7 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="space-y-4" :aria-label="t('chapterSources.panel')">
+  <section class="space-y-5 rounded-xl border border-border bg-card p-4 sm:p-6" :aria-label="t('chapterSources.panel')">
     <label class="flex flex-wrap items-center gap-2 text-sm">
       {{ t('chapterSources.source') }}
       <select v-model="source" :disabled="pendingId !== null || isSearching" class="rounded-md border border-input bg-background px-3 py-2">
@@ -53,9 +55,15 @@ onMounted(load)
       </select>
     </label>
     <p class="text-sm text-muted-foreground">{{ t(source === 'qidian' ? 'chapterSources.publicScope' : 'chapterSources.fanqieScope') }}</p>
-    <p class="text-sm text-muted-foreground">{{ t('chapterSources.qimaoUnavailable') }}</p>
     <p v-if="!configured && canAcquire" role="status" class="text-sm text-muted-foreground">{{ t('chapterSources.downloaderUnavailable') }}</p>
     <p v-if="!fanqieEnabled" role="status" class="text-sm text-muted-foreground">{{ t('chapterSources.enableProvider') }}</p>
+    <label v-if="canAcquire" class="flex flex-wrap items-center gap-2 text-sm">
+      {{ t('chapterSources.targetLibrary') }}
+      <select v-model="libraryId" :disabled="pendingId !== null" class="rounded-md border border-input bg-background px-3 py-2">
+        <option :value="null">{{ t('chapterSources.selectLibrary') }}</option>
+        <option v-for="library in editableLibraries" :key="library.id" :value="library.id">{{ library.name }}</option>
+      </select>
+    </label>
     <form class="flex flex-wrap gap-2" @submit.prevent="search">
       <input
         v-model="title"
@@ -64,9 +72,10 @@ onMounted(load)
         maxlength="200"
         class="min-w-48 flex-1 rounded-md border border-input bg-background px-3 py-2"
       />
-      <Button type="submit" :disabled="isSearching || !fanqieEnabled">{{ t('chapterSources.search') }}</Button>
+      <Button type="submit" :disabled="isSearching || !fanqieEnabled || !title.trim()"
+        ><Loader2 v-if="isSearching" class="mr-2 size-4 animate-spin" aria-hidden="true" />{{ t('chapterSources.search') }}</Button
+      >
     </form>
-    <ChapterRuleManager v-if="canManageSources" @updated="loadChapterSources" />
     <form v-if="canAcquire && customSources.length" class="flex flex-wrap gap-2" @submit.prevent="acquireCustom">
       <select
         v-model="customSource"
@@ -88,13 +97,6 @@ onMounted(load)
       <Button type="submit" :disabled="pendingId !== null || !libraryId">{{ t('chapterSources.acquirePublic') }}</Button>
       <p class="w-full text-sm text-muted-foreground">{{ t('chapterSources.customScope') }}</p>
     </form>
-    <label v-if="canAcquire" class="flex flex-wrap items-center gap-2 text-sm">
-      {{ t('chapterSources.targetLibrary') }}
-      <select v-model="libraryId" :disabled="pendingId !== null" class="rounded-md border border-input bg-background px-3 py-2">
-        <option :value="null">{{ t('chapterSources.selectLibrary') }}</option>
-        <option v-for="library in editableLibraries" :key="library.id" :value="library.id">{{ library.name }}</option>
-      </select>
-    </label>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
     <p v-for="failure in providerErrors" :key="failure.provider" role="alert" class="text-sm text-destructive">
       {{ t('chapterSources.searchFailed') }}
@@ -102,6 +104,23 @@ onMounted(load)
     <div v-if="pendingId" role="status" class="flex items-center gap-2 text-sm">
       <Loader2 class="size-4 animate-spin" aria-hidden="true" />{{ t('chapterSources.submitting') }}
     </div>
+    <p v-if="!hasSearched && !isSearching" class="text-sm text-muted-foreground">{{ t('chapterSources.keywordHint') }}</p>
+    <section class="space-y-3" aria-live="polite" :aria-label="t('chapterSources.results')">
+      <h2 class="font-semibold">
+        {{ t('chapterSources.results') }} <span v-if="results.length" class="text-muted-foreground">({{ results.length }})</span>
+      </h2>
+      <p v-if="hasSearched && !isSearching && !results.length && !providerErrors.length && !error" class="text-sm text-muted-foreground">
+        {{ t('chapterSources.noResults') }}
+      </p>
+      <ul class="grid gap-4 lg:grid-cols-2">
+        <li v-for="book in results" :key="book.providerId" class="flex flex-col gap-4 rounded-lg border border-border bg-background p-4">
+          <SourceBookPreview :book="book" />
+          <Button v-if="canAcquire" :disabled="!configured || !libraryId || pendingId !== null" @click="acquire(book)">{{
+            t(source === 'qidian' ? 'chapterSources.acquirePublic' : 'chapterSources.acquire')
+          }}</Button>
+        </li>
+      </ul>
+    </section>
     <section v-if="canAcquire" class="space-y-3" :aria-label="t('chapterSources.tasks')">
       <h3 class="font-medium">{{ t('chapterSources.tasks') }}</h3>
       <p class="text-sm text-muted-foreground">{{ t('chapterSources.taskNote') }}</p>
@@ -138,21 +157,7 @@ onMounted(load)
         <Button v-if="nextCursor" variant="outline" size="sm" @click="nextPage">{{ t('chapterSources.olderTasks') }}</Button>
       </div>
     </section>
-    <ul class="space-y-2">
-      <li
-        v-for="book in results"
-        :key="book.providerId"
-        class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
-      >
-        <div class="min-w-0 flex-1">
-          <p class="font-medium">{{ book.title }}</p>
-          <p class="text-sm text-muted-foreground">{{ book.authors?.join('、') }}</p>
-          <p class="line-clamp-2 text-sm text-muted-foreground">{{ book.description }}</p>
-        </div>
-        <Button v-if="canAcquire" :disabled="!configured || !libraryId || pendingId !== null" @click="acquire(book)">{{
-          t(source === 'qidian' ? 'chapterSources.acquirePublic' : 'chapterSources.acquire')
-        }}</Button>
-      </li>
-    </ul>
+
+    <ChapterRuleManager v-if="canManageSources" @updated="loadChapterSources" />
   </section>
 </template>

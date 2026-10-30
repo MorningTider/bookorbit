@@ -41,7 +41,7 @@ export function filterAndRank(candidates: MetadataCandidate[], params: MetadataS
       const matchable = matchableTitle(c);
       return !matchable || !SKIP_TITLE_PATTERNS.some((pattern) => pattern.test(matchable));
     })
-    .map((c) => ({ candidate: c, score: scoreCandidate(c, params) }))
+    .map((c) => ({ candidate: c, score: browsingTitleScore(c, params) }))
     .filter(({ score }) => score >= MIN_RELEVANCE_SCORE)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
@@ -93,4 +93,12 @@ function scoreAuthor(query: string, candidateAuthors: string[]): number {
 
 function hasText(v: string | undefined): boolean {
   return typeof v === 'string' && v.trim().length > 0;
+}
+
+function browsingTitleScore(candidate: MetadataCandidate, params: MetadataSearchParams): number {
+  const score = scoreCandidate(candidate, params);
+  if (!params.resultsPerProvider || !params.title || !['fanqie', 'qidian'].includes(candidate.provider)) return score;
+  const query = normalizeTitleText(params.title);
+  const title = normalizeTitleText(matchableTitle(candidate) ?? '');
+  return query && title.includes(query) ? Math.max(score, MIN_RELEVANCE_SCORE) : score;
 }

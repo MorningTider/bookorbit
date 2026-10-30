@@ -8,7 +8,7 @@ vi.mock('@/features/book-requests/composables/useRequestDestinationDefault', () 
   useRequestDestinationDefault: () => ({ load: vi.fn(), defaultFor: () => ({ libraryId: null }) }),
 }))
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), hasPermission: vi.fn(), extraEditor: false }))
+const mocks = vi.hoisted(() => ({ api: vi.fn(), hasPermission: vi.fn(), extraEditor: false, search: vi.fn(), cancel: vi.fn() }))
 vi.mock('@/lib/api', () => ({ api: mocks.api }))
 vi.mock('@/features/auth/composables/usePermissions', () => ({ usePermissions: () => ({ hasPermission: mocks.hasPermission }) }))
 vi.mock('@/features/auth/composables/useAuth', async () => {
@@ -37,7 +37,9 @@ vi.mock('@/features/book/composables/useMetadataSearch', async () => {
       isStreaming: ref(false),
       interruptedProviders: ref([]),
       loadProviders: vi.fn(),
-      search: vi.fn(),
+      search: mocks.search,
+      cancel: mocks.cancel,
+      hasSearched: ref(false),
     }),
   }
 })
@@ -245,5 +247,15 @@ describe('download task language changes', () => {
       wrapper.unmount()
       await setI18nLocale('en')
     }
+  })
+})
+
+describe('novel source keyword browsing', () => {
+  it('requests multiple partial-title results instead of single-book matching', async () => {
+    const { model, wrapper } = harness()
+    model.title.value = ' 我在 '
+    await model.search()
+    expect(mocks.search).toHaveBeenLastCalledWith(expect.objectContaining({ title: '我在', resultsPerProvider: 20, providers: ['fanqie'] }))
+    wrapper.unmount()
   })
 })

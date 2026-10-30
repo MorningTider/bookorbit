@@ -14388,7 +14388,15 @@
       "completed": "已完成",
       "failed": "失败",
       "cancelled": "已取消"
-    }
+    },
+    "results": "搜索结果",
+    "synopsis": "展开完整简介",
+    "noSynopsis": "书源暂未提供简介",
+    "unknownAuthor": "未知作者",
+    "noResults": "未找到匹配书籍，请尝试部分书名或其他关键词。",
+    "collapseSynopsis": "收起简介",
+    "keywordHint": "支持输入完整书名或部分关键词。选择目标书库后即可提交下载。",
+    "queuedNotice": "已加入下载队列，可在下方下载任务中查看进度。"
   },
   "uiText": {
     "sheetContent": {

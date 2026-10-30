@@ -14388,7 +14388,15 @@
       "completed": "Completed",
       "failed": "Failed",
       "cancelled": "Cancelled"
-    }
+    },
+    "results": "Search results",
+    "synopsis": "Full synopsis",
+    "noSynopsis": "No synopsis provided by this source.",
+    "unknownAuthor": "Unknown author",
+    "noResults": "No matching books. Try part of the title or another keyword.",
+    "collapseSynopsis": "Collapse synopsis",
+    "keywordHint": "Search with a full title or part of a title. Select a destination library before downloading.",
+    "queuedNotice": "Download queued. Follow its progress in download tasks."
   },
   "uiText": {
     "sheetContent": {

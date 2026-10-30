@@ -292,3 +292,15 @@ describe('candidate-relevance', () => {
     });
   });
 });
+
+describe('novel source keyword browsing', () => {
+  it('keeps partial Chinese titles for browsing without weakening single-book matching', () => {
+    const books = ['我在精神病院学斩神', '我在大唐开酒馆', '其他小说'].map((title, i) => ({
+      ...candidate(title),
+      provider: 'fanqie' as const,
+      providerId: String(i),
+    }));
+    expect(filterAndRank(books, { title: '我在', resultsPerProvider: 20 }).map((x) => x.title)).toEqual(['我在精神病院学斩神', '我在大唐开酒馆']);
+    expect(filterAndRank(books, { title: '我在' })).toEqual([]);
+  });
+});
