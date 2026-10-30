@@ -267,6 +267,12 @@ function discard() {
   draft.value = JSON.parse(JSON.stringify(props.config)) as ProviderConfigurations
 }
 
+const downloadSourceKeys = computed(() => (['fanqie', 'qidian'] as const).filter((key) => draft.value?.[key]))
+function toggleDownloadSource(key: 'fanqie' | 'qidian') {
+  if (!draft.value?.[key]) return
+  draft.value[key].downloadEnabled = draft.value[key].downloadEnabled === false
+}
+
 function save() {
   if (!draft.value) return
   emit('save', draft.value)
@@ -360,6 +366,27 @@ function clearFilters() {
           {{ t('settings.metadata.providers.clearFilters') }}
         </Button>
       </div>
+
+      <section
+        v-if="downloadSourceKeys.length"
+        class="mt-5 space-y-3 rounded-lg border border-border bg-card p-4"
+        :aria-label="t('chapterSources.downloadSettings')"
+      >
+        <h2 class="font-semibold">{{ t('chapterSources.downloadSettings') }}</h2>
+        <p class="text-sm text-muted-foreground">{{ t('chapterSources.downloadSettingsHint') }}</p>
+        <label v-for="key in downloadSourceKeys" :key="key" class="flex items-center justify-between gap-3 py-2">
+          <span>{{ t(key === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian') }}</span>
+          <input
+            type="checkbox"
+            role="switch"
+            :aria-label="t('chapterSources.downloadToggle', { source: t(key === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian') })"
+            :checked="draft[key].enabled && draft[key].downloadEnabled !== false"
+            :disabled="!draft[key].enabled || saving"
+            class="size-5 accent-primary"
+            @change="toggleDownloadSource(key)"
+          />
+        </label>
+      </section>
 
       <div
         v-if="dirtyRows.length"

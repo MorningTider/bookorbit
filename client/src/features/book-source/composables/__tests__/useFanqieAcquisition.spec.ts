@@ -106,6 +106,28 @@ describe('Fanqie background acquisition', () => {
     wrapper.unmount()
     expect(mocks.api.mock.calls.some(([url]) => url.endsWith('/cancel'))).toBe(false)
   })
+  it('searches only enabled download sources and refuses results from a disabled source', async () => {
+    mocks.api.mockImplementation((url: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            url.endsWith('/status')
+              ? { fanqie: { configured: true, enabled: false }, qidian: { configured: true, enabled: true } }
+              : { items: [], nextCursor: null },
+          ),
+        ),
+      ),
+    )
+    const { model, wrapper } = harness()
+    await model.load()
+    model.title.value = '我在'
+    await model.search()
+    expect(mocks.search).toHaveBeenLastCalledWith(expect.objectContaining({ providers: ['qidian'] }))
+    await model.acquire(candidate)
+    expect(mocks.api).not.toHaveBeenCalledWith(expect.stringContaining('/sources/fanqie'), expect.anything())
+    wrapper.unmount()
+  })
+
   it('sends an explicit cancel instead of aborting the browser request', async () => {
     const { model, wrapper } = harness()
     await model.load()
@@ -132,12 +154,11 @@ describe('Fanqie background acquisition', () => {
     expect(model.pendingId.value).toBeNull()
     wrapper.unmount()
   })
-  it('posts Qidian selections to the Qidian route and refuses stale results from another source', async () => {
+  it('posts each candidate to its own source route without a source selector', async () => {
     const { model, wrapper } = harness()
     await model.load()
-    model.source.value = 'qidian'
     await model.acquire(candidate)
-    expect(mocks.api).not.toHaveBeenCalledWith(expect.stringContaining('/sources/fanqie'), expect.anything())
+    expect(mocks.api).toHaveBeenCalledWith(expect.stringContaining('/sources/fanqie'), expect.anything())
     await model.acquire({ ...candidate, provider: 'qidian', providerId: '1010868264' })
     expect(mocks.api).toHaveBeenCalledWith(
       '/api/v1/libraries/3/sources/qidian',
@@ -253,9 +274,22 @@ describe('download task language changes', () => {
 describe('novel source keyword browsing', () => {
   it('requests multiple partial-title results instead of single-book matching', async () => {
     const { model, wrapper } = harness()
+    mocks.hasPermission.mockReturnValue(true)
+    mocks.api.mockImplementation((url: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            url.endsWith('/status')
+              ? { fanqie: { configured: true, enabled: true }, qidian: { configured: true, enabled: true } }
+              : { items: [], nextCursor: null },
+          ),
+        ),
+      ),
+    )
+    await model.load()
     model.title.value = ' 我在 '
     await model.search()
-    expect(mocks.search).toHaveBeenLastCalledWith(expect.objectContaining({ title: '我在', resultsPerProvider: 20, providers: ['fanqie'] }))
+    expect(mocks.search).toHaveBeenLastCalledWith(expect.objectContaining({ title: '我在', resultsPerProvider: 20, providers: ['fanqie', 'qidian'] }))
     wrapper.unmount()
   })
 })

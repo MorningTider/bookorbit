@@ -81,6 +81,11 @@ function mergeSimpleConfig<T extends SimpleProviderConfig>(base: T, value: unkno
   } as T;
 }
 
+function mergeDownloadConfig(base: SimpleProviderConfig & { downloadEnabled?: boolean }, value: unknown) {
+  const next = asObject(value);
+  return { enabled: asBoolean(next.enabled, base.enabled), downloadEnabled: asBoolean(next.downloadEnabled, base.downloadEnabled ?? true) };
+}
+
 function mergeITunesConfig(base: ProviderConfigurations['itunes'], value: unknown): ProviderConfigurations['itunes'] {
   const next = asObject(value);
   return {
@@ -226,8 +231,8 @@ export class ProviderConfigService {
       comicvine: mergeComicVineConfig(base.comicvine, next.comicvine),
       baiduBaike: mergeSimpleConfig(base.baiduBaike, next.baiduBaike),
       qimao: mergeSimpleConfig(base.qimao, next.qimao),
-      qidian: mergeSimpleConfig(base.qidian, next.qidian),
-      fanqie: mergeSimpleConfig(base.fanqie, next.fanqie),
+      qidian: mergeDownloadConfig(base.qidian, next.qidian),
+      fanqie: mergeDownloadConfig(base.fanqie, next.fanqie),
       douban: mergeSimpleConfig(base.douban, next.douban),
       ranobedb: mergeSimpleConfig(base.ranobedb, next.ranobedb),
       kobo: mergeKoboConfig(base.kobo, next.kobo),

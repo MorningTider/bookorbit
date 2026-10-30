@@ -136,8 +136,8 @@ export interface AladinProviderConfig {
 export interface ProviderConfigurations {
   baiduBaike: SimpleProviderConfig;
   qimao: SimpleProviderConfig;
-  qidian: SimpleProviderConfig;
-  fanqie: SimpleProviderConfig;
+  qidian: SimpleProviderConfig & { downloadEnabled?: boolean };
+  fanqie: SimpleProviderConfig & { downloadEnabled?: boolean };
   douban: SimpleProviderConfig;
   google: GoogleProviderConfig;
   amazon: AmazonProviderConfig;

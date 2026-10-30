@@ -1,7 +1,7 @@
 import { sourceResponseError, sourceErrorMessage } from './source-errors'
 import { i18n } from '@/i18n'
 import { selectSourceDestination } from './source-destination'
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { MetadataProviderKey, Permission } from '@bookorbit/types'
 import type {
@@ -34,7 +34,6 @@ export function useFanqieAcquisition() {
   const { libraries, fetchLibraries } = useLibraries()
   const { hasPermission } = usePermissions()
   const { user } = useAuth()
-  const source = ref<'fanqie' | 'qidian'>('fanqie')
   const title = ref('')
   const customSources = ref<PublicChapterSource[]>([])
   const customSource = ref('')
@@ -61,15 +60,19 @@ export function useFanqieAcquisition() {
         (user.value?.isSuperuser || library.accessLevel === 'editor' || library.accessLevel === 'owner'),
     ),
   )
-  const fanqieEnabled = computed(() => metadata.providers.value.some((provider) => provider.key === source.value))
-  const configured = computed(() => status.value?.[source.value]?.configured === true)
-
-  watch(source, () => {
-    metadata.cancel()
-    metadata.results.value = []
-    if (metadata.hasSearched) metadata.hasSearched.value = false
-    error.value = null
-  })
+  const enabledSources = computed(() =>
+    [MetadataProviderKey.FANQIE, MetadataProviderKey.QIDIAN].filter(
+      (key) => metadata.providers.value.some((provider) => provider.key === key) && status.value?.[key]?.enabled !== false && status.value !== null,
+    ),
+  )
+  const fanqieEnabled = computed(() => enabledSources.value.length > 0)
+  const configured = computed(() => enabledSources.value.some((key) => status.value?.[key]?.configured === true))
+  function canDownload(candidate: MetadataCandidate) {
+    return (
+      enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian') &&
+      status.value?.[candidate.provider as 'fanqie' | 'qidian']?.configured === true
+    )
+  }
 
   async function readResponse<T>(response: Response): Promise<T> {
     const data: unknown = await response.json().catch(() => null)
@@ -151,8 +154,8 @@ export function useFanqieAcquisition() {
   }
 
   function canRetry(job: BookSourceJob) {
-    if (!job.source || job.source === 'fanqie') return status.value?.fanqie.configured === true
-    if (job.source === 'qidian') return status.value?.qidian?.configured === true
+    if (!job.source || job.source === 'fanqie') return enabledSources.value.includes('fanqie') && status.value?.fanqie.configured === true
+    if (job.source === 'qidian') return enabledSources.value.includes('qidian') && status.value?.qidian?.configured === true
     return customSources.value.some((item) => item.key === job.source)
   }
 
@@ -173,12 +176,12 @@ export function useFanqieAcquisition() {
   }
 
   async function search() {
-    if (!title.value.trim()) return
+    if (!title.value.trim() || !enabledSources.value.length) return
     error.value = null
     try {
       await metadata.search({
         title: title.value.trim(),
-        providers: [source.value === 'qidian' ? MetadataProviderKey.QIDIAN : MetadataProviderKey.FANQIE],
+        providers: enabledSources.value,
         mediaKind: 'ebook',
         resultsPerProvider: 20,
       })
@@ -188,13 +191,13 @@ export function useFanqieAcquisition() {
   }
 
   async function acquire(candidate: MetadataCandidate) {
-    if (!canAcquire.value || !configured.value || !libraryId.value || pendingId.value || candidate.provider !== source.value) return
+    if (!canAcquire.value || !canDownload(candidate) || !libraryId.value || pendingId.value) return
     pendingId.value = candidate.providerId
     error.value = null
     try {
       const body: FanqieAcquisitionRequest = { bookId: candidate.providerId }
       await readResponse<BookSourceJob>(
-        await api(`/api/v1/libraries/${libraryId.value}/sources/${source.value}`, {
+        await api(`/api/v1/libraries/${libraryId.value}/sources/${candidate.provider}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -248,7 +251,8 @@ export function useFanqieAcquisition() {
   })
   return {
     title,
-    source,
+    enabledSources,
+    canDownload,
     customSources,
     customSource,
     customBookId,
@@ -271,7 +275,7 @@ export function useFanqieAcquisition() {
     nextPage,
     firstPage,
     statusLabel,
-    results: computed(() => metadata.results.value.filter((candidate) => candidate.provider === source.value)),
+    results: computed(() => metadata.results.value.filter((candidate) => enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian'))),
     isSearching: metadata.isStreaming,
     hasSearched: metadata.hasSearched,
     providerErrors: metadata.interruptedProviders,

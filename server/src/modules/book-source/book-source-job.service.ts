@@ -1,3 +1,4 @@
+import { DownloadSourcePolicy } from './download-source-policy.service';
 import { BadRequestException } from '@nestjs/common';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { ForbiddenException, Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
@@ -34,6 +35,7 @@ export function sourceJobResponse(job: typeof bookSourceJobs.$inferSelect): Book
 export class BookSourceJobService {
   private readonly logger = new Logger(BookSourceJobService.name);
   constructor(
+    private readonly downloadPolicy: DownloadSourcePolicy,
     private readonly repository: BookSourceJobRepository,
     private readonly libraries: LibraryService,
     private readonly rules: ChapterRuleRegistry,
@@ -42,6 +44,7 @@ export class BookSourceJobService {
 
   async enqueue(libraryId: number, folderId: number | undefined, bookId: string, user: RequestUser) {
     return this.mutate('book_source.enqueue', `userId=${user.id} libraryId=${libraryId}`, async () => {
+      await this.downloadPolicy.assertEnabled('fanqie');
       tomatoBookId(bookId);
       if (!this.config.tomatoBinaryPath) throw new ServiceUnavailableException('番茄下载器未配置');
       await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
@@ -51,6 +54,7 @@ export class BookSourceJobService {
 
   async enqueueQidian(libraryId: number, folderId: number | undefined, bookId: string, user: RequestUser) {
     return this.mutate('book_source.enqueue', `userId=${user.id} libraryId=${libraryId}`, async () => {
+      await this.downloadPolicy.assertEnabled('qidian');
       qidianBookId(bookId);
       await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
       return sourceJobResponse(await this.repository.enqueue(user.id, libraryId, folderId, `qidian:${bookId}`));
@@ -86,6 +90,8 @@ export class BookSourceJobService {
     return this.mutate('book_source.retry', `jobId=${id} userId=${user.id}`, async () => {
       const job = await this.repository.owned(id, user.id);
       if (!user.active) throw new ForbiddenException();
+      if (job.sourceBookId.startsWith('qidian:')) await this.downloadPolicy.assertEnabled('qidian');
+      else if (!job.sourceBookId.includes(':')) await this.downloadPolicy.assertEnabled('fanqie');
       await this.libraries.verifyUserAccessLevel(user.id, job.libraryId, user.isSuperuser, 'editor');
       if (job.sourceBookId.includes(':') && !job.sourceBookId.startsWith('qidian:')) await this.rules.get(job.sourceBookId.split(':')[0]!);
       if (!job.sourceBookId.includes(':') && !this.config.tomatoBinaryPath) throw new ServiceUnavailableException('番茄下载器未配置');

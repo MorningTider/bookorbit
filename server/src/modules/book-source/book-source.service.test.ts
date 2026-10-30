@@ -1,3 +1,4 @@
+import { DownloadSourcePolicy } from './download-source-policy.service';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { ChapterDownloadService } from './chapter-download.service';
 import { QidianChapterSource } from './qidian-chapter-source';
@@ -20,6 +21,7 @@ const download = vi.fn();
 async function service() {
   const module = await Test.createTestingModule({
     providers: [
+      { provide: DownloadSourcePolicy, useValue: { enabled: () => Promise.resolve(true), assertEnabled: () => Promise.resolve(undefined) } },
       { provide: ChapterRuleRegistry, useValue: { all: vi.fn().mockResolvedValue([]), get: vi.fn().mockResolvedValue({ key: 'sample' }) } },
       BookSourceService,
       { provide: ChapterDownloadService, useValue: { download: vi.fn() } },
@@ -65,7 +67,7 @@ describe('Book source acquisition', () => {
     expect(upload).not.toHaveBeenCalled();
   });
   it('does not expose executable paths in source status', async () => {
-    expect((await service()).status()).toMatchObject({
+    expect(await (await service()).status()).toMatchObject({
       fanqie: { configured: true, format: 'epub' },
       qidian: { configured: true, scope: 'public-free-volumes' },
     });

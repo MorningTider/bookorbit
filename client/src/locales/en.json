@@ -14344,7 +14344,7 @@
     "publicScope": "Downloads an EPUB collection of explicitly public free volumes only. VIP volumes and limited-time offers are excluded. The file is labeled as a selection, not a complete book. Any failed or restricted chapter stops the task.",
     "fanqieScope": "Search Fanqie and download EPUB to your selected library, preserving embedded metadata and cover.",
     "qimaoUnavailable": "Qimao currently supports metadata search only. Chapter downloading is not available.",
-    "enableProvider": "Enable the selected source in metadata provider settings first.",
+    "enableProvider": "No novel download source is enabled. Configure sources under Settings > Metadata > Providers.",
     "search": "Search source",
     "searchFailed": "The source search failed. Please retry later.",
     "acquirePublic": "Download free chapter selection",
@@ -14396,7 +14396,11 @@
     "noResults": "No matching books. Try part of the title or another keyword.",
     "collapseSynopsis": "Collapse synopsis",
     "keywordHint": "Search with a full title or part of a title. Select a destination library before downloading.",
-    "queuedNotice": "Download queued. Follow its progress in download tasks."
+    "queuedNotice": "Download queued. Follow its progress in download tasks.",
+    "downloadSettings": "Novel download sources",
+    "downloadSettingsHint": "Enable the provider above, then choose whether to include it in novel search and downloads. Turning this off does not affect metadata matching. Save changes to apply.",
+    "downloadToggle": "Enable downloads from {source}",
+    "combinedScope": "Search all enabled novel download sources together. Each result shows its source; Qidian downloads contain public free chapters only."
   },
   "uiText": {
     "sheetContent": {

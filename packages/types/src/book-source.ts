@@ -6,8 +6,8 @@ export interface FanqieAcquisitionRequest {
 export type ChapterAcquisitionRequest = FanqieAcquisitionRequest;
 
 export interface BookSourceStatus {
-  qidian?: { configured: boolean; format: "epub"; scope: "public-free-volumes" };
-  fanqie: { configured: boolean; format: "epub" };
+  qidian?: { enabled?: boolean; configured: boolean; format: "epub"; scope: "public-free-volumes" };
+  fanqie: { enabled?: boolean; configured: boolean; format: "epub" };
 }
 
 export type BookSourceJobStatus = "queued" | "downloading" | "importing" | "completed" | "failed" | "cancelled";

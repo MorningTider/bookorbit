@@ -1,3 +1,4 @@
+import { DownloadSourcePolicy } from './download-source-policy.service';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { Test } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
@@ -24,9 +25,10 @@ const row = {
   createdAt: new Date(),
   updatedAt: new Date(),
 };
-async function service() {
+async function service(assertEnabled = () => Promise.resolve(undefined)) {
   const module = await Test.createTestingModule({
     providers: [
+      { provide: DownloadSourcePolicy, useValue: { enabled: () => Promise.resolve(true), assertEnabled } },
       { provide: ChapterRuleRegistry, useValue: { all: vi.fn().mockResolvedValue([]), get: vi.fn().mockResolvedValue({ key: 'sample' }) } },
       BookSourceJobService,
       { provide: BookSourceJobRepository, useValue: repository },
@@ -57,4 +59,15 @@ describe('chapter acquisition job identity and permissions', () => {
     expect(repository.owned).toHaveBeenCalledWith(1, 7);
     expect(repository.retry).toHaveBeenCalledWith(1, 7);
   });
+});
+
+it('rejects enqueue and retry for a disabled download source before mutating the queue', async () => {
+  repository.enqueue.mockClear();
+  repository.retry.mockClear();
+  repository.owned.mockResolvedValue(row);
+  const jobs = await service(() => Promise.reject(new ForbiddenException('disabled')));
+  await expect(jobs.enqueueQidian(3, undefined, '1010868264', user)).rejects.toThrow(ForbiddenException);
+  await expect(jobs.retry(1, user)).rejects.toThrow(ForbiddenException);
+  expect(repository.enqueue).not.toHaveBeenCalled();
+  expect(repository.retry).not.toHaveBeenCalled();
 });

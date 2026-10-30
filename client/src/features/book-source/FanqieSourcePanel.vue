@@ -9,7 +9,8 @@ import { useFanqieAcquisition } from './composables/useFanqieAcquisition'
 
 const { t } = useI18n()
 const {
-  source,
+  enabledSources,
+  canDownload,
   customSources,
   customSource,
   customBookId,
@@ -47,14 +48,12 @@ onMounted(load)
 
 <template>
   <section class="space-y-5 rounded-xl border border-border bg-card p-4 sm:p-6" :aria-label="t('chapterSources.panel')">
-    <label class="flex flex-wrap items-center gap-2 text-sm">
-      {{ t('chapterSources.source') }}
-      <select v-model="source" :disabled="pendingId !== null || isSearching" class="rounded-md border border-input bg-background px-3 py-2">
-        <option value="fanqie">{{ t('chapterSources.fanqie') }}</option>
-        <option value="qidian">{{ t('chapterSources.qidian') }}</option>
-      </select>
-    </label>
-    <p class="text-sm text-muted-foreground">{{ t(source === 'qidian' ? 'chapterSources.publicScope' : 'chapterSources.fanqieScope') }}</p>
+    <p class="text-sm text-muted-foreground">{{ t('chapterSources.combinedScope') }}</p>
+    <div class="flex flex-wrap gap-2">
+      <span v-for="key in enabledSources" :key="key" class="rounded-full bg-muted px-3 py-1 text-xs">{{
+        t(key === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian')
+      }}</span>
+    </div>
     <p v-if="!configured && canAcquire" role="status" class="text-sm text-muted-foreground">{{ t('chapterSources.downloaderUnavailable') }}</p>
     <p v-if="!fanqieEnabled" role="status" class="text-sm text-muted-foreground">{{ t('chapterSources.enableProvider') }}</p>
     <label v-if="canAcquire" class="flex flex-wrap items-center gap-2 text-sm">
@@ -99,7 +98,7 @@ onMounted(load)
     </form>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
     <p v-for="failure in providerErrors" :key="failure.provider" role="alert" class="text-sm text-destructive">
-      {{ t('chapterSources.searchFailed') }}
+      {{ t(failure.provider === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian') }}: {{ t('chapterSources.searchFailed') }}
     </p>
     <div v-if="pendingId" role="status" class="flex items-center gap-2 text-sm">
       <Loader2 class="size-4 animate-spin" aria-hidden="true" />{{ t('chapterSources.submitting') }}
@@ -113,10 +112,14 @@ onMounted(load)
         {{ t('chapterSources.noResults') }}
       </p>
       <ul class="grid gap-4 lg:grid-cols-2">
-        <li v-for="book in results" :key="book.providerId" class="flex flex-col gap-4 rounded-lg border border-border bg-background p-4">
+        <li
+          v-for="book in results"
+          :key="`${book.provider}:${book.providerId}`"
+          class="flex flex-col gap-4 rounded-lg border border-border bg-background p-4"
+        >
           <SourceBookPreview :book="book" />
-          <Button v-if="canAcquire" :disabled="!configured || !libraryId || pendingId !== null" @click="acquire(book)">{{
-            t(source === 'qidian' ? 'chapterSources.acquirePublic' : 'chapterSources.acquire')
+          <Button v-if="canAcquire" :disabled="!canDownload(book) || !libraryId || pendingId !== null" @click="acquire(book)">{{
+            t(book.provider === 'qidian' ? 'chapterSources.acquirePublic' : 'chapterSources.acquire')
           }}</Button>
         </li>
       </ul>

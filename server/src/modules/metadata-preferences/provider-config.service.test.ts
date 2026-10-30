@@ -57,6 +57,13 @@ describe('ProviderConfigService', () => {
     vi.unstubAllGlobals();
   });
 
+  it('persists download switches independently without disabling metadata', async () => {
+    db.__tx.query.appSettings.findFirst.mockResolvedValue({ value: JSON.stringify({ fanqie: { enabled: true } }) });
+    const config = await service.updateConfig({ fanqie: { downloadEnabled: false } });
+    expect(config.fanqie).toEqual({ enabled: true, downloadEnabled: false });
+    expect(JSON.parse(db.__txInsertChain.values.mock.calls[0]![0].value)).toMatchObject({ fanqie: { enabled: true, downloadEnabled: false } });
+  });
+
   it('returns defaults when no stored config exists', async () => {
     db.query.appSettings.findFirst.mockResolvedValue(undefined);
 

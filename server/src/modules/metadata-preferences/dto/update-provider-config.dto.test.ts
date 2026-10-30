@@ -72,3 +72,16 @@ describe('UpdateProviderConfigDto', () => {
     );
   });
 });
+
+it('validates independent download flags through the production whitelist', async () => {
+  const pipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true });
+  await expect(
+    pipe.transform(
+      { fanqie: { downloadEnabled: false }, qidian: { downloadEnabled: true } },
+      { type: 'body', metatype: UpdateProviderConfigDto, data: undefined },
+    ),
+  ).resolves.toMatchObject({ fanqie: { downloadEnabled: false }, qidian: { downloadEnabled: true } });
+  await expect(
+    pipe.transform({ fanqie: { downloadEnabled: 'yes' } }, { type: 'body', metatype: UpdateProviderConfigDto, data: undefined }),
+  ).rejects.toThrow();
+});

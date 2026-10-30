@@ -26,6 +26,9 @@ function onCoverError() {
       <BookOpen v-else class="size-8 text-muted-foreground" aria-hidden="true" />
     </div>
     <div class="min-w-0 space-y-2">
+      <span class="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{{
+        t(book.provider === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian')
+      }}</span>
       <h3 class="break-words text-base font-semibold">{{ book.title }}</h3>
       <p class="text-sm text-muted-foreground">{{ book.authors?.join('、') || t('chapterSources.unknownAuthor') }}</p>
       <p v-if="book.genres?.length" class="text-xs text-muted-foreground">{{ book.genres.join(' · ') }}</p>

@@ -17,6 +17,10 @@ export class SimpleProviderConfigDto {
   @IsOptional() @IsBoolean() enabled?: boolean;
 }
 
+export class DownloadProviderConfigDto extends SimpleProviderConfigDto {
+  @IsOptional() @IsBoolean() downloadEnabled?: boolean;
+}
+
 export class ITunesProviderConfigDto {
   @IsOptional() @IsBoolean() enabled?: boolean;
   @IsOptional() @IsIn(ITUNES_COVER_RESOLUTIONS) coverResolution?: (typeof ITUNES_COVER_RESOLUTIONS)[number];
@@ -49,7 +53,7 @@ export class AladinProviderConfigDto {
 }
 
 export class UpdateProviderConfigDto {
-  @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) qidian?: SimpleProviderConfigDto;
+  @IsOptional() @ValidateNested() @Type(() => DownloadProviderConfigDto) qidian?: DownloadProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) qimao?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) baiduBaike?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => GoogleProviderConfigDto) google?: GoogleProviderConfigDto;
@@ -63,7 +67,7 @@ export class UpdateProviderConfigDto {
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) librofm?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => ComicVineProviderConfigDto) comicvine?: ComicVineProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) douban?: SimpleProviderConfigDto;
-  @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) fanqie?: SimpleProviderConfigDto;
+  @IsOptional() @ValidateNested() @Type(() => DownloadProviderConfigDto) fanqie?: DownloadProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) ranobedb?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => KoboProviderConfigDto) kobo?: KoboProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) lubimyczytac?: SimpleProviderConfigDto;

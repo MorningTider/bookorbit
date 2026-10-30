@@ -14344,7 +14344,7 @@
     "publicScope": "仅下载明确公开的免费卷，排除 VIP 卷与限免章节。生成文件标注为“公开免费章节选集”，不是整本作品；任一章节失败或受限即停止任务。",
     "fanqieScope": "搜索番茄小说，选择目标书库后下载 EPUB，保留内嵌的封面和元数据。",
     "qimaoUnavailable": "七猫目前仅支持元数据搜索，暂未开放章节下载。",
-    "enableProvider": "请先在元数据提供商设置中启用所选来源。",
+    "enableProvider": "尚未开启小说下载来源，请前往设置 → 元数据 → 提供商配置。",
     "search": "搜索书源",
     "searchFailed": "来源搜索未完成，请稍后重试。",
     "acquirePublic": "下载免费章节选集",
@@ -14396,7 +14396,11 @@
     "noResults": "未找到匹配书籍，请尝试部分书名或其他关键词。",
     "collapseSynopsis": "收起简介",
     "keywordHint": "支持输入完整书名或部分关键词。选择目标书库后即可提交下载。",
-    "queuedNotice": "已加入下载队列，可在下方下载任务中查看进度。"
+    "queuedNotice": "已加入下载队列，可在下方下载任务中查看进度。",
+    "downloadSettings": "小说下载来源",
+    "downloadSettingsHint": "先启用上方对应提供商，再选择是否用于小说搜索与下载。关闭此开关不影响元数据刮削，修改后请保存。",
+    "downloadToggle": "开启{source}下载来源",
+    "combinedScope": "统一搜索设置中已开启的小说下载来源，结果标注对应书源。起点仅下载公开免费章节。"
   },
   "uiText": {
     "sheetContent": {

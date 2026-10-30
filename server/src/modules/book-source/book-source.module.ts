@@ -1,3 +1,5 @@
+import { DownloadSourcePolicy } from './download-source-policy.service';
+import { MetadataPreferencesModule } from '../metadata-preferences/metadata-preferences.module';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { ChapterRulesController } from './chapter-rules.controller';
 import { ChapterDownloadService } from './chapter-download.service';
@@ -14,9 +16,10 @@ import { BookSourceService } from './book-source.service';
 import { BookSourceController } from './book-source.controller';
 
 @Module({
-  imports: [LibraryModule, UploadModule, AuthModule],
+  imports: [LibraryModule, UploadModule, AuthModule, MetadataPreferencesModule],
   controllers: [BookSourceController, ChapterRulesController],
   providers: [
+    DownloadSourcePolicy,
     ChapterRuleRegistry,
     ChapterDownloadService,
     QidianChapterSource,

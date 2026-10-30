@@ -1,3 +1,4 @@
+import { DownloadSourcePolicy } from './download-source-policy.service';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { RuleChapterSource } from './rule-chapter-source';
 import type { BookSourceStatus } from '@bookorbit/types';
@@ -19,6 +20,7 @@ import { tomatoBookId } from './tomato-protocol';
 export class BookSourceService {
   private readonly logger = new Logger(BookSourceService.name);
   constructor(
+    private readonly downloadPolicy: DownloadSourcePolicy,
     @Inject(bookSourceConfig.KEY) private readonly config: ConfigType<typeof bookSourceConfig>,
     private readonly libraries: LibraryService,
     private readonly upload: UploadService,
@@ -29,10 +31,15 @@ export class BookSourceService {
     private readonly rules: ChapterRuleRegistry,
   ) {}
 
-  status(): BookSourceStatus {
+  async status(): Promise<BookSourceStatus> {
     return {
-      fanqie: { configured: this.config.tomatoBinaryPath.length > 0, format: 'epub' as const },
-      qidian: { configured: true, format: 'epub' as const, scope: 'public-free-volumes' as const },
+      fanqie: { enabled: await this.downloadPolicy.enabled('fanqie'), configured: this.config.tomatoBinaryPath.length > 0, format: 'epub' as const },
+      qidian: {
+        enabled: await this.downloadPolicy.enabled('qidian'),
+        configured: true,
+        format: 'epub' as const,
+        scope: 'public-free-volumes' as const,
+      },
     };
   }
 
@@ -67,6 +74,7 @@ export class BookSourceService {
     signal: AbortSignal,
     beforeImport?: (title: string) => Promise<void>,
   ) {
+    await this.downloadPolicy.assertEnabled('qidian');
     qidianBookId(bookId);
     await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
     const file = await this.chapters.download(this.qidian, bookId, signal);
@@ -84,6 +92,7 @@ export class BookSourceService {
     signal: AbortSignal,
     beforeImport?: (title: string) => Promise<void>,
   ) {
+    await this.downloadPolicy.assertEnabled('fanqie');
     tomatoBookId(bookId);
     await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
     const startedAt = Date.now();
