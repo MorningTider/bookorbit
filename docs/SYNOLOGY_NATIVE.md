@@ -456,3 +456,23 @@ TIFF的build/gitlab-ci.ps1在发布归档中使用CRLF，固定Git提交使用LF
 最终以同一源码 a316516b 和同一载荷构建自用正式 3.5.0-10025，SHA256 1d260bfc52b9b40378df20eb8d4732f7e98d85b73585c5637baae30f01789da5，通过 DSM 套件中心安装。实际运行 stable/private、pending 为空、无 Beta 标识；12 项生产 API、10 项本地及公网条件缓存请求通过，上传模块、上传服务和扫描服务三份已安装文件哈希与构建来源一致。最终收据 local/synology-native/lifecycle-check/conversion-race-final-10025.json，最终包 local/synology-native/spk/conversion-race-private-stable-10025/bookorbit-native_x86_64_3.5.0-10025.spk。升级后再次比对两组原文件、元数据及阅读记录摘要通过。
 
 未创建数据库备份。按用户要求删除本轮旧 10023 和中间 10024 SPK，仅保留最新 10025；清理两次 DSM 升级自动生成的两个 service.json 备份目录，保留在线配置，database/pg/backups 仍为空。临时副本与库已清理，未直接写库修复生产条目。本轮验收覆盖正常转换、慢提交保护、重复扫描与已出现的重复条目；不将进程崩溃或断电中断转换等未实测场景宣称为全部验证。
+
+## 2026-10-31 小说下载页与聚合来源验收
+
+用户反馈下载页交互、部分书名搜索及封面简介缺失，并要求按设置自动聚合来源、结果标注书源。真实番茄接口对“我在”返回多本书和完整元数据；旧页复用单书匹配流程，短关键词被相关性阈值过滤，且模板未渲染封面。baeeb577 对显式番茄/起点浏览保留标题包含关键词的候选，仍保留单书自动匹配与其他提供商规则；页面请求最多 20 条，实际数量由提供商与相关性过滤决定。
+
+a507f70f 取消单来源下拉框，聚合已启用的可下载来源。设置 → 元数据 → 提供商新增“小说下载来源”，番茄、起点各有独立 downloadEnabled；先启用提供商，下载开关仅控制小说搜索与下载，不关闭元数据刮削。已有配置未声明此字段时兼容原有可用来源。严格嵌套 DTO 校验布尔值，复用配置事务持久化，无数据库结构变更。DownloadSourcePolicy 在提交、重试及后台下载开始处执行服务器校验。每条结果按自身来源提交，不依赖页面的全局选择。起点仍限定公开免费章节。
+
+结果卡片展示封面、书名、作者、分类、可展开简介和来源标记；封面失败显示占位。搜索区增加加载与空结果反馈，结果放在任务区之前，下载入队显示提示。新文案使用 en/zh 国际化。前端书源及设置 46 项、后端搜索、配置与任务 230 项通过，另有 7 项数据库专用测试本机跳过；前后端类型和正常提交静态检查通过。
+
+10026 仅构建，因后续聚合需求未安装。10027 包含完整需求，通过 DSM 套件中心安装。首次生成包因 Mac 磁盘空间不足失败，清理本轮已被替代的四个忽略构建目录后，以相同来源重新构建成功；未因此改动群晖服务。DSM 第一次上传遇到会话异常，刷新后重新上传成功，未执行重复安装。
+
+10027 真实页面搜索“我在”返回 11 条，10 条番茄、1 条起点，11 张封面 naturalWidth 均大于 0，标题、简介与来源标记可见。简介展开/收起与 390 像素手机宽度无横向溢出通过。设置页暂时关闭起点下载并保存，后续真实请求 providers=fanqie、resultsPerProvider=20；起点元数据开关仍为 true，持久配置为 enabled=true/downloadEnabled=false。随后从页面恢复两个下载来源，保存返回 200。未为了测试额外下载或添加书籍，生产仍为 18 本书。
+
+候选 12 项原生生产 API 通过；浏览器验收摘要 local/synology-native/lifecycle-check/novel-aggregation-browser-10027.json，正式准备记录 private-stable-readiness-10027.json。截图和收据不含凭据，均为忽略的本地验收材料。
+
+最终自用正式包 3.5.0-10028 由相同 a507f70f 与同一载荷构建，SHA256 ae4a90aa2704a170c35e65f88073e3b3708892ae69ecd3c05c0dc010457b5235，已通过 DSM 套件中心升级。实际 stable/private、无 Beta、pending 为空。正式版 13 项生产 API（含两个下载来源恢复开启）、10 项本地/公网缓存检查及 8 份后端与页面文件哈希核验通过；真实浏览器最终请求 providers=fanqie,qidian、resultsPerProvider=20、目标电子书库 1，入口 index-BdJ09rH5.js 与已装版本一致。最终收据 local/synology-native/lifecycle-check/novel-aggregation-final-10028.json，安装包 local/synology-native/spk/novel-aggregation-private-stable-10028/bookorbit-native_x86_64_3.5.0-10028.spk。
+
+未创建数据库备份。旧 10025 与中间 10026/10027 安装包已清理，只保留最新 10028；两个 DSM 自动配置备份目录已清理，保留在线 service.json，数据库备份目录为空，应用数据目录内无历史 SPK。源码、固定依赖和当前构建保留，历史中间构建按带清单的忽略目录清理，以避免磁盘再次耗尽。本轮没有新增实际下载书籍；下载任务路由、队列反馈和禁用校验由相关回归覆盖，真实页面验收覆盖搜索与来源开关，不描述成新书正文下载已完成。
+
+历史构建清理完成：根据构建清单核验后移除 40 个旧 hash stage 和 14 个旧 source-build 输出，保留当前 a507f70f 的三层 stage、最新源码构建、固定依赖、Git 源码和唯一最新 10028 SPK。可用空间恢复约 59.2 GiB；摘要 local/synology-native/lifecycle-check/novel-build-cleanup-10028.json。
