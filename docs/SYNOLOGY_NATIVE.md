@@ -514,3 +514,19 @@ a507f70f 取消单来源下拉框，聚合已启用的可下载来源。设置 �
 通过现有“服务端字体”页面导入五个官方未修改字体：Noto Serif CJK SC Regular/Bold、Noto Sans CJK SC Regular/Bold、LXGW WenKai Regular，共 3 个字体家族、5 个文件，页面全部返回已添加。浏览器 document.fonts 的五个字形均为 loaded，常规为 400、粗体为 700。字体不是塞入安装包的临时文件，数据存放在应用 data/fonts；该目录下 licenses 保存三份 SIL Open Font License 和来源清单。notofonts/noto-cjk 固定提交 f8d157532fbfaeda587e826d4cd5b21a49186f7c，LXGW WenKai v1.530，完整 URL、大小和 SHA256 见 scripts/synology/native/reading-fonts-manifest.json。没有导入系统专有字体，也没有更改用户默认阅读字体。
 
 下载来源滑动开关代码已完成，11 项原有提供商筛选/保存测试通过；增加按钮后，测试工具按 aria-labelledby 区分提供商与独立下载开关，避免混为一组。尚待本轮组合包部署后页面验收，不能仅凭源码修改记为已上线。
+
+## 2026-11-01 自用正式 10037 交付完成
+
+本条更新前述 10034/10035/待部署记录：10036 候选与 10037 自用正式包均通过 DSM 上传安装，源码 c53026122d2b77edd72daac822027e5ea89d54cd，打包提交 ddc2900b。10037 的 releaseChannel=stable、INFO 无 beta 字段、DSM 状态 running/status_code=0。正式包 SHA-256：e153bdcc92de923c59ed2ccdb1dd33d691ebfb47c8990c8607e329499a807d88。保留最终安装包 local/synology-native/spk/private-stable-10037/bookorbit-native_x86_64_3.5.0-10037.spk。
+
+升级流程已改为核对源码、载荷、迁移、已审阅前置版本及策略摘要，再以套件普通账号运行包内迁移。PG18 隔离数据库由 127 条迁移增量升到 130 条且哨兵数据保留；生产 10036 正常应用剩余 0129，10037 同 schema 升级正常完成。没有数据库备份。旧故障记录保留用于回归，不代表当前套件仍损坏。
+
+页面验收：先打开作者编辑框、再放行延迟的元数据请求，头像保存勾选会出现且默认开启；未提交该作者修改。刘慈欣已通过页面保存，正式包作者列表及刷新后头像加载成功。源码针对性 19 项测试、格式和 ESLint 通过。字体 5 家族 7 文件在正式包页面全部 FontFace.load 成功，中文分类并保留唯一原字体名；开放许可和摘要留存在字体数据目录。
+
+小说下载来源已使用圆形 role=switch；保留用户原状态（番茄开、起点关），未擅自开启来源。猎罪神探真实搜索展示“✓ 已入库”和“? 可能已入库”及正确书目链接。临时书库从页面创建为 book_per_file，验证 TXT 首次上传、同路径不同内容确认、替换后不增书、明确新建后两本、完整哈希命中、刷新后待确认恢复、独立规则保存和恢复全局继承。其目录最初继承只读 ACL 导致验收上传 500，补充该临时目录的套件写权限后通过；未改原库 ACL。
+
+临时书库和样书已从页面删除，其两个 TXT 所在独立目录随后清理。本机两个专用测试数据库容器已移除。正式包 12 项生产 API、10 项静态缓存、8 份关键前后端文件摘要均通过。原 23 本书、6482 文件、元数据、16 位作者、26 条作者关系、9 条阅读状态、5 条阅读进度的完整行摘要与升级前全部一致。
+
+证据：local/synology-native/lifecycle-check/private-stable-10037-acceptance.json、private-stable-10037-data-check.json、private-stable-readiness-10036.json、schema-upgrade-c5302612.json；页面与隔离验收材料见 local/synology-native/reports/stable-10037/。5 个本机历史 SPK 已删除，保留最终正式包；服务器升级自动配置副本按既有清理授权移除，当前配置、字体和业务数据库保留。源码与文档仅本地提交，不推送。
+
+能力边界：上传/断点上传/小说/Book Dock 及追加、替换的跨媒体组合由本机相关回归与 PG18 七项真实 HTTP 测试覆盖，不能把本次临时 TXT 页面验收写成所有媒体、全部故障组合实机穷举通过。Android 实机、公开发行材料及未执行的整机重启验收等原有后置事项不因本次交付自动完成。

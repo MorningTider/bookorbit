@@ -63,6 +63,18 @@
       "url": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/v1.530/OFL.txt",
       "bytes": 5171,
       "sha256": "1a25e35da1031c6c3436fde545bb9cb5aca954e9873afe510c834b8b79bd21a0"
+    },
+    {
+      "name": "Zhuque-OFL.txt",
+      "url": "https://raw.githubusercontent.com/TrionesType/zhuque/main/OFL.txt",
+      "bytes": 4389,
+      "sha256": "66cc01ad4df62fca6936431a426104cb32a52ce8da49de9a7d643e02d7659043"
+    },
+    {
+      "name": "ZhenKai-OFL.txt",
+      "url": "https://raw.githubusercontent.com/lxgw/LxgwZhenKai/main/OFL.txt",
+      "bytes": 5361,
+      "sha256": "1ee66a22ddfa5241d407a5fd9a2ba666c4de5700f17182d5ee729e0434e7b42d"
     }
   ]
 }
