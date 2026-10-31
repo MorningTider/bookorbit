@@ -28,9 +28,10 @@ def migration_digest(root):
     return result.hexdigest()
 
 
-def member(tar,path,name):
+def member(tar,path,name,mode=None):
     item=tar.gettarinfo(str(path),arcname=name)
     item.uid=item.gid=0;item.uname=item.gname='root';item.mtime=0
+    if mode is not None:item.mode=mode
     item.mode=0o755 if path.is_dir() or path.stat().st_mode&0o111 else 0o644
     if item.isfile():
         with path.open('rb') as stream:tar.addfile(item,stream)
@@ -48,7 +49,7 @@ def production_acceptance(path):
     return digest(pathlib.Path(path))
 
 
-def build(stage,report,output,revision=10000,production_report=None,private_stable_report=None):
+def build(stage,report,output,revision=10000,production_report=None,private_stable_report=None,schema_upgrade_report=None):
     here=pathlib.Path(__file__).resolve().parent
     repo=here.parents[2]
     stage=pathlib.Path(stage).resolve(strict=True);output=pathlib.Path(output).absolute()
@@ -61,6 +62,7 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
     if privilege != {'defaults':{'run-as':'package'},'username':'bookorbit-native','groupname':'bookorbit-native'}:raise ValueError('A dedicated ordinary package identity is required')
     proof=json.loads(pathlib.Path(report).read_text())
     controller=here/'native-service.py'
+    schema_policy=here/'schema-upgrade-policy.py'
     if proof.get('kind')!='synthetic-process-lifecycle' or proof.get('passed') is not True or proof.get('uid')==0 or proof.get('controllerSha256')!=digest(controller) or len(proof.get('checks',{}))<8 or not all(proof['checks'].values()):
         raise ValueError('Controller requires matching ordinary-account lifecycle acceptance')
     spec=importlib.util.spec_from_file_location('payload',here/'payload-contract.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -75,6 +77,12 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
     if digest(stage/'bin/node')!=runtime_lock['node']['binarySha256'] or digest(stage/'lib/libatomic.so.1')!=runtime_lock['libatomic']['binarySha256']:raise ValueError('Core runtime identity differs from lock')
     if (stage/'native-service.py').exists() or (stage/'acceptance-build.json').exists():raise ValueError('Reserved lifecycle destination already exists')
     metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packageVersion':'3.5.0-'+str(revision),'payloadInventorySha256':digest(stage.with_name(stage.name+'.inventory.json')),'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
+    metadata['schemaUpgradePolicySha256']=digest(schema_policy)
+    if schema_upgrade_report:
+        schema_spec=importlib.util.spec_from_file_location('schema_policy',schema_policy)
+        policy=importlib.util.module_from_spec(schema_spec);schema_spec.loader.exec_module(policy)
+        policy.validate_evidence(json.loads(pathlib.Path(schema_upgrade_report).read_text()),metadata)
+        metadata['schemaUpgradeAcceptanceSha256']=digest(schema_upgrade_report)
     if production_report:
         metadata.update(status='private-production-migration-candidate-not-public-release',productionEnabled=True,installedUpgradeAcceptanceSha256=production_acceptance(production_report))
     stable_policy=None
@@ -90,6 +98,8 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
                 with tarfile.open(fileobj=zipped,mode='w|',format=tarfile.PAX_FORMAT) as tar:
                     for path in sorted(stage.rglob('*')):member(tar,path,path.relative_to(stage).as_posix())
                     member(tar,controller,'native-service.py')
+                    member(tar,schema_policy,'schema-upgrade-policy.py')
+                    if schema_upgrade_report:member(tar,pathlib.Path(schema_upgrade_report),'schema-upgrade-acceptance.json',0o644)
                     data=(json.dumps(metadata,indent=2)+'\n').encode();entry=tarfile.TarInfo('acceptance-build.json');entry.size=len(data);entry.mode=0o644;entry.mtime=0;tar.addfile(entry,io.BytesIO(data))
         import shutil
         shutil.copytree(here/'spk/conf',outer/'conf');shutil.copytree(here/'spk/scripts',outer/'scripts')
@@ -111,4 +121,4 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--stage',required=True);parser.add_argument('--lifecycle-report',required=True);parser.add_argument('--output',required=True);parser.add_argument('--revision',type=int,default=10000);parser.add_argument('--production-acceptance-report');a=parser.parse_args();build(a.stage,a.lifecycle_report,a.output,a.revision,a.production_acceptance_report)
+    parser=argparse.ArgumentParser();parser.add_argument('--stage',required=True);parser.add_argument('--lifecycle-report',required=True);parser.add_argument('--output',required=True);parser.add_argument('--revision',type=int,default=10000);parser.add_argument('--production-acceptance-report');parser.add_argument('--schema-upgrade-report');a=parser.parse_args();build(a.stage,a.lifecycle_report,a.output,a.revision,a.production_acceptance_report,schema_upgrade_report=a.schema_upgrade_report)

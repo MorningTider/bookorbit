@@ -17,6 +17,7 @@ def verify(parent,output):
         root=pathlib.Path(temporary);package=root/'package';state=root/'state'
         package.mkdir();state.mkdir(mode=0o700)
         shutil.copyfile(here/'native-service.py',package/'native-service.py')
+        shutil.copyfile(here/'schema-upgrade-policy.py',package/'schema-upgrade-policy.py')
         original=b'{"schemaVersion":1,"mode":"isolated","testSecret":"synthetic-only"}\n'
         (state/'service.json').write_bytes(original);(state/'service.json').chmod(0o600)
         (state/'data').mkdir();(state/'data/keep.txt').write_text('retain application state')

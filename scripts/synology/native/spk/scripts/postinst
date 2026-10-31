@@ -9,5 +9,7 @@ example=state/'service.example.json'
 if not example.exists():
  with example.open('x') as target:json.dump({'schemaVersion':1,'mode':'isolated','port':18185,'environment':{'DATABASE_URL':'postgres://isolation:configure-before-start@127.0.0.1:5433/bookorbit_spk_pathcheck_configure','JWT_SECRET':'replace-with-a-random-isolated-signing-key','SETUP_BOOTSTRAP_TOKEN':'replace-with-a-random-isolated-setup-token','LIBRARY_BROWSE_ROOT':'/volume1/library','COVER_SLOTS_BACKFILL_MODE':'skip'}},target,indent=2)
  example.chmod(0o600)
-print('Installed in isolated acceptance mode. Private service.json and scoped library permissions must be configured before starting. Production is not selected.')
+config=state/'service.json'
+if config.is_file() and json.loads(config.read_text()).get('mode')=='production':print('Existing private production configuration retained. Schema acceptance is checked before DSM starts the service.')
+else:print('Private configuration and scoped library permissions must be configured before starting. Production is not selected by installation.')
 PY
