@@ -138,9 +138,9 @@ export class UploadProcessorService {
     relPath: string,
     format: string,
     sizeBytes: number,
-    options: { role?: BookFileRole; sortOrder?: number | null; uploadSessionId?: string } = {},
+    options: { role?: BookFileRole; sortOrder?: number | null; uploadSessionId?: string; importReviewId?: string } = {},
   ): Promise<{ bookId: number; created: boolean }> {
-    const { uploadSessionId, ...fileOptions } = options;
+    const { uploadSessionId, importReviewId, ...fileOptions } = options;
     const measured = await this.measureFile(absolutePath, format);
     const result = await this.db.transaction(async (tx) => {
       const upserted = await this.upsertBookFile(
@@ -159,6 +159,11 @@ export class UploadProcessorService {
       if (uploadSessionId) {
         await tx.update(uploadSessions).set({ resultBookId: upserted.bookId, updatedAt: new Date() }).where(eq(uploadSessions.id, uploadSessionId));
       }
+      if (importReviewId)
+        await tx
+          .update(schema.bookImportReviews)
+          .set({ status: 'completed', resultBookId: upserted.bookId, updatedAt: new Date() })
+          .where(eq(schema.bookImportReviews.id, importReviewId));
       return upserted;
     });
     return { bookId: result.bookId, created: result.createdBook };

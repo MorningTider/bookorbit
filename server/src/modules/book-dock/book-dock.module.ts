@@ -1,3 +1,6 @@
+import { SelfWriteRegistryModule } from '../../common/self-write-registry.module';
+import { ImportReviewModule } from '../import-review/import-review.module';
+import { BookDockDuplicateService } from './book-dock-duplicate.service';
 import { Module, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -26,6 +29,8 @@ import { BookDockRepository } from './book-dock.repository';
 
 @Module({
   imports: [
+    ImportReviewModule,
+    SelfWriteRegistryModule,
     UploadModule,
     AuthModule,
     BookModule,
@@ -46,6 +51,7 @@ import { BookDockRepository } from './book-dock.repository';
   ],
   controllers: [BookDockController],
   providers: [
+    BookDockDuplicateService,
     BookDockService,
     BookDockRepository,
     BookDockEventsService,

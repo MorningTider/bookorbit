@@ -1,3 +1,4 @@
+import { ImportReviewRequiredException } from '../import-review/import-review.service';
 import { BookSourceProgress } from './book-source-progress.service';
 import { Test } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
@@ -8,7 +9,7 @@ import { BookSourceService } from './book-source.service';
 import { BookSourceJobRepository } from './book-source-job.repository';
 import { BookSourceWorker } from './book-source-worker.service';
 
-const repository = { claim: vi.fn(), heartbeat: vi.fn(), beginImport: vi.fn(), finish: vi.fn() };
+const repository = { reconcileReviews: vi.fn(), claim: vi.fn(), heartbeat: vi.fn(), beginImport: vi.fn(), finish: vi.fn() };
 const sources = { acquireQidian: vi.fn(), acquireTomato: vi.fn() };
 const auth = { findActingUser: vi.fn() };
 const job = { id: 1, userId: 7, libraryId: 3, folderId: null, sourceBookId: '7290175791344651298' };
@@ -34,6 +35,21 @@ describe('BookSourceWorker durable orchestration', () => {
     repository.beginImport.mockResolvedValue(true);
     auth.findActingUser.mockResolvedValue({ ...user });
   });
+  it('retains a downloaded artifact for user choice instead of marking it failed or redownloading', async () => {
+    sources.acquireTomato.mockRejectedValue(new ImportReviewRequiredException({ id: 'review-uuid' } as never));
+    const instance = await worker();
+    await instance.tick();
+    await vi.waitFor(() =>
+      expect(repository.finish).toHaveBeenCalledWith(1, expect.any(String), {
+        status: 'awaiting_choice',
+        reviewId: 'review-uuid',
+        retryable: true,
+        error: null,
+      }),
+    );
+    expect(sources.acquireTomato).toHaveBeenCalledTimes(1);
+    await instance.onModuleDestroy();
+  });
   it('routes namespaced Qidian jobs through the chapter engine without invoking Tomato', async () => {
     repository.claim
       .mockReset()
@@ -53,6 +69,7 @@ describe('BookSourceWorker durable orchestration', () => {
       expect.any(AbortSignal),
       expect.any(Function),
       expect.any(Function),
+      undefined,
     );
     expect(sources.acquireTomato).not.toHaveBeenCalled();
     await instance.onModuleDestroy();

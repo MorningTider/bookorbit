@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ImportReviewDialog from '@/features/import-review/ImportReviewDialog.vue'
+import type { ImportResolution, ImportReviewResponse, BookDockFinalizeResult } from '@bookorbit/types'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -56,6 +58,60 @@ const finalizePreviewLoading = ref(false)
 const finalizePreviewError = ref<string | null>(null)
 const duplicateDiscardLoading = ref(false)
 const discardedIds = ref<Set<number>>(new Set())
+
+const duplicateReview = ref<ImportReviewResponse | null>(null)
+const duplicateFileId = ref<number | null>(null)
+const duplicateBusy = ref(false)
+const duplicateError = ref<string | null>(null)
+function openDuplicateReview(fileId: number) {
+  const row = result.value?.results.find((entry) => entry.fileId === fileId)
+  if (!row?.importReview) return
+  duplicateReview.value = row.importReview
+  duplicateFileId.value = fileId
+  duplicateError.value = null
+}
+function closeDuplicateReview() {
+  if (!duplicateBusy.value) {
+    duplicateReview.value = null
+    duplicateFileId.value = null
+  }
+}
+async function confirmDuplicateReview(resolution: ImportResolution) {
+  if (duplicateBusy.value || !duplicateReview.value || !duplicateFileId.value || !result.value) return
+  duplicateBusy.value = true
+  duplicateError.value = null
+  try {
+    const fileId = duplicateFileId.value
+    const payload = finalizePayload()
+    const response = await api('/api/v1/book-dock/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileIds: [fileId],
+        defaultLibraryId: payload.defaultLibraryId,
+        defaultFolderId: payload.defaultFolderId,
+        overrides: [{ fileId, libraryId: duplicateReview.value.libraryId, importResolution: resolution }],
+      }),
+    })
+    if (!response.ok) throw new Error()
+    const data = (await response.json()) as BookDockFinalizeResult
+    const updated = data.results[0]
+    const entry = result.value.results.find((row) => row.fileId === fileId)
+    if (!updated || !entry || !updated.success) {
+      if (updated?.importReview) duplicateReview.value = updated.importReview
+      throw new Error()
+    }
+    Object.assign(entry, updated, { importReview: undefined, isDuplicate: false })
+    result.value.succeeded++
+    result.value.failed--
+    duplicateReview.value = null
+    duplicateFileId.value = null
+  } catch {
+    duplicateError.value = t('importReview.failed')
+  } finally {
+    duplicateBusy.value = false
+  }
+}
 
 const resultDuplicateIds = computed(() => result.value?.results.filter((r) => !r.success && r.isDuplicate).map((r) => r.fileId) ?? [])
 const resultDuplicateCount = computed(() => resultDuplicateIds.value.length)
@@ -495,6 +551,14 @@ async function handleDiscardResultDuplicates() {
                   {{ t('bookDock.finalizeDialog.view') }} <ExternalLink class="size-3" />
                 </button>
                 <button
+                  v-if="!r.success && r.importReview"
+                  class="text-xs text-primary hover:underline"
+                  :disabled="duplicateBusy"
+                  @click="openDuplicateReview(r.fileId)"
+                >
+                  {{ t('importReview.review') }}
+                </button>
+                <button
                   v-if="!r.success && r.isDuplicate && r.existingBookId"
                   class="text-xs text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 shrink-0"
                   @click="goToBook(r.existingBookId!)"
@@ -560,4 +624,11 @@ async function handleDiscardResultDuplicates() {
       </div>
     </div>
   </Teleport>
+  <ImportReviewDialog
+    :review="duplicateReview"
+    :busy="duplicateBusy"
+    :external-error="duplicateError"
+    @confirm="confirmDuplicateReview"
+    @cancel="closeDuplicateReview"
+  />
 </template>

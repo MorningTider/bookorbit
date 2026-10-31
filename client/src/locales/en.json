@@ -14983,5 +14983,58 @@
       "language": "language",
       "series": "series"
     }
+  },
+  "importReview": {
+    "title": "Possible duplicate books",
+    "description": "Choose how to import “{filename}”. Existing files are never overwritten automatically.",
+    "pathConflict": "The destination already exists. Create a separate book.",
+    "chooseAction": "Import action",
+    "new": "Create a separate book",
+    "attach": "Add as a file of an existing book",
+    "replace": "Replace a selected file of the same format",
+    "targetBook": "Existing book",
+    "targetFile": "File to replace",
+    "selectFile": "Select a file",
+    "noSameFormat": "No file of the same format is available",
+    "replaceWarning": "Keep the book, metadata and reading history; replace only the selected file. Content changes may require relocating your reading position.",
+    "versionFailed": "Unable to verify the current file version. Try again.",
+    "failed": "Operation failed. Try again.",
+    "stagingNotice": "Pending files are retained for up to 24 hours. Continue from Pending imports after closing this dialog.",
+    "checkingVersion": "Verifying file",
+    "confirm": "Confirm action",
+    "pending": "Pending imports",
+    "nonePending": "No pending imports",
+    "loadFailed": "Unable to load pending imports",
+    "review": "Choose import action",
+    "awaitingChoice": "Waiting for import choice",
+    "inLibrary": "In library",
+    "possiblyInLibrary": "Possibly in library",
+    "checkingLibrary": "Checking existing books",
+    "checkFailed": "Unable to check existing books. Import will check again.",
+    "discard": "Discard this import",
+    "loadMore": "Load more files",
+    "reasons": {
+      "content_hash": "Identical complete file content",
+      "source_identity": "Same source entry",
+      "isbn": "Same ISBN",
+      "title_author": "Matching title and author; confirmation required"
+    },
+    "policy": {
+      "title": "Duplicate detection rules",
+      "description": "Libraries can override the global defaults. Matches require your choice to create, attach or replace. Title and author matches only suggest possible duplicates.",
+      "global": "Global defaults",
+      "inherit": "Follow global defaults",
+      "save": "Save rules",
+      "saved": "Rules saved",
+      "failed": "Unable to load or save rules",
+      "contentHash": "Compare complete file content",
+      "sourceIdentity": "Compare source entry identity",
+      "isbn": "Compare valid ISBN",
+      "titleAndAuthor": "Compare title and author",
+      "sameMediaKind": "Match only the same media type",
+      "acrossLibraries": "Also check other accessible libraries"
+    },
+    "refresh": "Refresh",
+    "unitReplacementWarning": "This import contains {count} files. Replacement applies to the primary incoming file shown above; remaining files are added to the selected book. Existing identical files are kept."
   }
 }

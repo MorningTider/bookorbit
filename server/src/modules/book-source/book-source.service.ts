@@ -1,7 +1,7 @@
 import { DownloadSourcePolicy } from './download-source-policy.service';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { RuleChapterSource } from './rule-chapter-source';
-import type { BookSourceStatus, BookSourceJobProgress } from '@bookorbit/types';
+import type { BookSourceStatus, BookSourceJobProgress, ImportResolution } from '@bookorbit/types';
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { Readable } from 'node:stream';
@@ -55,6 +55,7 @@ export class BookSourceService {
     signal: AbortSignal,
     beforeImport?: (title: string) => Promise<void>,
     onProgress?: (progress: BookSourceJobProgress) => void,
+    importResolution?: ImportResolution,
   ) {
     if (!/^[a-z][a-z0-9-]{0,6}:[a-zA-Z0-9][a-zA-Z0-9_-]{0,15}$/.test(identity)) throw new BadRequestException('书源任务标识无效');
     const [key, bookId] = identity.split(':');
@@ -64,7 +65,10 @@ export class BookSourceService {
     signal.throwIfAborted();
     await beforeImport?.(file.title);
     await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
-    return this.upload.upload(libraryId, folderId, this.validator.sanitizeFilename(`${file.title}.epub`), Readable.from([file.content]), user);
+    return this.upload.upload(libraryId, folderId, this.validator.sanitizeFilename(`${file.title}.epub`), Readable.from([file.content]), user, {
+      ...(importResolution ? { resolution: importResolution } : {}),
+      origin: { provider: adapter.key, id: bookId! },
+    });
   }
 
   async acquireQidian(
@@ -75,6 +79,7 @@ export class BookSourceService {
     signal: AbortSignal,
     beforeImport?: (title: string) => Promise<void>,
     onProgress?: (progress: BookSourceJobProgress) => void,
+    importResolution?: ImportResolution,
   ) {
     await this.downloadPolicy.assertEnabled('qidian');
     qidianBookId(bookId);
@@ -83,7 +88,10 @@ export class BookSourceService {
     signal.throwIfAborted();
     await beforeImport?.(file.title);
     await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
-    return this.upload.upload(libraryId, folderId, this.validator.sanitizeFilename(`${file.title}.epub`), Readable.from([file.content]), user);
+    return this.upload.upload(libraryId, folderId, this.validator.sanitizeFilename(`${file.title}.epub`), Readable.from([file.content]), user, {
+      ...(importResolution ? { resolution: importResolution } : {}),
+      origin: { provider: 'qidian', id: bookId },
+    });
   }
 
   async acquireTomato(
@@ -94,6 +102,7 @@ export class BookSourceService {
     signal: AbortSignal,
     beforeImport?: (title: string) => Promise<void>,
     onProgress?: (progress: BookSourceJobProgress) => void,
+    importResolution?: ImportResolution,
   ) {
     await this.downloadPolicy.assertEnabled('fanqie');
     tomatoBookId(bookId);
@@ -111,6 +120,7 @@ export class BookSourceService {
         this.validator.sanitizeFilename(`${file.title}.epub`),
         Readable.from([file.content]),
         user,
+        { ...(importResolution ? { resolution: importResolution } : {}), origin: { provider: 'fanqie', id: bookId } },
       );
       this.logger.log(
         `[book_source.acquire] [end] userId=${user.id} libraryId=${libraryId} bookId=${bookId} durationMs=${Date.now() - startedAt} importedBookId=${result.bookId} - acquisition imported`,

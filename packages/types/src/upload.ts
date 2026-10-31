@@ -38,6 +38,7 @@ export const UploadErrorCode = {
   SessionExpired: "UPLOAD_SESSION_EXPIRED",
   SessionStateInvalid: "UPLOAD_SESSION_STATE_INVALID",
   ImportFailed: "UPLOAD_IMPORT_FAILED",
+  ImportReviewRequired: "IMPORT_REVIEW_REQUIRED",
 } as const;
 
 export type UploadErrorCode = (typeof UploadErrorCode)[keyof typeof UploadErrorCode];
@@ -45,7 +46,7 @@ export type UploadErrorCode = (typeof UploadErrorCode)[keyof typeof UploadErrorC
 export type UploadTarget =
   { kind: "library"; libraryId: number; folderId?: number } | { kind: "existing_book"; bookId: number } | { kind: "book_dock" };
 
-export type UploadSessionStatus = "receiving" | "processing" | "completed" | "failed" | "cancelled" | "expired";
+export type UploadSessionStatus = "receiving" | "processing" | "awaiting_choice" | "completed" | "failed" | "cancelled" | "expired";
 
 export interface CreateUploadSessionRequest {
   filename: string;
@@ -68,6 +69,7 @@ export interface UploadSessionResponse {
   errorMessage?: string | null;
   bookId?: number | null;
   bookDockFileId?: number | null;
+  reviewId?: string | null;
   expiresAt: string;
   createdAt: string;
   updatedAt: string;

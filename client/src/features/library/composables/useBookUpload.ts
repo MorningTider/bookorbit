@@ -1,13 +1,13 @@
 import { computed, ref } from 'vue'
-import { getValidToken } from '@/lib/api'
-import { UPLOAD_SUPPORTED_FORMATS, type UploadResult } from '@bookorbit/types'
+import { api, getValidToken } from '@/lib/api'
+import { UPLOAD_SUPPORTED_FORMATS, type UploadResult, type ImportReviewResponse } from '@bookorbit/types'
 import { useAppInfo } from '@/features/settings/composables/useAppInfo'
 
 export const SUPPORTED_FORMATS: readonly string[] = UPLOAD_SUPPORTED_FORMATS
 export const SUPPORTED_FORMATS_ACCEPT = SUPPORTED_FORMATS.map((f) => `.${f}`).join(',')
 export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024 // 500 MB
 
-export type FileUploadStatus = 'pending' | 'uploading' | 'done' | 'error'
+export type FileUploadStatus = 'pending' | 'uploading' | 'done' | 'error' | 'review'
 
 export interface FileUploadItem {
   id: string
@@ -16,6 +16,7 @@ export interface FileUploadItem {
   progress: number
   error?: string
   bookId?: number
+  review?: ImportReviewResponse
   validationError?: boolean
 }
 
@@ -51,7 +52,7 @@ async function uploadSingle(item: FileUploadItem, url: string): Promise<void> {
       }
     }
 
-    xhr.onload = () => {
+    xhr.onload = async () => {
       if (xhr.status === 201) {
         const result: UploadResult = JSON.parse(xhr.responseText)
         item.status = 'done'
@@ -61,7 +62,14 @@ async function uploadSingle(item: FileUploadItem, url: string): Promise<void> {
         item.status = 'error'
         try {
           const body = JSON.parse(xhr.responseText)
-          item.error = body.message ?? 'Upload failed'
+          if (xhr.status === 409 && body.errorCode === 'IMPORT_REVIEW_REQUIRED' && typeof body.errorMeta?.reviewId === 'string') {
+            const response = await api(`/api/v1/imports/reviews/${encodeURIComponent(body.errorMeta.reviewId)}`)
+            if (!response.ok) throw new Error('Unable to load import review')
+            item.review = (await response.json()) as ImportReviewResponse
+            item.status = 'review'
+            item.progress = 100
+            item.error = undefined
+          } else item.error = body.message ?? 'Upload failed'
         } catch {
           item.error = `Upload failed (${xhr.status})`
         }

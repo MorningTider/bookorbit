@@ -119,6 +119,12 @@ function makeService() {
     notificationService as never,
     processingState as never,
     fileWriteService as never,
+    { begin: vi.fn(), end: vi.fn() } as never,
+    {
+      actor: vi.fn().mockResolvedValue({ id: 1, isSuperuser: true }),
+      inspect: vi.fn().mockResolvedValue(null),
+      importIntoExisting: vi.fn(),
+    } as never,
     undefined as never,
     seriesMemberships as never,
   );

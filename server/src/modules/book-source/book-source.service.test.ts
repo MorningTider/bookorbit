@@ -56,7 +56,9 @@ describe('Book source acquisition', () => {
     const signal = new AbortController().signal;
     await expect((await service()).acquireTomato(3, 4, '7290175791344651298', user, signal)).resolves.toMatchObject({ bookId: 11 });
     expect(download).toHaveBeenCalledWith('7290175791344651298', signal, undefined);
-    expect(upload).toHaveBeenCalledWith(3, 4, '测试小说.epub', expect.anything(), user);
+    expect(upload).toHaveBeenCalledWith(3, 4, '测试小说.epub', expect.anything(), user, {
+      origin: { provider: 'fanqie', id: '7290175791344651298' },
+    });
   });
   it('never imports failed or cancelled downloads', async () => {
     download.mockRejectedValueOnce(new Error('failed'));

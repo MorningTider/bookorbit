@@ -1,9 +1,17 @@
+import { parseAudioDuration } from '../metadata/extractors/audio.extractor';
+import { randomUUID } from 'node:crypto';
+import { ConflictException } from '@nestjs/common';
+import type { ImportIdentity, ImportOrigin, ImportResolution } from '@bookorbit/types';
+import { ImportReviewRequiredException, ImportReviewService } from '../import-review/import-review.service';
+import { ImportResolutionDto } from '../import-review/dto/import-review.dto';
+import { ImportFileCommitService } from './import-file-commit.service';
+import { fullFileSha256 } from '../import-review/import-match.utils';
 import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
 import { repairConvertedEdition } from './repair-converted-edition';
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { access as fsAccess, readFile, stat, mkdtemp, rm } from 'fs/promises';
-import { basename, dirname, extname, join, relative } from 'path';
+import { basename, dirname, extname, join, relative, resolve } from 'path';
 import { Readable } from 'stream';
 import { createReadStream } from 'fs';
 import { tmpdir } from 'os';
@@ -45,7 +53,12 @@ import { uploadError } from './upload-errors';
 import { convertTxtToEpub } from '../metadata/lib/txt-to-epub';
 
 type Db = NodePgDatabase<typeof schema>;
-type StoredUploadResult = UploadResult & { absolutePath: string; created: boolean; libraryId: number };
+type StoredUploadResult = UploadResult & { absolutePath: string; created: boolean; libraryId: number; preserveMetadata?: boolean };
+interface UploadImportOptions {
+  resolution?: ImportResolution;
+  origin?: ImportOrigin;
+  reviewId?: string;
+}
 
 @Injectable()
 export class UploadService {
@@ -61,6 +74,8 @@ export class UploadService {
     private readonly moduleRef: ModuleRef,
     private readonly pathPolicy: PathPolicyService,
     private readonly selfWriteRegistry: SelfWriteRegistry,
+    private readonly importReview: ImportReviewService,
+    private readonly importCommit: ImportFileCommitService,
     @Optional() private readonly coverStore?: BookCoverStore,
   ) {}
 
@@ -81,14 +96,99 @@ export class UploadService {
     });
   }
 
-  async upload(libraryId: number, folderId: number | undefined, rawFilename: string, fileStream: Readable, user: RequestUser): Promise<UploadResult> {
-    const stored = await this.storeUpload(libraryId, folderId, rawFilename, fileStream, user);
+  async upload(
+    libraryId: number,
+    folderId: number | undefined,
+    rawFilename: string,
+    fileStream: Readable,
+    user: RequestUser,
+    options?: UploadImportOptions,
+  ): Promise<UploadResult> {
+    const stored = await this.storeUpload(libraryId, folderId, rawFilename, fileStream, user, undefined, options);
     if (stored.created) {
       this.processor.processNewBookImportAsync(stored.bookId, stored.libraryId, stored.absolutePath, stored.format);
-    } else {
+    } else if (!stored.preserveMetadata) {
       this.processor.extractMetadataAsync(stored.bookId, stored.absolutePath, stored.format);
     }
     return { bookId: stored.bookId, filename: stored.filename, format: stored.format, sizeBytes: stored.sizeBytes };
+  }
+
+  async resolveImportReview(id: string, dto: ImportResolutionDto, user: RequestUser): Promise<UploadResult> {
+    return this.importReview.exclusive(id, user, () => this.resolveLockedImportReview(id, dto, user));
+  }
+
+  private async resolveLockedImportReview(id: string, dto: ImportResolutionDto, user: RequestUser): Promise<UploadResult> {
+    const resolution = this.parseImportResolution(dto);
+    const row = await this.importReview.claim(id, user);
+    if (row.status === 'completed' && row.resultBookId) {
+      await this.importReview.finish(id, user, row.resultBookId);
+      return { bookId: row.resultBookId, filename: row.filename, format: row.format, sizeBytes: row.sizeBytes };
+    }
+    try {
+      const result = await this.upload(row.libraryId, row.folderId ?? undefined, row.filename, createReadStream(row.stagingPath), user, {
+        resolution,
+        ...(row.origin ? { origin: row.origin } : {}),
+        reviewId: id,
+      });
+      await this.importReview.finish(id, user, result.bookId);
+      return result;
+    } catch (error) {
+      const current = await this.importReview.get(id, user);
+      if (current.resultBookId && current.status === 'completed') {
+        await this.importReview.finish(id, user, current.resultBookId);
+        return { bookId: current.resultBookId, filename: current.filename, format: current.format, sizeBytes: current.sizeBytes };
+      }
+      await this.importReview.release(id, user);
+      throw error;
+    }
+  }
+
+  private parseImportResolution(dto: ImportResolutionDto): ImportResolution {
+    if (dto.action === 'new' && dto.bookId === undefined && dto.fileId === undefined && dto.expectedSha256 === undefined) return { action: 'new' };
+    if (dto.action === 'attach' && dto.bookId && dto.fileId === undefined && dto.expectedSha256 === undefined)
+      return { action: 'attach', bookId: dto.bookId };
+    if (dto.action === 'replace' && dto.bookId && dto.fileId && dto.expectedSha256)
+      return { action: 'replace', bookId: dto.bookId, fileId: dto.fileId, expectedSha256: dto.expectedSha256 };
+    throw new BadRequestException('The import action and target fields do not match');
+  }
+
+  private async storeIntoExistingBook(
+    tempPath: string,
+    filename: string,
+    format: string,
+    sizeBytes: number,
+    identity: ImportIdentity,
+    options: UploadImportOptions,
+    libraryId: number,
+    user: RequestUser,
+  ): Promise<StoredUploadResult> {
+    const resolution = options.resolution;
+    if (!resolution || resolution.action === 'new') throw new BadRequestException('An existing-book action is required');
+    await this.libraryService.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    try {
+      if (resolution.action === 'replace') {
+        const result = await this.importCommit.replace({ ...resolution, incoming: tempPath, format, reviewId: options.reviewId }, user);
+        await this.importReview.recordOrigin(result.bookId, identity);
+        return result;
+      }
+      const result = await this.addFileToBook(resolution.bookId, filename, createReadStream(tempPath), user, {
+        importReviewId: options.reviewId,
+        preserveMetadata: true,
+      });
+      await this.importReview.recordOrigin(resolution.bookId, identity);
+      return {
+        bookId: resolution.bookId,
+        filename: result.filename,
+        format,
+        sizeBytes,
+        absolutePath: result.absolutePath,
+        created: false,
+        preserveMetadata: true,
+        libraryId,
+      };
+    } finally {
+      await this.storage.cleanup(tempPath);
+    }
   }
 
   private readonly convertingBooks = new Set<number>();
@@ -192,7 +292,7 @@ export class UploadService {
   async processStoredUpload(stored: StoredUploadResult): Promise<void> {
     if (stored.created) {
       await this.processor.processNewBookImport(stored.bookId, stored.libraryId, stored.absolutePath, stored.format);
-    } else {
+    } else if (!stored.preserveMetadata) {
       await this.processor.extractMetadata(stored.bookId, stored.absolutePath, stored.format);
     }
   }
@@ -204,6 +304,7 @@ export class UploadService {
     fileStream: Readable,
     user: RequestUser,
     uploadSessionId?: string,
+    importOptions?: UploadImportOptions,
   ): Promise<StoredUploadResult> {
     const event = 'upload.book';
     const startedAt = Date.now();
@@ -230,12 +331,35 @@ export class UploadService {
 
     try {
       await this.validator.validateContent(tempPath, format);
-      const { absolutePath, bookFolderPath } = await this.resolveDestination(library, folder.path, tempPath, filename, format);
+      const identity = await this.importReview.extractIdentity(tempPath, filename, format, importOptions?.origin);
+      const [matches = []] = await this.importReview.matches(libraryId, [identity], user, { path: tempPath, size: sizeBytes });
+      if (!importOptions?.resolution && matches.length)
+        await this.importReview.stage(tempPath, { libraryId, folderId: folder.id, filename, format, sizeBytes, identity }, matches, user);
+      const resolution = importOptions?.resolution;
+      if (resolution && resolution.action !== 'new') {
+        const target = matches.find((item) => item.bookId === resolution.bookId);
+        if (!target) throw new ConflictException('The selected duplicate no longer matches; review the library again');
+        return await this.storeIntoExistingBook(tempPath, filename, format, sizeBytes, identity, importOptions, target.libraryId, user);
+      }
+      let { absolutePath, bookFolderPath } = await this.resolveDestination(library, folder.path, tempPath, filename, format);
+      if (importOptions?.resolution?.action === 'new') {
+        const suffix = randomUUID().slice(0, 8);
+        if (library.organizationMode === 'book_per_folder') {
+          bookFolderPath = join(
+            resolve(bookFolderPath) === resolve(folder.path) ? folder.path : dirname(bookFolderPath),
+            `${basename(bookFolderPath)} (${suffix})`,
+          );
+          absolutePath = join(bookFolderPath, basename(absolutePath));
+        } else {
+          absolutePath = join(dirname(absolutePath), `${basename(absolutePath, extname(absolutePath))} (${suffix})${extname(absolutePath)}`);
+          bookFolderPath = absolutePath;
+        }
+      }
       await this.pathPolicy.assertWithinRoot(absolutePath, folder.path);
       destinationPath = absolutePath;
 
       if (await this.destinationExists(absolutePath)) {
-        throw uploadError.destinationConflict(`A file named "${basename(absolutePath)}" already exists at the target location`);
+        await this.importReview.stage(tempPath, { libraryId, folderId: folder.id, filename, format, sizeBytes, identity }, matches, user);
       }
 
       selfWritePath = absolutePath;
@@ -248,9 +372,14 @@ export class UploadService {
       destinationPath = persistedAbsolutePath;
 
       const createArgs = [libraryId, folder.id, persistedBookFolderPath, persistedAbsolutePath, persistedRelPath, format, sizeBytes] as const;
-      const { bookId, created } = uploadSessionId
-        ? await this.processor.createBookRecord(...createArgs, { uploadSessionId })
+      const recordOptions = {
+        ...(uploadSessionId ? { uploadSessionId } : {}),
+        ...(importOptions?.reviewId ? { importReviewId: importOptions.reviewId } : {}),
+      };
+      const { bookId, created } = Object.keys(recordOptions).length
+        ? await this.processor.createBookRecord(...createArgs, recordOptions)
         : await this.processor.createBookRecord(...createArgs);
+      await this.importReview.recordOrigin(bookId, identity);
 
       this.logger.log(
         `[${event}] [end] libraryId=${libraryId} userId=${user.id} folderId=${folder.id} bookId=${bookId} format=${format} sizeBytes=${sizeBytes} durationMs=${Date.now() - startedAt} - upload completed`,
@@ -265,6 +394,13 @@ export class UploadService {
         libraryId,
       };
     } catch (caught) {
+      if (caught instanceof ImportReviewRequiredException) {
+        await this.storage.cleanup(tempPath);
+        this.logger.log(
+          `[${event}] [end] libraryId=${libraryId} userId=${user.id} folderId=${folder.id} durationMs=${Date.now() - startedAt} awaitingChoice=true - incoming file retained for user decision`,
+        );
+        throw caught;
+      }
       let err = caught;
       if (err instanceof UploadDestinationExistsError) {
         err = uploadError.destinationConflict(
@@ -302,7 +438,13 @@ export class UploadService {
     }
   }
 
-  async addFileToBook(bookId: number, rawFilename: string, fileStream: Readable, user: RequestUser): Promise<AddBookFileResult> {
+  async addFileToBook(
+    bookId: number,
+    rawFilename: string,
+    fileStream: Readable,
+    user: RequestUser,
+    options?: { importReviewId?: string; preserveMetadata?: boolean },
+  ): Promise<AddBookFileResult> {
     const event = 'book.add_file';
     const startedAt = Date.now();
     this.logger.log(
@@ -348,22 +490,31 @@ export class UploadService {
     try {
       await this.validator.validateContent(tempPath, format);
       const fileHash = await computeFileHash(tempPath);
+      const durationSeconds = options?.preserveMetadata && isAudioFormat(format) ? await parseAudioDuration(tempPath) : undefined;
+      if (durationSeconds === null) throw new BadRequestException('Unable to measure the incoming audio file duration');
 
-      const [existingWithHash] = await this.db
-        .select({ id: bookFiles.id })
+      const samePartialHash = await this.db
+        .select({ id: bookFiles.id, absolutePath: bookFiles.absolutePath })
         .from(bookFiles)
         .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.fileHash, fileHash)))
-        .limit(1);
-
-      if (existingWithHash) {
-        throw uploadError.duplicate('This file is already attached to this book');
+        .limit(21);
+      if (samePartialHash.length > 20) throw new ConflictException('Too many matching files; review the book before attaching another file');
+      if (samePartialHash.length) {
+        const incomingHash = await fullFileSha256(tempPath);
+        for (const candidate of samePartialHash) {
+          const candidatePath = candidate.absolutePath;
+          await this.pathPolicy.assertWithinRoot(candidatePath, bookRow.libraryFolderPath);
+          if ((await fullFileSha256(candidatePath)) === incomingHash) throw uploadError.duplicate('This file is already attached to this book');
+        }
       }
 
       destination = join(destinationFolder, filename);
       await this.pathPolicy.assertWithinRoot(destination, destinationFolder);
 
       if (await this.destinationExists(destination)) {
-        throw uploadError.destinationConflict(`A file named "${filename}" already exists in this book's folder`);
+        if (!options?.preserveMetadata) throw uploadError.destinationConflict(`A file named "${filename}" already exists in this book's folder`);
+        destination = join(destinationFolder, `${basename(filename, extname(filename))} (${randomUUID()})${extname(filename)}`);
+        await this.pathPolicy.assertWithinRoot(destination, destinationFolder);
       }
 
       this.selfWriteRegistry.begin([destination]);
@@ -408,6 +559,7 @@ export class UploadService {
             sizeBytes,
             mtime: fileStat.mtime,
             fileHash,
+            ...(durationSeconds !== undefined ? { durationSeconds } : {}),
             format,
             role: 'content',
             ...mediaOverlayFields,
@@ -453,6 +605,11 @@ export class UploadService {
             .where(eq(books.id, bookId));
         }
 
+        if (options?.importReviewId)
+          await tx
+            .update(schema.bookImportReviews)
+            .set({ status: 'completed', resultBookId: bookId, updatedAt: new Date() })
+            .where(and(eq(schema.bookImportReviews.id, options.importReviewId), eq(schema.bookImportReviews.userId, user.id)));
         return {
           inserted,
           isPrimary: inserted.id === nextPrimaryFileId,
@@ -460,9 +617,11 @@ export class UploadService {
         };
       });
 
-      this.processor.extractAudioDurationAsync(bookId, destination, format);
-      this.processor.extractAddedAudioChaptersAsync(bookId, format);
-      this.processor.reconcileCoversAsync([bookId]);
+      if (!options?.preserveMetadata) {
+        this.processor.extractAudioDurationAsync(bookId, destination, format);
+        this.processor.extractAddedAudioChaptersAsync(bookId, format);
+        this.processor.reconcileCoversAsync([bookId]);
+      }
 
       this.logger.log(
         `[${event}] [end] bookId=${bookId} userId=${user.id} fileId=${inserted.id} format=${format} sizeBytes=${sizeBytes} durationMs=${Date.now() - startedAt} - add file to book completed`,

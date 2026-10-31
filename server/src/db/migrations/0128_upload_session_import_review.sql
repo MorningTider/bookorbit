@@ -1,0 +1,4 @@
+ALTER TABLE "upload_sessions" DROP CONSTRAINT "upload_sessions_status_chk";--> statement-breakpoint
+ALTER TABLE "upload_sessions" ADD COLUMN "review_id" uuid;--> statement-breakpoint
+ALTER TABLE "upload_sessions" ADD CONSTRAINT "upload_sessions_review_id_book_import_reviews_id_fk" FOREIGN KEY ("review_id") REFERENCES "public"."book_import_reviews"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "upload_sessions" ADD CONSTRAINT "upload_sessions_status_chk" CHECK ("upload_sessions"."status" in ('receiving', 'processing', 'awaiting_choice', 'completed', 'failed', 'cancelled', 'expired'));

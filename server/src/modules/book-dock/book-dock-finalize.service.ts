@@ -1,3 +1,9 @@
+import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
+import { randomUUID } from 'node:crypto';
+import type { ImportResolution } from '@bookorbit/types';
+import type { RequestUser } from '../../common/types/request-user';
+import { importResolutionFromDto } from '../import-review/dto/import-review.dto';
+import { BookDockDuplicateService } from './book-dock-duplicate.service';
 import {
   BadRequestException,
   ForbiddenException,
@@ -79,6 +85,7 @@ type NamingLibrary = { name?: string | null; fileNamingPattern?: string | null; 
 type JoinBook = { bookId: number; folderPath: string; coverUrl?: string | null };
 
 type FinalizeOverrideEntry = {
+  importResolution?: ImportResolution;
   libraryId?: number;
   folderId?: number;
   targetFileName?: string;
@@ -151,6 +158,7 @@ type FinalizeCandidateAnalysis = {
   fileId: number;
   fileName: string;
   row: BookDockFileRow;
+  importResolution?: ImportResolution;
   status: BookDockFinalizePreviewStatus;
   message?: string;
   existingBookId?: number;
@@ -253,6 +261,8 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
     private readonly notificationService: NotificationService,
     private readonly processingState: BookDockProcessingStateService,
     private readonly fileWriteService: FileWriteService,
+    private readonly selfWrites: SelfWriteRegistry,
+    private readonly duplicates: BookDockDuplicateService,
     @Optional() private readonly seriesIdentity?: SeriesIdentityService,
     @Optional() private readonly seriesMemberships?: SeriesMembershipService,
   ) {
@@ -294,6 +304,7 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
     needsReview?: boolean,
     readyToFile?: boolean,
   ): Promise<BookDockFinalizeResult> {
+    const actingUser = await this.duplicates.actor(userId, isSuperuser);
     const ids = selectAll ? [] : dedupeIds(fileIds ?? []);
     const overrideMap = new Map((overrides ?? []).map((o) => [o.fileId, o]));
 
@@ -319,7 +330,7 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
 
         const prepared = await this.prepareFinalizeBatch(rows, defaultLibraryId, defaultFolderId, overrideMap, userId, isSuperuser);
         for (const analysis of prepared.analyses) {
-          const result = await this.finalizePreparedCandidate(analysis, prepared.existingDestinations);
+          const result = await this.finalizePreparedCandidate(analysis, prepared.existingDestinations, actingUser);
           results.push(result);
           if (result.success) succeeded++;
           else failed++;
@@ -347,7 +358,7 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
             continue;
           }
 
-          const result = await this.finalizePreparedCandidate(analysis, prepared.existingDestinations);
+          const result = await this.finalizePreparedCandidate(analysis, prepared.existingDestinations, actingUser);
           results.push(result);
           if (result.success) succeeded++;
           else failed++;
@@ -383,15 +394,47 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
     if (!analysis) {
       return { fileId: row.id, fileName: row.fileName, success: false, message: 'Finalization target could not be resolved' };
     }
-    return this.finalizePreparedCandidate(analysis, prepared.existingDestinations);
+    const actingUser = await this.duplicates.actor(userId, isSuperuser);
+    return this.finalizePreparedCandidate(analysis, prepared.existingDestinations, actingUser);
   }
 
   private async finalizePreparedCandidate(
     preparedAnalysis: FinalizeCandidateAnalysis,
     existingDestinations: Map<string, number>,
+    actingUser: RequestUser,
   ): Promise<BookDockFinalizeFileResult> {
     const row = preparedAnalysis.row;
+    const selfWritePaths = preparedAnalysis.placement?.map((file) => file.destPath) ?? [];
+    this.selfWrites.begin(selfWritePaths);
     try {
+      if (preparedAnalysis.status === 'ready' && preparedAnalysis.library && preparedAnalysis.format && preparedAnalysis.placement?.length) {
+        const metadata = mergeBookDockMetadata(row.embeddedMetadata, row.fetchedMetadata, row.selectedMetadata) ?? {};
+        const review = await this.duplicates.inspect(
+          preparedAnalysis.library.id,
+          row.fileName,
+          preparedAnalysis.format,
+          preparedAnalysis.placement[0]!.sourcePath,
+          metadata,
+          preparedAnalysis.placement.filter((file) => file.role === 'content').length,
+          actingUser,
+        );
+        const resolution = preparedAnalysis.importResolution;
+        if (review && !resolution)
+          return {
+            fileId: row.id,
+            fileName: row.fileName,
+            success: false,
+            isDuplicate: true,
+            existingBookId: review.matches[0]?.bookId,
+            importReview: review,
+          };
+        if (resolution && resolution.action !== 'new') {
+          const bookId = await this.duplicates.importIntoExisting(review, resolution, preparedAnalysis.placement, actingUser);
+          await this.cleanupDiscardedBookDockFile(row);
+          await this.cleanupBookDockRecord(row);
+          return { fileId: row.id, fileName: row.fileName, success: true, bookId };
+        }
+      }
       const analysis = await this.classifyDestination(preparedAnalysis, existingDestinations);
       if (analysis.status !== 'ready') return this.analysisToFileResult(analysis);
 
@@ -460,6 +503,8 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
       const message = resolveFinalizeErrorMessage(err);
       this.logFinalizeFailure(row.id, 'filing', err);
       return { fileId: row.id, fileName: row.fileName, success: false, message };
+    } finally {
+      this.selfWrites.end(selfWritePaths);
     }
   }
 
@@ -592,6 +637,7 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
   ): Promise<FinalizeCandidateAnalysis> {
     try {
       const override = overrideMap.get(row.id);
+      const importResolution = override?.importResolution ? importResolutionFromDto(override.importResolution) : undefined;
       const libraryId = override?.libraryId ?? row.targetLibraryId ?? defaultLibraryId ?? null;
       const folderId = override?.folderId ?? row.targetFolderId ?? defaultFolderId ?? null;
 
@@ -634,10 +680,27 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
       // the pattern gave it, so the scan and the importer agree it is one book. The pattern's own
       // folder would follow this file's metadata, and an m4b tagged "Dune (Unabridged)" names a
       // different folder from the epub called "Dune".
-      const joinBook = this.resolveJoinBook(override?.joinBook, library, folder);
+      const joinBook = importResolution ? null : this.resolveJoinBook(override?.joinBook, library, folder);
       if (joinBook) destPath = join(joinBook.folderPath, basename(destPath));
 
-      const { files: placement, bookFolderPath } = this.resolvePlacement(row, reduced.files, destPath, folder.path, library);
+      let { files: placement, bookFolderPath } = this.resolvePlacement(row, reduced.files, destPath, folder.path, library);
+      if (importResolution?.action === 'new') {
+        const suffix = randomUUID().slice(0, 8);
+        if (library.organizationMode === 'book_per_folder' || placement.length > 1) {
+          const uniqueRoot = join(
+            resolve(bookFolderPath) === resolve(folder.path) ? folder.path : dirname(bookFolderPath),
+            `${basename(bookFolderPath)} (${suffix})`,
+          );
+          placement = placement.map((file) => ({ ...file, destPath: join(uniqueRoot, relative(bookFolderPath, file.destPath)) }));
+          bookFolderPath = uniqueRoot;
+        } else {
+          placement = placement.map((file) => ({
+            ...file,
+            destPath: join(dirname(file.destPath), `${basename(file.destPath, extname(file.destPath))} (${suffix})${extname(file.destPath)}`),
+          }));
+          bookFolderPath = placement[0]!.destPath;
+        }
+      }
       // The primary's own destination follows the placement, which for a unit means it sits inside
       // the unit folder rather than at the path the naming pattern produced directly.
       destPath = placement[0]!.destPath;
@@ -648,6 +711,7 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
         fileId: row.id,
         fileName: row.fileName,
         row,
+        importResolution,
         status: 'ready',
         newName,
         library,

@@ -1,3 +1,6 @@
+import { UploadSessionRepository } from '../upload/upload-session.repository';
+import { randomUUID } from 'node:crypto';
+import { ImportReviewRepository } from '../import-review/import-review.repository';
 import { Test } from '@nestjs/testing';
 import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
@@ -11,6 +14,8 @@ const databaseUrl = process.env.BOOK_SOURCE_TEST_DATABASE_URL;
 describe.skipIf(!databaseUrl)('BookSourceJobRepository PostgreSQL integration', () => {
   let pool: Pool;
   let repository: BookSourceJobRepository;
+  let reviews: ImportReviewRepository;
+  let uploads: UploadSessionRepository;
   beforeAll(async () => {
     const url = new URL(databaseUrl!);
     if (!['localhost', '127.0.0.1'].includes(url.hostname) || url.pathname !== '/bookorbit_source_jobs_test')
@@ -20,17 +25,28 @@ describe.skipIf(!databaseUrl)('BookSourceJobRepository PostgreSQL integration', 
       'CREATE TABLE IF NOT EXISTS users (id serial PRIMARY KEY); CREATE TABLE IF NOT EXISTS libraries (id serial PRIMARY KEY); CREATE TABLE IF NOT EXISTS library_folders (id serial PRIMARY KEY); CREATE TABLE IF NOT EXISTS books (id serial PRIMARY KEY)',
     );
     const migration = await readFile(new URL('../../db/migrations/0125_book-source-background-jobs.sql', import.meta.url), 'utf8');
-    await pool.query('DROP TABLE IF EXISTS book_source_jobs');
+    await pool.query(
+      'DROP TABLE IF EXISTS upload_sessions CASCADE; DROP TABLE IF EXISTS book_source_jobs CASCADE; DROP TABLE IF EXISTS book_import_reviews CASCADE; DROP TABLE IF EXISTS book_import_identities CASCADE',
+    );
     await pool.query(migration);
     await pool.query(await readFile(new URL('../../db/migrations/0126_book-source-active-index.sql', import.meta.url), 'utf8'));
+    await pool.query(await readFile(new URL('../../db/migrations/0127_import_duplicate_review.sql', import.meta.url), 'utf8'));
+    const uploadMigration = await readFile(new URL('../../db/migrations/0091_add_read_aloud_and_podcasts.sql', import.meta.url), 'utf8');
+    const uploadTable = uploadMigration.match(/CREATE TABLE "upload_sessions" \([\s\S]*?\n\);/);
+    if (!uploadTable) throw new Error('Upload session schema fixture not found');
+    await pool.query(uploadTable[0]);
+    await pool.query(await readFile(new URL('../../db/migrations/0128_upload_session_import_review.sql', import.meta.url), 'utf8'));
+
     await pool.query('INSERT INTO users(id) VALUES (7),(8) ON CONFLICT DO NOTHING; INSERT INTO libraries(id) VALUES (3),(4) ON CONFLICT DO NOTHING');
     const module = await Test.createTestingModule({
-      providers: [BookSourceJobRepository, { provide: DB, useValue: drizzle(pool, { schema }) }],
+      providers: [BookSourceJobRepository, ImportReviewRepository, UploadSessionRepository, { provide: DB, useValue: drizzle(pool, { schema }) }],
     }).compile();
     repository = module.get(BookSourceJobRepository);
+    reviews = module.get(ImportReviewRepository);
+    uploads = module.get(UploadSessionRepository);
   });
   beforeEach(async () => {
-    await pool.query('TRUNCATE book_source_jobs RESTART IDENTITY');
+    await pool.query('TRUNCATE book_source_jobs, book_import_reviews RESTART IDENTITY CASCADE');
   });
   afterAll(async () => {
     await pool?.end();
@@ -88,17 +104,86 @@ describe.skipIf(!databaseUrl)('BookSourceJobRepository PostgreSQL integration', 
     await repository.finish(job.id, 'old', { status: 'completed' });
     expect((await repository.owned(job.id, 7)).status).toBe('downloading');
   });
-  it('allows a fresh download after the previously imported book was deleted', async () => {
+  it('allows explicit new downloads after completion while keeping the prior history', async () => {
     const job = await repository.enqueue(7, 3, undefined, '7290175791344651298');
     await pool.query('INSERT INTO books(id) VALUES (11) ON CONFLICT DO NOTHING');
     await repository.claim('worker');
     await repository.beginImport(job.id, 'worker', '书名');
     await repository.finish(job.id, 'worker', { status: 'completed', resultBookId: 11 });
-    expect((await repository.enqueue(7, 3, undefined, job.sourceBookId)).id).toBe(job.id);
+    const repeated = await repository.enqueue(7, 3, undefined, job.sourceBookId, { action: 'new' });
+    expect(repeated.id).not.toBe(job.id);
+    expect(repeated.importResolution).toEqual({ action: 'new' });
+    await repository.cancel(repeated.id, 7);
     await pool.query('DELETE FROM books WHERE id = 11');
     const next = await repository.enqueue(7, 3, undefined, job.sourceBookId);
     expect(next.id).not.toBe(job.id);
     expect(next.status).toBe('queued');
+  });
+
+  it('serializes review confirmation across replicas and releases the lock after errors', async () => {
+    const id = randomUUID();
+    let entered!: () => void;
+    let release!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const wait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const first = reviews.withReviewLock(id, async () => {
+      entered();
+      await wait;
+      return 'done';
+    });
+    await started;
+    await expect(reviews.withReviewLock(id, () => Promise.resolve('duplicate'))).rejects.toThrow();
+    release();
+    expect(await first).toBe('done');
+    await expect(reviews.withReviewLock(id, () => Promise.reject(new Error('failed')))).rejects.toThrow('failed');
+    expect(await reviews.withReviewLock(id, () => Promise.resolve('retry'))).toBe('retry');
+  });
+  it('claims only the owning pending review and reconciles a completed choice into its download job', async () => {
+    const id = randomUUID();
+    await reviews.createReview({
+      id,
+      userId: 7,
+      libraryId: 3,
+      filename: 'book.epub',
+      stagingPath: '/tmp/test.epub',
+      format: 'epub',
+      sizeBytes: 4,
+      incomingSha256: 'a'.repeat(64),
+      identity: {},
+      expiresAt: new Date(Date.now() + 60000),
+    });
+    expect(await reviews.ownedReview(id, 8)).toBeNull();
+    expect(await reviews.claimReview(id, 8)).toBeNull();
+    expect((await reviews.claimReview(id, 7))?.status).toBe('processing');
+    expect(await reviews.claimReview(id, 7)).toBeNull();
+    await pool.query('INSERT INTO books(id) VALUES (12) ON CONFLICT DO NOTHING');
+    const job = await repository.enqueue(7, 3, undefined, 'review-test');
+    await repository.claim('worker');
+    await repository.beginImport(job.id, 'worker', 'Book');
+    await repository.finish(job.id, 'worker', { status: 'awaiting_choice', reviewId: id });
+    const session = await uploads.create({
+      userId: 7,
+      idempotencyKey: randomUUID(),
+      targetKind: 'library',
+      targetLibraryId: 3,
+      filename: 'book.epub',
+      sizeBytes: 4,
+      receivedBytes: 4,
+      stagingPath: `/tmp/${randomUUID()}`,
+      status: 'awaiting_choice',
+      reviewId: id,
+      expiresAt: new Date(Date.now() + 60000),
+    });
+    await reviews.updateReview(id, 7, { status: 'completed', resultBookId: 12 });
+    expect(await uploads.reconcileReview(session.id, 8)).toBeNull();
+    expect(await uploads.reconcileReview(session.id, 7)).toMatchObject({ status: 'completed', resultBookId: 12 });
+
+    await repository.reconcileReviews();
+    expect(await repository.owned(job.id, 7)).toMatchObject({ status: 'completed', resultBookId: 12, reviewId: null });
   });
 
   it('bounds queues and history reads with indexed cursor pagination', async () => {

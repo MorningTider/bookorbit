@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import type { ImportResolution, ImportReviewResponse } from '@bookorbit/types'
+import { api } from '@/lib/api'
+import ImportReviewDialog from '@/features/import-review/ImportReviewDialog.vue'
+import ImportReviewQueue from '@/features/import-review/ImportReviewQueue.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -30,13 +34,71 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const { files, pendingCount, isUploading, doneCount, errorCount, uploadedBookIds, addFiles, removeFile, retryFile, reset, startUpload } =
   useBookUpload()
 
+const duplicateReview = ref<ImportReviewResponse | null>(null)
+const duplicateItemId = ref<string | null>(null)
+const resolvingDuplicate = ref(false)
+const duplicateError = ref<string | null>(null)
+const reviewQueue = ref<InstanceType<typeof ImportReviewQueue> | null>(null)
+const reviewCount = computed(() => files.value.filter((file) => file.status === 'review').length)
+function reviewDuplicate(id: string) {
+  const item = files.value.find((file) => file.id === id)
+  if (!item?.review) return
+  duplicateItemId.value = id
+  duplicateReview.value = item.review
+  duplicateError.value = null
+}
+function closeDuplicateReview() {
+  if (!resolvingDuplicate.value) {
+    duplicateReview.value = null
+    duplicateItemId.value = null
+  }
+}
+async function resolveDuplicate(resolution: ImportResolution) {
+  if (!duplicateReview.value || resolvingDuplicate.value) return
+  resolvingDuplicate.value = true
+  duplicateError.value = null
+  const review = duplicateReview.value
+  try {
+    const response = await api(`/api/v1/imports/reviews/${review.id}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(resolution),
+    })
+    if (!response.ok) throw new Error()
+    const result = (await response.json()) as { bookId: number }
+    const item = files.value.find((file) => file.id === duplicateItemId.value)
+    if (item) {
+      item.status = 'done'
+      item.bookId = result.bookId
+      item.progress = 100
+      item.review = undefined
+    }
+    const targetLibrary =
+      resolution.action === 'new'
+        ? review.libraryId
+        : (review.matches.find((match) => match.bookId === resolution.bookId)?.libraryId ?? review.libraryId)
+    handleQueuedImport(result.bookId, targetLibrary)
+    duplicateReview.value = null
+    duplicateItemId.value = null
+    await reviewQueue.value?.load()
+  } catch {
+    duplicateError.value = t('importReview.failed')
+  } finally {
+    resolvingDuplicate.value = false
+  }
+}
+function handleQueuedImport(bookId: number, libraryId: number) {
+  emitLibraryUploadCompleted({ libraryId, uploadedBookIds: [bookId], uploadedCount: 1, failedCount: 0, attemptedCount: 1 })
+}
+
 const canUpload = computed(() => pendingCount.value > 0 && !isUploading.value && hasDestination.value)
 const hasFiles = computed(() => files.value.length > 0)
-const allDone = computed(() => hasFiles.value && files.value.every((f) => f.status === 'done' || f.status === 'error'))
-const allSuccess = computed(() => allDone.value && errorCount.value === 0)
+const allDone = computed(() => hasFiles.value && files.value.every((f) => f.status === 'done' || f.status === 'error' || f.status === 'review'))
+const allSuccess = computed(() => allDone.value && errorCount.value === 0 && reviewCount.value === 0)
 
 const headerTitle = computed(() => {
   if (isUploading.value) return t('library.upload.header.uploading')
+  if (reviewCount.value) return t('importReview.awaitingChoice')
   if (allDone.value) return t('library.upload.header.complete')
   if (selectedLibrary.value) return t('library.upload.header.uploadTo', { library: selectedLibrary.value.name })
   return t('library.upload.header.uploadBooks')
@@ -55,7 +117,7 @@ const fileSummary = computed(() => {
 })
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') handleClose()
+  if (e.key === 'Escape' && !document.querySelector('[data-import-review-dialog]')) handleClose()
 }
 
 onMounted(() => {
@@ -115,6 +177,7 @@ async function handleUpload() {
   const errorCountBefore = files.value.filter((f) => f.status === 'error').length
 
   await startUpload(libraryId, folderId)
+  if (files.value.some((file) => file.status === 'review')) await reviewQueue.value?.load()
 
   const uploadedAfter = files.value.filter((f) => f.status === 'done' && f.bookId !== undefined).map((f) => f.bookId!)
   const newlyUploaded = uploadedAfter.filter((id) => !uploadedBefore.has(id))
@@ -192,6 +255,7 @@ function formatPillClass(filename: string): string {
             :scoped="libraryId !== undefined"
           />
 
+          <ImportReviewQueue ref="reviewQueue" @imported="handleQueuedImport" />
           <!-- Shared file input -->
           <input ref="fileInputRef" type="file" multiple :accept="SUPPORTED_FORMATS_ACCEPT" class="sr-only" @change="onFileInputChange" />
 
@@ -272,6 +336,9 @@ function formatPillClass(filename: string): string {
                     </span>
                     <span v-if="item.status === 'error'" class="text-[11px] text-destructive truncate">{{ item.error }}</span>
                     <span v-else-if="item.status === 'uploading'" class="text-[11px] text-primary tabular-nums">{{ item.progress }}%</span>
+                    <span v-else-if="item.status === 'review'" class="text-[11px] text-amber-700 dark:text-amber-400">{{
+                      t('importReview.awaitingChoice')
+                    }}</span>
                     <span v-else-if="item.status === 'done'" class="text-[11px] text-emerald-600 dark:text-emerald-400">{{
                       t('library.upload.done')
                     }}</span>
@@ -285,6 +352,9 @@ function formatPillClass(filename: string): string {
 
                 <!-- Actions -->
                 <div class="shrink-0 flex items-center gap-0.5">
+                  <button v-if="item.status === 'review'" class="rounded-md border border-border px-2 py-1 text-xs" @click="reviewDuplicate(item.id)">
+                    {{ t('importReview.review') }}
+                  </button>
                   <button
                     v-if="item.status === 'error' && !item.validationError"
                     class="flex items-center justify-center w-6 h-6 rounded-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
@@ -358,6 +428,13 @@ function formatPillClass(filename: string): string {
       </div>
     </div>
   </Teleport>
+  <ImportReviewDialog
+    :review="duplicateReview"
+    :busy="resolvingDuplicate"
+    :external-error="duplicateError"
+    @confirm="resolveDuplicate"
+    @cancel="closeDuplicateReview"
+  />
 </template>
 
 <style scoped>

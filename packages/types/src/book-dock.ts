@@ -1,3 +1,4 @@
+import type { ImportResolution, ImportReviewResponse } from "./import-review";
 import type { AudiobookChapter } from "./audiobook";
 import type { ComicMetadataFields, MetadataProviderKey, MetadataSeriesMembership } from "./metadata-fetch";
 import type { SeriesIndex } from "./series-index";
@@ -129,6 +130,7 @@ export interface BookDockSummary {
 }
 
 export interface BookDockFinalizeOverride {
+  importResolution?: ImportResolution;
   fileId: number;
   libraryId?: number;
   folderId?: number;
@@ -147,6 +149,7 @@ export interface BookDockFinalizeRequest {
 }
 
 export interface BookDockFinalizeFileResult {
+  importReview?: ImportReviewResponse;
   fileId: number;
   fileName: string;
   newName?: string;

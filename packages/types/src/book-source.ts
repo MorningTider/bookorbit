@@ -1,6 +1,8 @@
+import type { ImportResolution } from "./import-review";
 export interface FanqieAcquisitionRequest {
   bookId: string;
   folderId?: number;
+  importResolution?: ImportResolution;
 }
 
 export type ChapterAcquisitionRequest = FanqieAcquisitionRequest;
@@ -10,7 +12,7 @@ export interface BookSourceStatus {
   fanqie: { enabled?: boolean; configured: boolean; format: "epub" };
 }
 
-export type BookSourceJobStatus = "queued" | "downloading" | "importing" | "completed" | "failed" | "cancelled";
+export type BookSourceJobStatus = "queued" | "downloading" | "importing" | "completed" | "failed" | "cancelled" | "awaiting_choice";
 export interface BookSourceJobProgress {
   phase: "preparing" | "downloading" | "validating";
   completedChapters?: number;
@@ -29,6 +31,7 @@ export interface BookSourceJob {
   progress?: BookSourceJobProgress;
   cancelRequested: boolean;
   resultBookId: number | null;
+  reviewId?: string | null;
   error: string | null;
   createdAt: string;
   updatedAt: string;

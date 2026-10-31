@@ -1,3 +1,4 @@
+import { ImportReviewRequiredException } from '../import-review/import-review.service';
 import { BookSourceProgress } from './book-source-progress.service';
 import { ForbiddenException, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
@@ -29,6 +30,7 @@ export class BookSourceWorker implements OnModuleDestroy {
     this.ticking = true;
     const startedAt = Date.now();
     try {
+      await this.repository.reconcileReviews();
       const active = this.active;
       if (active) {
         const job = await this.repository.heartbeat(active.id, this.workerId);
@@ -95,12 +97,20 @@ export class BookSourceWorker implements OnModuleDestroy {
           importing = true;
         },
         (progress) => this.progress.update(job.id, progress),
+        job.importResolution ?? undefined,
       );
       await this.repository.finish(job.id, this.workerId, { status: 'completed', resultBookId: result.bookId, error: null });
       this.logger.log(
         `[book_source.job] [end] jobId=${job.id} userId=${job.userId} durationMs=${Date.now() - startedAt} resultBookId=${result.bookId} - background acquisition completed`,
       );
     } catch (error) {
+      if (error instanceof ImportReviewRequiredException) {
+        await this.repository.finish(job.id, this.workerId, { status: 'awaiting_choice', reviewId: error.review.id, retryable: true, error: null });
+        this.logger.log(
+          `[book_source.job] [end] jobId=${job.id} userId=${job.userId} durationMs=${Date.now() - startedAt} status=awaiting_choice - staged duplicate awaits user decision`,
+        );
+        return;
+      }
       const message = controller.signal.aborted
         ? this.stopping
           ? '服务停止，下载中断，可重试'

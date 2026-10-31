@@ -1,3 +1,4 @@
+import { ImportReviewModule } from '../import-review/import-review.module';
 import { BookSourceProgress } from './book-source-progress.service';
 import { DownloadSourcePolicy } from './download-source-policy.service';
 import { MetadataPreferencesModule } from '../metadata-preferences/metadata-preferences.module';
@@ -17,7 +18,7 @@ import { BookSourceService } from './book-source.service';
 import { BookSourceController } from './book-source.controller';
 
 @Module({
-  imports: [LibraryModule, UploadModule, AuthModule, MetadataPreferencesModule],
+  imports: [ImportReviewModule, LibraryModule, UploadModule, AuthModule, MetadataPreferencesModule],
   controllers: [BookSourceController, ChapterRulesController],
   providers: [
     DownloadSourcePolicy,

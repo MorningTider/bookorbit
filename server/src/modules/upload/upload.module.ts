@@ -1,3 +1,6 @@
+import { ImportFileCommitService } from './import-file-commit.service';
+import { ImportReviewModule } from '../import-review/import-review.module';
+import { ImportResolutionController } from './import-resolution.controller';
 import { SelfWriteRegistryModule } from '../../common/self-write-registry.module';
 import { Module } from '@nestjs/common';
 
@@ -21,6 +24,7 @@ import { UploadSessionService } from './upload-session.service';
 
 @Module({
   imports: [
+    ImportReviewModule,
     SelfWriteRegistryModule,
     AppSettingsModule,
     BookCoverStoreModule,
@@ -31,8 +35,16 @@ import { UploadSessionService } from './upload-session.service';
     PathModule,
     ScannerModule,
   ],
-  controllers: [UploadController, BookFileUploadController, UploadSessionController],
-  providers: [UploadService, UploadValidatorService, UploadStorageService, UploadProcessorService, UploadSessionRepository, UploadSessionService],
-  exports: [UploadValidatorService, UploadStorageService, UploadProcessorService, UploadService],
+  controllers: [UploadController, BookFileUploadController, UploadSessionController, ImportResolutionController],
+  providers: [
+    ImportFileCommitService,
+    UploadService,
+    UploadValidatorService,
+    UploadStorageService,
+    UploadProcessorService,
+    UploadSessionRepository,
+    UploadSessionService,
+  ],
+  exports: [ImportFileCommitService, UploadValidatorService, UploadStorageService, UploadProcessorService, UploadService],
 })
 export class UploadModule {}

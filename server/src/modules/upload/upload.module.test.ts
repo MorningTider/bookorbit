@@ -1,3 +1,5 @@
+import { ImportResolutionController } from './import-resolution.controller';
+import { ImportFileCommitService } from './import-file-commit.service';
 import 'reflect-metadata';
 
 vi.mock('../app-settings/app-settings.module', () => ({ AppSettingsModule: class AppSettingsModule {} }));
@@ -21,8 +23,14 @@ import { FileWriteModule } from '../file-write/file-write.module';
 
 describe('UploadModule', () => {
   it('registers expected controller/providers/exports', () => {
-    expect(Reflect.getMetadata('controllers', UploadModule)).toEqual([UploadController, BookFileUploadController, UploadSessionController]);
+    expect(Reflect.getMetadata('controllers', UploadModule)).toEqual([
+      UploadController,
+      BookFileUploadController,
+      UploadSessionController,
+      ImportResolutionController,
+    ]);
     expect(Reflect.getMetadata('providers', UploadModule)).toEqual([
+      ImportFileCommitService,
       UploadService,
       UploadValidatorService,
       UploadStorageService,
@@ -31,6 +39,7 @@ describe('UploadModule', () => {
       UploadSessionService,
     ]);
     expect(Reflect.getMetadata('exports', UploadModule)).toEqual([
+      ImportFileCommitService,
       UploadValidatorService,
       UploadStorageService,
       UploadProcessorService,

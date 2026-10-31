@@ -4,6 +4,8 @@ import { onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Loader2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import ImportReviewDialog from '@/features/import-review/ImportReviewDialog.vue'
+import ImportReviewQueue from '@/features/import-review/ImportReviewQueue.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import SourceBookPreview from './SourceBookPreview.vue'
 import ChapterRuleManager from './ChapterRuleManager.vue'
@@ -22,6 +24,14 @@ const {
   requestRemoval,
   cancelRemoval,
   confirmRemoval,
+  checkImported,
+  checkingImports,
+  importCheckError,
+  existingMatch,
+  reviewingDuplicate,
+  cancelDuplicateReview,
+  confirmDuplicateImport,
+  reviewJobDuplicate,
   enabledSources,
   canDownload,
   customSources,
@@ -122,6 +132,8 @@ onMounted(load)
       <Loader2 class="size-4 animate-spin" aria-hidden="true" />{{ t('chapterSources.submitting') }}
     </div>
     <p v-if="!hasSearched && !isSearching" class="text-sm text-muted-foreground">{{ t('chapterSources.keywordHint') }}</p>
+    <p v-if="checkingImports" class="text-sm text-muted-foreground">{{ t('importReview.checkingLibrary') }}</p>
+    <p v-if="importCheckError" role="alert" class="text-sm text-destructive">{{ importCheckError }}</p>
     <section class="space-y-3" aria-live="polite" :aria-label="t('chapterSources.results')">
       <h2 class="font-semibold">
         {{ t('chapterSources.results') }} <span v-if="results.length" class="text-muted-foreground">({{ results.length }})</span>
@@ -135,8 +147,8 @@ onMounted(load)
           :key="`${book.provider}:${book.providerId}`"
           class="flex flex-col gap-4 rounded-lg border border-border bg-background p-4"
         >
-          <SourceBookPreview :book="book" />
-          <Button v-if="canAcquire" :disabled="!canDownload(book) || !libraryId || pendingId !== null" @click="acquire(book)">{{
+          <SourceBookPreview :book="book" :library-match="existingMatch(book)" />
+          <Button v-if="canAcquire" :disabled="!canDownload(book) || !libraryId || pendingId !== null || checkingImports" @click="acquire(book)">{{
             t(book.provider === 'qidian' ? 'chapterSources.acquirePublic' : 'chapterSources.acquire')
           }}</Button>
         </li>
@@ -184,14 +196,17 @@ onMounted(load)
                 >
                   {{ statusLabel(job) }}<span v-if="job.cancelRequested && job.status === 'downloading'">{{ t('chapterSources.cancelling') }}</span>
                 </span>
-                <div v-if="['downloading', 'importing', 'completed'].includes(job.status)" class="mt-2 space-y-1">
+                <div v-if="['downloading', 'importing', 'completed', 'awaiting_choice'].includes(job.status)" class="mt-2 space-y-1">
                   <progress
                     class="h-2 w-full min-w-32 accent-primary"
                     :aria-label="t('chapterSources.downloadProgress')"
                     :max="100"
                     :value="progressPercent(job)"
                   />
-                  <p v-if="job.status !== 'completed' && progressPercent(job) !== undefined" class="text-xs text-muted-foreground">
+                  <p
+                    v-if="job.status !== 'completed' && job.status !== 'awaiting_choice' && progressPercent(job) !== undefined"
+                    class="text-xs text-muted-foreground"
+                  >
                     {{
                       t('chapterSources.chapterProgress', {
                         completed: job.progress?.completedChapters,
@@ -217,12 +232,20 @@ onMounted(load)
                     >{{ t('chapterSources.viewImportedBook') }}</RouterLink
                   >
                   <Button
-                    v-if="job.status === 'queued' || job.status === 'downloading'"
+                    v-if="job.status === 'queued' || job.status === 'downloading' || job.status === 'awaiting_choice'"
                     variant="outline"
                     size="sm"
                     :disabled="pendingId !== null || job.cancelRequested"
                     @click="cancel(job)"
                     >{{ t('chapterSources.cancelTask') }}</Button
+                  >
+                  <Button
+                    v-if="job.status === 'awaiting_choice' && job.reviewId"
+                    variant="outline"
+                    size="sm"
+                    :disabled="pendingId !== null"
+                    @click="reviewJobDuplicate(job)"
+                    >{{ t('importReview.review') }}</Button
                   >
                   <Button
                     v-if="(job.status === 'failed' || job.status === 'cancelled') && job.retryable"
@@ -255,6 +278,14 @@ onMounted(load)
       </div>
     </section>
 
+    <ImportReviewQueue v-if="canAcquire" @imported="checkImported" />
+    <ImportReviewDialog
+      :review="reviewingDuplicate"
+      :busy="pendingId !== null"
+      :external-error="error"
+      @confirm="confirmDuplicateImport"
+      @cancel="cancelDuplicateReview"
+    />
     <ChapterRuleManager v-if="canManageSources" @updated="loadChapterSources" />
     <ConfirmDialog
       :open="removingJob !== null"

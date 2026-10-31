@@ -1,3 +1,4 @@
+import { ImportReviewRequiredException, ImportReviewService } from '../import-review/import-review.service';
 import { ConflictException, ForbiddenException, HttpException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Interval } from '@nestjs/schedule';
@@ -198,7 +199,7 @@ export class UploadSessionService implements OnApplicationBootstrap {
   async complete(id: string, user: RequestUser): Promise<UploadSessionResponse> {
     return this.withLock(id, async () => {
       let row = await this.reconcileSize(await this.owned(id, user));
-      if (row.status === 'completed' || row.status === 'processing') return this.toResponse(row);
+      if (row.status === 'completed' || row.status === 'processing' || row.status === 'awaiting_choice') return this.toResponse(row);
       this.assertReceiving(row);
       if (row.receivedBytes !== row.sizeBytes) {
         throw uploadError.invalidSessionState(`Upload is incomplete: ${row.receivedBytes} of ${row.sizeBytes} bytes received`);
@@ -247,6 +248,16 @@ export class UploadSessionService implements OnApplicationBootstrap {
         }
         return this.toResponse(row);
       } catch (error) {
+        if (error instanceof ImportReviewRequiredException) {
+          row = (await this.repo.update(row.id, {
+            status: 'awaiting_choice',
+            reviewId: error.review.id,
+            errorCode: UploadErrorCode.ImportReviewRequired,
+            errorMessage: 'Choose how to import the duplicate file',
+          }))!;
+          await this.storageService.cleanup(row.stagingPath);
+          return this.toResponse(row);
+        }
         await this.failImport(row.id, error);
         throw error;
       }
@@ -258,6 +269,8 @@ export class UploadSessionService implements OnApplicationBootstrap {
       let row = await this.owned(id, user);
       if (row.status === 'processing') throw uploadError.invalidSessionState('An upload cannot be cancelled after import processing begins');
       if (row.status === 'completed') return this.toResponse(row);
+      if (row.status === 'awaiting_choice' && row.reviewId)
+        await this.moduleRef.get(ImportReviewService, { strict: false }).discard(row.reviewId, user);
       row = (await this.repo.update(row.id, { status: 'cancelled', completedAt: new Date() }))!;
       await this.storageService.cleanup(row.stagingPath);
       return this.toResponse(row);
@@ -405,6 +418,7 @@ export class UploadSessionService implements OnApplicationBootstrap {
   private async owned(id: string, user: RequestUser): Promise<UploadSessionRow> {
     const row = await this.repo.findById(id);
     if (!row || row.userId !== user.id) throw new NotFoundException('Upload session not found');
+    if (row.status === 'awaiting_choice' && row.reviewId) return (await this.repo.reconcileReview(id, user.id)) ?? row;
     return row;
   }
 
@@ -474,6 +488,7 @@ export class UploadSessionService implements OnApplicationBootstrap {
       errorMessage: row.errorMessage,
       bookId: row.resultBookId,
       bookDockFileId: row.resultBookDockFileId,
+      reviewId: row.reviewId,
       expiresAt: row.expiresAt.toISOString(),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -501,7 +516,7 @@ export class UploadSessionService implements OnApplicationBootstrap {
 
 /** A session a repeated create may hand back: still able to take bytes, importing, or added. */
 function isResumable(row: UploadSessionRow): boolean {
-  if (row.status === 'processing' || row.status === 'completed') return true;
+  if (row.status === 'processing' || row.status === 'completed' || row.status === 'awaiting_choice') return true;
   return row.status === 'receiving' && row.expiresAt.getTime() > Date.now();
 }
 

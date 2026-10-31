@@ -1,3 +1,6 @@
+import { ImportReviewService } from '../import-review/import-review.service';
+import { importResolutionFromDto } from '../import-review/dto/import-review.dto';
+import type { ImportResolution } from '@bookorbit/types';
 import { BookSourceProgress } from './book-source-progress.service';
 import { DownloadSourcePolicy } from './download-source-policy.service';
 import { BadRequestException } from '@nestjs/common';
@@ -27,6 +30,7 @@ export function sourceJobResponse(job: typeof bookSourceJobs.$inferSelect, progr
     retryable: job.retryable,
     cancelRequested: job.cancelRequested,
     resultBookId: job.resultBookId,
+    ...(job.reviewId ? { reviewId: job.reviewId } : {}),
     error: job.error?.startsWith('入库未确认') ? '文件下载完成，但入库未确认，请先核对书库。' : job.error,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
@@ -38,6 +42,7 @@ export class BookSourceJobService {
   private readonly logger = new Logger(BookSourceJobService.name);
   constructor(
     private readonly progress: BookSourceProgress,
+    private readonly importReviews: ImportReviewService,
     private readonly downloadPolicy: DownloadSourcePolicy,
     private readonly repository: BookSourceJobRepository,
     private readonly libraries: LibraryService,
@@ -45,22 +50,30 @@ export class BookSourceJobService {
     @Inject(bookSourceConfig.KEY) private readonly config: ConfigType<typeof bookSourceConfig>,
   ) {}
 
-  async enqueue(libraryId: number, folderId: number | undefined, bookId: string, user: RequestUser) {
+  async enqueue(libraryId: number, folderId: number | undefined, bookId: string, user: RequestUser, resolution?: ImportResolution) {
     return this.mutate('book_source.enqueue', `userId=${user.id} libraryId=${libraryId}`, async () => {
       await this.downloadPolicy.assertEnabled('fanqie');
       tomatoBookId(bookId);
       if (!this.config.tomatoBinaryPath) throw new ServiceUnavailableException('番茄下载器未配置');
       await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
-      return sourceJobResponse(await this.repository.enqueue(user.id, libraryId, folderId, bookId));
+      return sourceJobResponse(
+        await (resolution
+          ? this.repository.enqueue(user.id, libraryId, folderId, bookId, importResolutionFromDto(resolution))
+          : this.repository.enqueue(user.id, libraryId, folderId, bookId)),
+      );
     });
   }
 
-  async enqueueQidian(libraryId: number, folderId: number | undefined, bookId: string, user: RequestUser) {
+  async enqueueQidian(libraryId: number, folderId: number | undefined, bookId: string, user: RequestUser, resolution?: ImportResolution) {
     return this.mutate('book_source.enqueue', `userId=${user.id} libraryId=${libraryId}`, async () => {
       await this.downloadPolicy.assertEnabled('qidian');
       qidianBookId(bookId);
       await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
-      return sourceJobResponse(await this.repository.enqueue(user.id, libraryId, folderId, `qidian:${bookId}`));
+      return sourceJobResponse(
+        await (resolution
+          ? this.repository.enqueue(user.id, libraryId, folderId, `qidian:${bookId}`, importResolutionFromDto(resolution))
+          : this.repository.enqueue(user.id, libraryId, folderId, `qidian:${bookId}`)),
+      );
     });
   }
 
@@ -87,9 +100,11 @@ export class BookSourceJobService {
   }
 
   async cancel(id: number, user: RequestUser) {
-    return this.mutate('book_source.cancel', `jobId=${id} userId=${user.id}`, async () =>
-      sourceJobResponse(await this.repository.cancel(id, user.id)),
-    );
+    return this.mutate('book_source.cancel', `jobId=${id} userId=${user.id}`, async () => {
+      const job = await this.repository.owned(id, user.id);
+      if (job.status === 'awaiting_choice' && job.reviewId) await this.importReviews.discard(job.reviewId, user);
+      return sourceJobResponse(await this.repository.cancel(id, user.id));
+    });
   }
 
   async remove(id: number, user: RequestUser) {

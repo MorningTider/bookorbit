@@ -1,10 +1,13 @@
 import { sourceResponseError, sourceErrorMessage } from './source-errors'
 import { i18n } from '@/i18n'
 import { selectSourceDestination } from './source-destination'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { MetadataProviderKey, Permission } from '@bookorbit/types'
 import type {
+  ImportDuplicateMatch,
+  ImportResolution,
+  ImportReviewResponse,
   PublicChapterSource,
   BookSourceRetryRequest,
   BookSourceJob,
@@ -28,9 +31,10 @@ const statusLabels: Record<BookSourceJobStatus, string> = {
   completed: 'chapterSources.status.completed',
   failed: 'chapterSources.status.failed',
   cancelled: 'chapterSources.status.cancelled',
+  awaiting_choice: 'importReview.awaitingChoice',
 }
 export function sourceJobPercent(job: BookSourceJob): number | undefined {
-  if (job.status === 'completed') return 100
+  if (job.status === 'completed' || job.status === 'awaiting_choice') return 100
   const progress = job.progress
   if (
     !progress ||
@@ -64,6 +68,13 @@ export function useFanqieAcquisition() {
   const cursor = ref<number | null>(null)
   const taskError = ref<string | null>(null)
   const removingJob = ref<BookSourceJob | null>(null)
+  const importedMatches = ref<Record<string, ImportDuplicateMatch[]>>({})
+  const reviewingDuplicate = ref<ImportReviewResponse | null>(null)
+  const duplicateCandidate = ref<MetadataCandidate | null>(null)
+  const checkingImports = ref(false)
+  const importCheckError = ref<string | null>(null)
+  let checkTimer: ReturnType<typeof setTimeout> | undefined
+  let checkSequence = 0
   const reviewingImport = ref<BookSourceJob | null>(null)
   let timer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
@@ -85,6 +96,59 @@ export function useFanqieAcquisition() {
   )
   const fanqieEnabled = computed(() => enabledSources.value.length > 0)
   const configured = computed(() => enabledSources.value.some((key) => status.value?.[key]?.configured === true))
+  const results = computed(() =>
+    metadata.results.value.filter((candidate) => enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian')),
+  )
+  function existingMatch(candidate: MetadataCandidate) {
+    const matches = importedMatches.value[`${candidate.provider}:${candidate.providerId}`] ?? []
+    return matches.find((match) => match.exact) ?? matches[0]
+  }
+  async function checkImported() {
+    const sequence = ++checkSequence
+    const destination = libraryId.value
+    if (!destination || !results.value.length || stopped) {
+      importedMatches.value = {}
+      checkingImports.value = false
+      return
+    }
+    checkingImports.value = true
+    try {
+      const response = await readResponse<{ key: string; matches: ImportDuplicateMatch[] }[]>(
+        await api('/api/v1/imports/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            libraryId: destination,
+            candidates: results.value.slice(0, 40).map((candidate) => ({
+              key: `${candidate.provider}:${candidate.providerId}`,
+              identity: {
+                title: candidate.title,
+                authors: candidate.authors,
+                format: 'epub',
+                origin: { provider: candidate.provider, id: candidate.providerId },
+                ...(candidate.isbn10 ? { isbn10: candidate.isbn10 } : {}),
+                ...(candidate.isbn13 ? { isbn13: candidate.isbn13 } : {}),
+              },
+            })),
+          }),
+        }),
+      )
+      if (sequence === checkSequence && !stopped) {
+        importedMatches.value = Object.fromEntries(response.map((row) => [row.key, row.matches]))
+        importCheckError.value = null
+      }
+    } catch {
+      if (sequence === checkSequence && !stopped) importCheckError.value = i18n.global.t('importReview.checkFailed')
+    } finally {
+      if (sequence === checkSequence) checkingImports.value = false
+    }
+  }
+  watch([results, libraryId], () => {
+    clearTimeout(checkTimer)
+    checkSequence++
+    importedMatches.value = {}
+    checkTimer = setTimeout(checkImported, 300)
+  })
   function canDownload(candidate: MetadataCandidate) {
     return (
       enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian') &&
@@ -209,11 +273,29 @@ export function useFanqieAcquisition() {
   }
 
   async function acquire(candidate: MetadataCandidate) {
+    const matches = importedMatches.value[`${candidate.provider}:${candidate.providerId}`] ?? []
+    if (matches.length && libraryId.value) {
+      duplicateCandidate.value = candidate
+      reviewingDuplicate.value = {
+        id: '',
+        libraryId: libraryId.value,
+        filename: `${candidate.title}.epub`,
+        format: 'epub',
+        sizeBytes: 0,
+        matches,
+        expiresAt: '',
+      }
+      error.value = null
+      return
+    }
+    await acquireNow(candidate)
+  }
+  async function acquireNow(candidate: MetadataCandidate, resolution?: ImportResolution) {
     if (!canAcquire.value || !canDownload(candidate) || !libraryId.value || pendingId.value) return
     pendingId.value = candidate.providerId
     error.value = null
     try {
-      const body: FanqieAcquisitionRequest = { bookId: candidate.providerId }
+      const body: FanqieAcquisitionRequest = { bookId: candidate.providerId, ...(resolution ? { importResolution: resolution } : {}) }
       await readResponse<BookSourceJob>(
         await api(`/api/v1/libraries/${libraryId.value}/sources/${candidate.provider}`, {
           method: 'POST',
@@ -231,6 +313,53 @@ export function useFanqieAcquisition() {
     }
   }
 
+  function cancelDuplicateReview() {
+    if (!pendingId.value) {
+      reviewingDuplicate.value = null
+      duplicateCandidate.value = null
+    }
+  }
+  async function confirmDuplicateImport(resolution: ImportResolution) {
+    if (!reviewingDuplicate.value || pendingId.value) return
+    if (duplicateCandidate.value) {
+      const candidate = duplicateCandidate.value
+      await acquireNow(candidate, resolution)
+      if (!error.value) cancelDuplicateReview()
+      return
+    }
+    const id = reviewingDuplicate.value.id
+    pendingId.value = id
+    try {
+      await readResponse(
+        await api(`/api/v1/imports/reviews/${id}/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(resolution),
+        }),
+      )
+      reviewingDuplicate.value = null
+      await refreshJobs()
+      await checkImported()
+      error.value = null
+    } catch (cause) {
+      error.value = sourceErrorMessage(cause, 'importReview.failed')
+    } finally {
+      pendingId.value = null
+    }
+  }
+  async function reviewJobDuplicate(job: BookSourceJob) {
+    if (!job.reviewId || pendingId.value) return
+    pendingId.value = String(job.id)
+    error.value = null
+    try {
+      reviewingDuplicate.value = await readResponse<ImportReviewResponse>(await api(`/api/v1/imports/reviews/${job.reviewId}`))
+      duplicateCandidate.value = null
+    } catch (cause) {
+      error.value = sourceErrorMessage(cause, 'importReview.loadFailed')
+    } finally {
+      pendingId.value = null
+    }
+  }
   async function act(job: BookSourceJob, action: 'cancel' | 'retry', confirmedImportNotCompleted = false) {
     if (!canAcquire.value || pendingId.value) return
     pendingId.value = String(job.id)
@@ -314,9 +443,19 @@ export function useFanqieAcquisition() {
   onUnmounted(() => {
     stopped = true
     clearTimeout(timer)
+    clearTimeout(checkTimer)
+    checkSequence++
   })
   return {
     title,
+    checkingImports,
+    importCheckError,
+    existingMatch,
+    checkImported,
+    reviewingDuplicate,
+    cancelDuplicateReview,
+    confirmDuplicateImport,
+    reviewJobDuplicate,
     canRemove,
     removingJob,
     requestRemoval,
@@ -351,7 +490,7 @@ export function useFanqieAcquisition() {
     firstPage,
     statusLabel,
     progressPercent: sourceJobPercent,
-    results: computed(() => metadata.results.value.filter((candidate) => enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian'))),
+    results,
     isSearching: metadata.isStreaming,
     hasSearched: metadata.hasSearched,
     providerErrors: metadata.interruptedProviders,

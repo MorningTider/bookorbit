@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
+import type { ImportDuplicateMatch } from '@bookorbit/types'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { BookOpen } from '@lucide/vue'
 import type { MetadataCandidate } from '@bookorbit/types'
 import { toDisplayCoverUrl } from '@/features/book/lib/metadata-fetch'
-const props = defineProps<{ book: MetadataCandidate }>()
+const props = defineProps<{ book: MetadataCandidate; libraryMatch?: ImportDuplicateMatch }>()
 const { t } = useI18n()
 const broken = ref(false)
 const expanded = ref(false)
@@ -20,6 +22,15 @@ function onCoverError() {
 }
 </script>
 <template>
+  <RouterLink
+    v-if="libraryMatch"
+    :to="`/book/${libraryMatch.bookId}`"
+    class="mb-2 inline-flex items-center gap-1 self-start rounded-full px-2 py-1 text-xs font-medium"
+    :class="libraryMatch.exact ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'"
+    >{{ libraryMatch.exact ? '✓' : '?' }} {{ t(libraryMatch.exact ? 'importReview.inLibrary' : 'importReview.possiblyInLibrary') }} ·
+    {{ libraryMatch.libraryName }}</RouterLink
+  >
+
   <div class="flex min-w-0 flex-1 gap-4">
     <div class="flex h-36 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
       <img v-if="cover && !broken" :src="cover" :alt="book.title" loading="lazy" class="size-full object-cover" @error="onCoverError" />

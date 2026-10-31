@@ -1,3 +1,4 @@
+import { parseAudioDuration } from '../metadata/extractors/audio.extractor';
 import { FileWatcherService } from '../scanner/file-watcher.service';
 import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
 vi.mock('fs/promises', async () => {
@@ -5,6 +6,11 @@ vi.mock('fs/promises', async () => {
   return { ...actual, access: vi.fn(), lstat: vi.fn(), readdir: vi.fn(), stat: vi.fn() };
 });
 
+vi.mock('../import-review/import-match.utils', () => ({ fullFileSha256: vi.fn().mockResolvedValue('complete-sha') }));
+vi.mock('../metadata/extractors/audio.extractor', async () => ({
+  ...(await vi.importActual('../metadata/extractors/audio.extractor')),
+  parseAudioDuration: vi.fn(),
+}));
 vi.mock('../scanner/lib/hash', () => ({ computeFileHash: vi.fn() }));
 vi.mock('../../db/audio-track-order', () => ({ realignAudioTrackOrder: vi.fn() }));
 
@@ -136,6 +142,13 @@ describe('UploadService', () => {
       moduleRef as any,
       pathPolicy as any,
       selfWrites,
+      {
+        extractIdentity: vi.fn().mockResolvedValue({ title: 'book', authors: [], format: 'epub' }),
+        matches: vi.fn().mockResolvedValue([[]]),
+        recordOrigin: vi.fn().mockResolvedValue(undefined),
+        stage: vi.fn().mockRejectedValue(new ConflictException('Import review required')),
+      } as never,
+      { replace: vi.fn() } as never,
     );
 
     validator.sanitizeFilename.mockReturnValue('book.epub');
@@ -1330,6 +1343,27 @@ describe('UploadService', () => {
       expect(processor.reconcileCoversAsync).toHaveBeenCalledWith([10]);
     });
 
+    it('measures appended audio files while preserving book metadata and reading state', async () => {
+      mockUploadedFormat('m4b');
+      vi.mocked(parseAudioDuration).mockResolvedValueOnce(123);
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      await service.addFileToBook(10, 'book.m4b', {} as any, user, { preserveMetadata: true });
+      expect(parseAudioDuration).toHaveBeenCalledWith('/tmp/upload.bin');
+      expect(insertValues).toHaveBeenCalledWith(expect.objectContaining({ durationSeconds: 123 }));
+      expect(processor.extractAudioDurationAsync).not.toHaveBeenCalled();
+      expect(processor.extractAddedAudioChaptersAsync).not.toHaveBeenCalled();
+      expect(processor.reconcileCoversAsync).not.toHaveBeenCalled();
+    });
+    it('leaves the library untouched when incoming audio duration cannot be measured', async () => {
+      mockUploadedFormat('m4b');
+      vi.mocked(parseAudioDuration).mockResolvedValueOnce(null);
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()]));
+      await expect(service.addFileToBook(10, 'book.m4b', {} as any, user, { preserveMetadata: true })).rejects.toThrow('duration');
+      expect(storage.moveToPath).not.toHaveBeenCalled();
+      expect(insertValues).not.toHaveBeenCalled();
+      expect(storage.cleanup).toHaveBeenCalledWith('/tmp/upload.bin');
+    });
+
     it('places an added track by its name before the transaction commits, instead of after every other track', async () => {
       validator.sanitizeFilename.mockReturnValue('chapter-02.mp3');
       validator.validateFormat.mockReturnValue('mp3');
@@ -1483,7 +1517,9 @@ describe('UploadService', () => {
     });
 
     it('throws ConflictException for duplicate content hash and cleans up temp', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(selectChain([{ id: 77 }]));
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectChain([{ id: 77, absolutePath: '/library/book.epub' }]));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(ConflictException);
       expect(storage.cleanup).toHaveBeenCalledWith('/tmp/upload.bin');

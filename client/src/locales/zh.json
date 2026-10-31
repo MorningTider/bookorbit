@@ -14983,5 +14983,58 @@
       "language": "语言",
       "series": "丛书"
     }
+  },
+  "importReview": {
+    "title": "发现可能重复的书籍",
+    "description": "请选择如何导入“{filename}”。不会自动覆盖已有文件。",
+    "pathConflict": "目标路径已有文件，请选择新建独立书目。",
+    "chooseAction": "处理方式",
+    "new": "新建一本独立的书",
+    "attach": "添加为已有书籍的文件",
+    "replace": "替换选定的同格式文件",
+    "targetBook": "目标书籍",
+    "targetFile": "要替换的文件",
+    "selectFile": "请选择文件",
+    "noSameFormat": "没有可替换的同格式文件",
+    "replaceWarning": "保留原书目、元数据和阅读记录，仅替换所选文件。内容变动后可能需要重新定位阅读位置。",
+    "versionFailed": "无法核验文件当前版本，请重试。",
+    "failed": "操作失败，请重试。",
+    "stagingNotice": "待处理文件最多保留 24 小时。关闭弹窗后可在待处理导入中继续。",
+    "checkingVersion": "核验文件中",
+    "confirm": "确认处理",
+    "pending": "待处理导入",
+    "nonePending": "暂无待处理导入",
+    "loadFailed": "加载待处理导入失败",
+    "review": "选择处理方式",
+    "awaitingChoice": "等待选择导入方式",
+    "inLibrary": "已入库",
+    "possiblyInLibrary": "可能已入库",
+    "checkingLibrary": "正在检查书库中的已有书籍",
+    "checkFailed": "未能核对已有书籍，导入前将再次检查。",
+    "discard": "放弃本次导入",
+    "loadMore": "加载更多文件",
+    "reasons": {
+      "content_hash": "文件完整内容相同",
+      "source_identity": "同一书源条目",
+      "isbn": "ISBN 相同",
+      "title_author": "书名和作者匹配，仅供确认"
+    },
+    "policy": {
+      "title": "重复书籍识别规则",
+      "description": "全局默认规则可由各书库单独覆盖。匹配后由你选择新建、添加文件或替换文件。书名与作者匹配仅提示可能重复。",
+      "global": "全局默认",
+      "inherit": "跟随全局默认",
+      "save": "保存规则",
+      "saved": "规则已保存",
+      "failed": "规则加载或保存失败",
+      "contentHash": "比较完整文件内容",
+      "sourceIdentity": "比较书源和条目标识",
+      "isbn": "比较有效 ISBN",
+      "titleAndAuthor": "比较书名与作者",
+      "sameMediaKind": "只匹配同一媒体类型",
+      "acrossLibraries": "同时检查有权限的其他书库"
+    },
+    "refresh": "刷新",
+    "unitReplacementWarning": "本次包含 {count} 个文件。仅用上方所示的主文件替换选定文件，其余文件添加到同一本书；完整内容相同的已有文件会保留。"
   }
 }

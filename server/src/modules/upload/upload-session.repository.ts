@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import { DB } from '../../db';
 import * as schema from '../../db/schema';
-import { bookFiles, books, libraries, libraryFolders, uploadSessions } from '../../db/schema';
+import { bookFiles, bookImportReviews, books, libraries, libraryFolders, uploadSessions } from '../../db/schema';
 
 type Db = NodePgDatabase<typeof schema>;
 type UploadSessionInsert = typeof uploadSessions.$inferInsert;
@@ -16,6 +16,33 @@ export class UploadSessionRepository {
   async create(values: UploadSessionInsert) {
     const [row] = await this.db.insert(uploadSessions).values(values).returning();
     return row!;
+  }
+
+  async reconcileReview(id: string, userId: number) {
+    const reviews = bookImportReviews;
+    const [updated] = await this.db
+      .update(uploadSessions)
+      .set({
+        status: sql`case when ${reviews.status} = 'completed' then 'completed' when ${reviews.status} = 'cancelled' then 'cancelled' else 'expired' end`,
+        resultBookId: sql`case when ${reviews.status} = 'completed' then ${reviews.resultBookId} else null end`,
+        errorCode: null,
+        errorMessage: null,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .from(reviews)
+      .where(
+        and(
+          eq(uploadSessions.id, id),
+          eq(uploadSessions.userId, userId),
+          eq(uploadSessions.status, 'awaiting_choice'),
+          eq(uploadSessions.reviewId, reviews.id),
+          eq(reviews.userId, userId),
+          inArray(reviews.status, ['completed', 'cancelled', 'expired']),
+        ),
+      )
+      .returning();
+    return updated ?? null;
   }
 
   async findById(id: string) {

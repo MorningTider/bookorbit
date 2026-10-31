@@ -1,5 +1,6 @@
+import type { ImportResolution } from '@bookorbit/types';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, ne, or, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB } from '../../db/db.module';
 import * as schema from '../../db/schema';
@@ -9,7 +10,7 @@ import { bookSourceJobs as jobs } from '../../db/schema';
 export class BookSourceJobRepository {
   constructor(@Inject(DB) private readonly db: NodePgDatabase<typeof schema>) {}
 
-  async enqueue(userId: number, libraryId: number, folderId: number | undefined, sourceBookId: string) {
+  async enqueue(userId: number, libraryId: number, folderId: number | undefined, sourceBookId: string, importResolution?: ImportResolution) {
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(192834, ${userId})`);
       const [existing] = await tx
@@ -20,18 +21,20 @@ export class BookSourceJobRepository {
             eq(jobs.userId, userId),
             eq(jobs.libraryId, libraryId),
             eq(jobs.sourceBookId, sourceBookId),
-            sql`(${jobs.status} not in ('failed', 'cancelled') or ${jobs.retryable} = false)`,
+            sql`(${jobs.status} in ('queued', 'downloading', 'importing', 'awaiting_choice') or (${jobs.status} = 'failed' and ${jobs.retryable} = false))`,
           ),
         )
         .limit(1);
-      if (existing && !(existing.status === 'completed' && existing.resultBookId === null)) return existing;
-      if (existing) await tx.update(jobs).set({ status: 'cancelled', retryable: true, updatedAt: new Date() }).where(eq(jobs.id, existing.id));
+      if (existing) return existing;
       const [{ count }] = await tx
         .select({ count: sql<number>`count(*)::int` })
         .from(jobs)
-        .where(and(eq(jobs.userId, userId), inArray(jobs.status, ['queued', 'downloading', 'importing'])));
+        .where(and(eq(jobs.userId, userId), inArray(jobs.status, ['queued', 'downloading', 'importing', 'awaiting_choice'])));
       if (count >= 20) throw new ConflictException('最多同时保留 20 个未完成下载任务');
-      const [created] = await tx.insert(jobs).values({ userId, libraryId, folderId, sourceBookId }).returning();
+      const [created] = await tx
+        .insert(jobs)
+        .values({ userId, libraryId, folderId, sourceBookId, ...(importResolution ? { importResolution } : {}) })
+        .returning();
       return created;
     });
   }
@@ -60,7 +63,7 @@ export class BookSourceJobRepository {
     await this.db
       .update(jobs)
       .set({ cancelRequested: true, status: 'cancelled', updatedAt: new Date() })
-      .where(and(eq(jobs.id, id), eq(jobs.userId, userId), eq(jobs.status, 'queued')));
+      .where(and(eq(jobs.id, id), eq(jobs.userId, userId), inArray(jobs.status, ['queued', 'awaiting_choice'])));
     await this.db
       .update(jobs)
       .set({ cancelRequested: true, updatedAt: new Date() })
@@ -91,7 +94,7 @@ export class BookSourceJobRepository {
             ne(jobs.id, id),
             eq(jobs.libraryId, job.libraryId),
             eq(jobs.sourceBookId, job.sourceBookId),
-            sql`(${jobs.status} not in ('failed', 'cancelled') or ${jobs.retryable} = false)`,
+            sql`(${jobs.status} in ('queued', 'downloading', 'importing', 'awaiting_choice') or (${jobs.status} = 'failed' and ${jobs.retryable} = false))`,
           ),
         )
         .limit(1);
@@ -99,11 +102,19 @@ export class BookSourceJobRepository {
       const [{ count }] = await tx
         .select({ count: sql<number>`count(*)::int` })
         .from(jobs)
-        .where(and(eq(jobs.userId, userId), inArray(jobs.status, ['queued', 'downloading', 'importing'])));
+        .where(and(eq(jobs.userId, userId), inArray(jobs.status, ['queued', 'downloading', 'importing', 'awaiting_choice'])));
       if (count >= 20) throw new ConflictException('最多同时保留 20 个未完成下载任务');
       const [retried] = await tx
         .update(jobs)
-        .set({ status: 'queued', retryable: true, cancelRequested: false, error: null, updatedAt: new Date() })
+        .set({
+          status: 'queued',
+          retryable: true,
+          cancelRequested: false,
+          reviewId: null,
+          importResolution: null,
+          error: null,
+          updatedAt: new Date(),
+        })
         .where(and(eq(jobs.id, id), eq(jobs.userId, userId)))
         .returning();
       return retried;
@@ -126,6 +137,28 @@ export class BookSourceJobRepository {
       if (!existing) throw new NotFoundException('下载任务不存在');
       throw new ConflictException('请先取消下载并等待任务结束，再删除记录');
     });
+  }
+
+  async reconcileReviews() {
+    const reviews = schema.bookImportReviews;
+    await this.db
+      .update(jobs)
+      .set({
+        status: sql`case when ${reviews.status}='completed' then 'completed' when ${reviews.status}='cancelled' then 'cancelled' else 'failed' end`,
+        resultBookId: reviews.resultBookId,
+        retryable: true,
+        error: sql`case when ${reviews.status}='expired' or ${reviews.expiresAt}<now() then 'Import review expired; submit the download again' else null end`,
+        reviewId: null,
+        updatedAt: new Date(),
+      })
+      .from(reviews)
+      .where(
+        and(
+          eq(jobs.status, 'awaiting_choice'),
+          eq(jobs.reviewId, reviews.id),
+          or(inArray(reviews.status, ['completed', 'cancelled', 'expired']), and(eq(reviews.status, 'pending'), lt(reviews.expiresAt, new Date()))),
+        ),
+      );
   }
 
   async claim(workerId: string) {
@@ -177,7 +210,7 @@ export class BookSourceJobRepository {
     return !!job;
   }
 
-  async finish(id: number, workerId: string, values: Pick<typeof jobs.$inferInsert, 'status' | 'resultBookId' | 'error'>) {
+  async finish(id: number, workerId: string, values: Pick<typeof jobs.$inferInsert, 'status' | 'resultBookId' | 'error' | 'reviewId' | 'retryable'>) {
     await this.db
       .update(jobs)
       .set({ ...values, workerId: null, leaseUntil: null, updatedAt: new Date() })

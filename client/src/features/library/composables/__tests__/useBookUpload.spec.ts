@@ -1,12 +1,38 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { api } from '@/lib/api'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { useBookUpload, SUPPORTED_FORMATS_ACCEPT } from '../useBookUpload'
 
-vi.mock('@/lib/api', () => ({ getValidToken: vi.fn<() => Promise<string>>().mockResolvedValue('test-token') }))
+vi.mock('@/lib/api', () => ({ getValidToken: vi.fn<() => Promise<string>>().mockResolvedValue('test-token'), api: vi.fn() }))
 vi.mock('@/features/settings/composables/useAppInfo', () => ({ useAppInfo: () => ({ maxUploadSizeMb: ref(500) }) }))
 
 describe('library DjVu upload', () => {
   beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('loads an owner-scoped review after the standard conflict response instead of treating it as a failed upload', async () => {
+    const review = { id: 'review-1', filename: 'book.epub', matches: [] }
+    vi.mocked(api).mockResolvedValue({ ok: true, json: async () => review } as Response)
+    class ReviewXHR {
+      status = 409
+      responseText = JSON.stringify({ errorCode: 'IMPORT_REVIEW_REQUIRED', errorMeta: { reviewId: 'review-1' } })
+      upload = {}
+      onload: (() => void) | null = null
+      open() {}
+      setRequestHeader() {}
+      send() {
+        queueMicrotask(() => this.onload?.())
+      }
+    }
+    vi.stubGlobal('XMLHttpRequest', ReviewXHR)
+    const upload = useBookUpload()
+    upload.addFiles([new File(['book content'], 'book.epub')])
+    await upload.startUpload(3)
+    expect(api).toHaveBeenCalledWith('/api/v1/imports/reviews/review-1')
+    expect(upload.files.value[0]).toMatchObject({ status: 'review', progress: 100, review })
+    expect(upload.errorCount.value).toBe(0)
+    expect(upload.uploadedBookIds.value).toEqual([])
+  })
 
   it('accepts DjVu in file selection and drag-and-drop validation regardless of case', () => {
     const upload = useBookUpload()

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { bigint, check, index, integer, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 
+import { bookImportReviews } from './import-reviews';
 import { users } from './auth';
 import { books } from './books';
 import { libraries, libraryFolders } from './libraries';
@@ -26,6 +27,7 @@ export const uploadSessions = pgTable(
     expectedSha256: varchar('expected_sha256', { length: 64 }),
     errorCode: varchar('error_code', { length: 80 }),
     errorMessage: text('error_message'),
+    reviewId: uuid('review_id').references(() => bookImportReviews.id, { onDelete: 'set null' }),
     resultBookId: integer('result_book_id').references(() => books.id, { onDelete: 'set null' }),
     resultBookDockFileId: integer('result_book_dock_file_id'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -41,7 +43,10 @@ export const uploadSessions = pgTable(
     index('upload_sessions_user_created_idx').on(t.userId, sql`${t.createdAt} desc`),
     index('upload_sessions_status_expires_idx').on(t.status, t.expiresAt),
     check('upload_sessions_target_kind_chk', sql`${t.targetKind} in ('library', 'existing_book', 'book_dock')`),
-    check('upload_sessions_status_chk', sql`${t.status} in ('receiving', 'processing', 'completed', 'failed', 'cancelled', 'expired')`),
+    check(
+      'upload_sessions_status_chk',
+      sql`${t.status} in ('receiving', 'processing', 'awaiting_choice', 'completed', 'failed', 'cancelled', 'expired')`,
+    ),
     check('upload_sessions_size_positive_chk', sql`${t.sizeBytes} > 0`),
     check('upload_sessions_received_range_chk', sql`${t.receivedBytes} >= 0 and ${t.receivedBytes} <= ${t.sizeBytes}`),
   ],

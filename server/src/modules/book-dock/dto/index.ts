@@ -1,3 +1,4 @@
+import { ImportResolutionDto } from '../../import-review/dto/import-review.dto';
 import {
   IsArray,
   IsBoolean,
@@ -145,6 +146,10 @@ export class UpdateBookDockFileDto {
 }
 
 class FinalizeOverrideDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ImportResolutionDto)
+  importResolution?: import('@bookorbit/types').ImportResolution;
   @IsInt()
   fileId: number;
 

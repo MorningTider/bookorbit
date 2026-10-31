@@ -1,5 +1,7 @@
+import { bookImportReviews } from './import-reviews';
+import type { ImportResolution } from '@bookorbit/types';
 import { sql } from 'drizzle-orm';
-import { boolean, check, index, integer, pgTable, serial, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { libraries, libraryFolders } from './libraries';
 import { books } from './books';
@@ -23,6 +25,8 @@ export const bookSourceJobs = pgTable(
     attempts: integer('attempts').notNull().default(0),
     resultBookId: integer('result_book_id').references(() => books.id, { onDelete: 'set null' }),
     error: text('error'),
+    reviewId: uuid('review_id').references(() => bookImportReviews.id, { onDelete: 'set null' }),
+    importResolution: jsonb('import_resolution').$type<ImportResolution>(),
     workerId: varchar('worker_id', { length: 36 }),
     leaseUntil: timestamp('lease_until', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -33,13 +37,16 @@ export const bookSourceJobs = pgTable(
     index('book_source_jobs_queue_idx').on(t.status, t.id),
     index('book_source_jobs_user_active_idx')
       .on(t.userId)
-      .where(sql`${t.status} in ('queued', 'downloading', 'importing')`),
+      .where(sql`${t.status} in ('queued', 'downloading', 'importing', 'awaiting_choice')`),
     uniqueIndex('book_source_jobs_identity_uidx')
       .on(t.userId, t.libraryId, t.sourceBookId)
-      .where(sql`${t.status} not in ('failed', 'cancelled') or ${t.retryable} = false`),
+      .where(sql`${t.status} in ('queued', 'downloading', 'importing', 'awaiting_choice') or (${t.status} = 'failed' and ${t.retryable} = false)`),
     uniqueIndex('book_source_jobs_worker_uidx')
       .on(t.status)
       .where(sql`${t.status} = 'downloading'`),
-    check('book_source_jobs_status_chk', sql`${t.status} in ('queued', 'downloading', 'importing', 'completed', 'failed', 'cancelled')`),
+    check(
+      'book_source_jobs_status_chk',
+      sql`${t.status} in ('queued', 'downloading', 'importing', 'completed', 'failed', 'cancelled', 'awaiting_choice')`,
+    ),
   ],
 );

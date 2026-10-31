@@ -29,14 +29,18 @@ export class BookSourceController {
   @HttpCode(202)
   @RequireLibraryType('books')
   acquire(@Param('id', ParseIntPipe) id: number, @Body() dto: AcquireTomatoDto, @CurrentUser() user: RequestUser) {
-    return this.jobs.enqueue(id, dto.folderId, dto.bookId, user);
+    return dto.importResolution
+      ? this.jobs.enqueue(id, dto.folderId, dto.bookId, user, dto.importResolution)
+      : this.jobs.enqueue(id, dto.folderId, dto.bookId, user);
   }
 
   @Post('libraries/:id/sources/qidian')
   @HttpCode(202)
   @RequireLibraryType('books')
   acquireQidian(@Param('id', ParseIntPipe) id: number, @Body() dto: AcquireQidianDto, @CurrentUser() user: RequestUser) {
-    return this.jobs.enqueueQidian(id, dto.folderId, dto.bookId, user);
+    return dto.importResolution
+      ? this.jobs.enqueueQidian(id, dto.folderId, dto.bookId, user, dto.importResolution)
+      : this.jobs.enqueueQidian(id, dto.folderId, dto.bookId, user);
   }
 
   @Get('book-sources/chapter-sources')
