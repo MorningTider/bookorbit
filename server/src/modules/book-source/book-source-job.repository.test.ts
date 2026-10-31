@@ -36,6 +36,7 @@ describe.skipIf(!databaseUrl)('BookSourceJobRepository PostgreSQL integration', 
     if (!uploadTable) throw new Error('Upload session schema fixture not found');
     await pool.query(uploadTable[0]);
     await pool.query(await readFile(new URL('../../db/migrations/0128_upload_session_import_review.sql', import.meta.url), 'utf8'));
+    await pool.query(await readFile(new URL('../../db/migrations/0129_import_destination_review.sql', import.meta.url), 'utf8'));
 
     await pool.query('INSERT INTO users(id) VALUES (7),(8) ON CONFLICT DO NOTHING; INSERT INTO libraries(id) VALUES (3),(4) ON CONFLICT DO NOTHING');
     const module = await Test.createTestingModule({

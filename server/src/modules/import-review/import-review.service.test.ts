@@ -33,7 +33,7 @@ describe('duplicate import matching', () => {
     const { service, repository, libraries } = fixture();
     const result = await service.checkCandidates(3, [{ key: 'book', identity: { title: ' 猎罪神探 ', authors: ['道门老九'], format: 'txt' } }], user);
     expect(result[0].matches[0]).toMatchObject({ bookId: 12, exact: false, reasons: ['title_author'] });
-    expect(repository.findCandidates).toHaveBeenCalledWith(expect.anything(), [3], expect.anything(), user, undefined);
+    expect(repository.findCandidates).toHaveBeenCalledWith(expect.anything(), [3], expect.anything(), user, undefined, undefined);
     expect(libraries.findAccessibleLibraryIds).not.toHaveBeenCalled();
   });
   it('retains source identity even after scraped title and author change', async () => {
@@ -62,7 +62,7 @@ describe('duplicate import matching', () => {
     const { service, policy, repository } = fixture();
     policy.forLibrary.mockResolvedValue({ effective: { ...DEFAULT_IMPORT_DUPLICATE_POLICY, acrossLibraries: true } });
     await service.matches(3, [{ title: '猎罪神探' }], user);
-    expect(repository.findCandidates).toHaveBeenCalledWith(expect.anything(), [3, 4], expect.anything(), user, undefined);
+    expect(repository.findCandidates).toHaveBeenCalledWith(expect.anything(), [3, 4], expect.anything(), user, undefined, undefined);
   });
   it('compares full content when KOReader partial fingerprints collide', async () => {
     const root = await mkdtemp(join(tmpdir(), 'bookorbit-import-hash-'));

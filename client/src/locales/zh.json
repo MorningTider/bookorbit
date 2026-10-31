@@ -15017,7 +15017,8 @@
       "content_hash": "文件完整内容相同",
       "source_identity": "同一书源条目",
       "isbn": "ISBN 相同",
-      "title_author": "书名和作者匹配，仅供确认"
+      "title_author": "书名和作者匹配，仅供确认",
+      "destination_path": "目标文件路径相同，需确认处理方式"
     },
     "policy": {
       "title": "重复书籍识别规则",

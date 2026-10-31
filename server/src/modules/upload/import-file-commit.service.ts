@@ -1,3 +1,4 @@
+import { recordBookFileHashHistory } from '../../db/book-file-hash-history';
 import { isAudioFormat } from '@bookorbit/types';
 import { parseAudioDuration } from '../metadata/extractors/audio.extractor';
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -82,6 +83,7 @@ export class ImportFileCommitService {
           await this.paths.assertWithinRoot(file.absolutePath, target.root);
           await publish();
           const current = await stat(file.absolutePath, { bigint: true });
+          if (file.fileHash && file.fileHash !== fileHash) await recordBookFileHashHistory(tx, file.id, file.fileHash, 'file_write');
           await tx
             .update(bookFiles)
             .set({

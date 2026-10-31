@@ -34,6 +34,7 @@ export const bookImportReviews = pgTable(
       .notNull()
       .references(() => libraries.id, { onDelete: 'cascade' }),
     folderId: integer('folder_id').references(() => libraryFolders.id, { onDelete: 'set null' }),
+    destinationBookId: integer('destination_book_id').references(() => books.id, { onDelete: 'set null' }),
     filename: varchar('filename', { length: 500 }).notNull(),
     stagingPath: text('staging_path').notNull(),
     format: varchar('format', { length: 20 }).notNull(),

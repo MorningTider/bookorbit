@@ -417,6 +417,7 @@ export class BookDockFinalizeService implements OnModuleInit, OnApplicationBoots
           metadata,
           preparedAnalysis.placement.filter((file) => file.role === 'content').length,
           actingUser,
+          preparedAnalysis.destPath,
         );
         const resolution = preparedAnalysis.importResolution;
         if (review && !resolution)

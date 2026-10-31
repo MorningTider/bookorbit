@@ -26,7 +26,7 @@ export interface ImportIdentity {
   origin?: ImportOrigin;
   format?: string;
 }
-export type ImportDuplicateReason = "content_hash" | "source_identity" | "isbn" | "title_author";
+export type ImportDuplicateReason = "content_hash" | "source_identity" | "isbn" | "title_author" | "destination_path";
 export interface ImportDuplicateFile {
   id: number;
   filename: string;

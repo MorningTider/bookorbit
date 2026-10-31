@@ -58,6 +58,7 @@ interface UploadImportOptions {
   resolution?: ImportResolution;
   origin?: ImportOrigin;
   reviewId?: string;
+  destinationBookId?: number;
 }
 
 @Injectable()
@@ -129,6 +130,7 @@ export class UploadService {
         resolution,
         ...(row.origin ? { origin: row.origin } : {}),
         reviewId: id,
+        destinationBookId: row.destinationBookId ?? undefined,
       });
       await this.importReview.finish(id, user, result.bookId);
       return result;
@@ -332,7 +334,13 @@ export class UploadService {
     try {
       await this.validator.validateContent(tempPath, format);
       const identity = await this.importReview.extractIdentity(tempPath, filename, format, importOptions?.origin);
-      const [matches = []] = await this.importReview.matches(libraryId, [identity], user, { path: tempPath, size: sizeBytes });
+      const [matches = []] = await this.importReview.matches(
+        libraryId,
+        [identity],
+        user,
+        { path: tempPath, size: sizeBytes },
+        importOptions?.destinationBookId,
+      );
       if (!importOptions?.resolution && matches.length)
         await this.importReview.stage(tempPath, { libraryId, folderId: folder.id, filename, format, sizeBytes, identity }, matches, user);
       const resolution = importOptions?.resolution;
@@ -359,7 +367,20 @@ export class UploadService {
       destinationPath = absolutePath;
 
       if (await this.destinationExists(absolutePath)) {
-        await this.importReview.stage(tempPath, { libraryId, folderId: folder.id, filename, format, sizeBytes, identity }, matches, user);
+        const destinationBookId = await this.importReview.destinationOwner(libraryId, absolutePath, user);
+        const [destinationMatches = []] = await this.importReview.matches(
+          libraryId,
+          [identity],
+          user,
+          { path: tempPath, size: sizeBytes },
+          destinationBookId,
+        );
+        await this.importReview.stage(
+          tempPath,
+          { libraryId, folderId: folder.id, filename, format, sizeBytes, identity, destinationBookId },
+          destinationMatches,
+          user,
+        );
       }
 
       selfWritePath = absolutePath;

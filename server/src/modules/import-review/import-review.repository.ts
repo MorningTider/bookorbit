@@ -31,9 +31,11 @@ export class ImportReviewRepository {
     policy: ImportDuplicatePolicy,
     user: RequestUser,
     fingerprint?: { hash: string; size: number },
+    destinationBookId?: number,
   ) {
     if (!libraryIds.length || !identities.length) return { rows: [], files: [], authors: [], origins: [] };
     const conditions: SQL[] = [];
+    if (destinationBookId) conditions.push(eq(books.id, destinationBookId));
     const titles = [...new Set(identities.map((x) => normalizeImportText(x.title ?? '')).filter(Boolean))];
     if (policy.titleAndAuthor && titles.length)
       conditions.push(
@@ -167,6 +169,23 @@ export class ImportReviewRepository {
           .limit(2001)
       : [];
     return { rows: rows.slice(0, 200), files, authors: authorRows, origins, completed };
+  }
+
+  async destinationOwner(libraryId: number, path: string, user: RequestUser) {
+    const [row] = await this.db
+      .select({ bookId: books.id })
+      .from(bookFiles)
+      .innerJoin(books, eq(books.id, bookFiles.bookId))
+      .where(
+        and(
+          eq(books.libraryId, libraryId),
+          eq(bookFiles.absolutePath, path),
+          eq(bookFiles.role, 'content'),
+          ...(!user.isSuperuser && user.contentFilters ? buildContentFilterClauses(user.contentFilters, this.db) : []),
+        ),
+      )
+      .limit(1);
+    return row?.bookId;
   }
 
   async file(id: number, user?: RequestUser) {

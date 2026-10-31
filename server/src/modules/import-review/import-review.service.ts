@@ -139,12 +139,13 @@ export class ImportReviewService implements OnApplicationBootstrap {
     identities: ImportIdentity[],
     user: RequestUser,
     incoming?: { path: string; size: number },
+    destinationBookId?: number,
   ): Promise<ImportDuplicateMatch[][]> {
     const { effective } = await this.policy.forLibrary(libraryId, user);
     const scope = effective.acrossLibraries ? await this.libraries.findAccessibleLibraryIds(user) : [libraryId];
     const editable = effective.acrossLibraries ? await this.libraries.findEditableLibraryIds(user) : [libraryId];
     const fingerprint = incoming && effective.contentHash ? { hash: await computeFileHash(incoming.path), size: incoming.size } : undefined;
-    const found = await this.repository.findCandidates(identities, scope, effective, user, fingerprint);
+    const found = await this.repository.findCandidates(identities, scope, effective, user, fingerprint, destinationBookId);
     if (found.rows.length >= 200 || found.files.length > 10021 || found.authors.length > 2000 || found.origins.length > 2000)
       throw new ConflictException('Too many duplicate candidates; narrow the library scope or rules');
     let incomingSha: string | undefined;
@@ -178,6 +179,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
       found.rows
         .flatMap((row) => {
           if (
+            row.bookId !== destinationBookId &&
             effective.sameMediaKind &&
             importMediaKind(identity.format) !== 'unknown' &&
             importMediaKind(row.primaryFormat) !== importMediaKind(identity.format)
@@ -188,6 +190,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
           const names = authorsByBook.get(row.bookId) ?? [];
           const origins = originsByBook.get(row.bookId) ?? [];
           const reasons: ImportDuplicateReason[] = [];
+          if (row.bookId === destinationBookId) reasons.push('destination_path');
           if (contentBooks.has(row.bookId)) reasons.push('content_hash');
           if (effective.sourceIdentity && identity.origin) {
             const origin = identity.origin;
@@ -217,7 +220,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
               authors: names,
               mediaKind: importMediaKind(row.primaryFormat),
               reasons,
-              exact: reasons.some((r) => r !== 'title_author'),
+              exact: reasons.some((r) => r !== 'title_author' && r !== 'destination_path'),
               canEdit: editable.includes(row.libraryId),
               files: fileRows.slice(0, 50).map((f) => ({
                 id: f.id,
@@ -235,7 +238,15 @@ export class ImportReviewService implements OnApplicationBootstrap {
 
   async stage(
     path: string,
-    input: { libraryId: number; folderId?: number; filename: string; format: string; sizeBytes: number; identity: ImportIdentity },
+    input: {
+      libraryId: number;
+      folderId?: number;
+      filename: string;
+      format: string;
+      sizeBytes: number;
+      identity: ImportIdentity;
+      destinationBookId?: number;
+    },
     matches: ImportDuplicateMatch[],
     user: RequestUser,
   ): Promise<never> {
@@ -252,6 +263,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
         libraryId: input.libraryId,
         folderId: input.folderId,
         filename: input.filename,
+        destinationBookId: input.destinationBookId,
         stagingPath: destination,
         format: input.format,
         sizeBytes: input.sizeBytes,
@@ -284,7 +296,13 @@ export class ImportReviewService implements OnApplicationBootstrap {
   }
   async response(id: string, user: RequestUser): Promise<ImportReviewResponse> {
     const row = await this.get(id, user);
-    const [matches] = await this.matches(row.libraryId, [row.identity], user, { path: row.stagingPath, size: row.sizeBytes });
+    const [matches] = await this.matches(
+      row.libraryId,
+      [row.identity],
+      user,
+      { path: row.stagingPath, size: row.sizeBytes },
+      row.destinationBookId ?? undefined,
+    );
     return {
       id,
       libraryId: row.libraryId,
@@ -322,6 +340,10 @@ export class ImportReviewService implements OnApplicationBootstrap {
       await this.repository.updateReview(id, user.id, { status: 'cancelled' });
       await rm(join(this.directory, id), { recursive: true, force: true });
     });
+  }
+  async destinationOwner(libraryId: number, path: string, user: RequestUser) {
+    await this.policy.forLibrary(libraryId, user);
+    return this.repository.destinationOwner(libraryId, path, user);
   }
   async filesPage(bookId: number, cursor: number | undefined, format: string | undefined, user: RequestUser) {
     const page = await this.repository.filesPage(bookId, cursor, format, user);

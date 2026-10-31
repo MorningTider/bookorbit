@@ -56,6 +56,7 @@ export class BookDockDuplicateService {
     metadata: BookDockMetadata,
     count: number,
     user: RequestUser,
+    destinationPath?: string,
   ): Promise<ImportReviewResponse | null> {
     const identity = await this.reviews.extractIdentity(primary, filename, format);
     if (metadata.title) identity.title = metadata.title;
@@ -63,7 +64,8 @@ export class BookDockDuplicateService {
     if (metadata.isbn10) identity.isbn10 = metadata.isbn10;
     if (metadata.isbn13) identity.isbn13 = metadata.isbn13;
     const sizeBytes = (await lstat(primary)).size;
-    const [matches] = await this.reviews.matches(libraryId, [identity], user, { path: primary, size: sizeBytes });
+    const destinationBookId = destinationPath ? await this.reviews.destinationOwner(libraryId, destinationPath, user) : undefined;
+    const [matches] = await this.reviews.matches(libraryId, [identity], user, { path: primary, size: sizeBytes }, destinationBookId);
     if (!matches?.length) return null;
     return { id: '', libraryId, filename, format, sizeBytes, matches, expiresAt: '', incomingFileCount: count };
   }

@@ -15017,7 +15017,8 @@
       "content_hash": "Identical complete file content",
       "source_identity": "Same source entry",
       "isbn": "Same ISBN",
-      "title_author": "Matching title and author; confirmation required"
+      "title_author": "Matching title and author; confirmation required",
+      "destination_path": "Same destination file path; confirmation required"
     },
     "policy": {
       "title": "Duplicate detection rules",

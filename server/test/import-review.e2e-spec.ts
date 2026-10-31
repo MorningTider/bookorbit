@@ -75,6 +75,9 @@ describe('duplicate import decisions on PostgreSQL', { timeout: 120000 }, () => 
       expect(replaced.statusCode, replaced.body).toBe(201);
       expect(replaced.json().bookId).toBe(original.bookId);
       expect(await readFile(file.absolutePath, 'utf8')).toBe('Replacement readable content');
+      expect(await ctx.db.select().from(schema.bookFileHashHistory).where(eq(schema.bookFileHashHistory.bookFileId, file.id))).toEqual(
+        expect.arrayContaining([expect.objectContaining({ fileHash: file.fileHash, reason: 'file_write' })]),
+      );
       expect((await ctx.db.select().from(schema.bookFiles).where(eq(schema.bookFiles.bookId, original.bookId))).map((row) => row.id)).toEqual([
         file.id,
       ]);
@@ -278,5 +281,40 @@ describe('duplicate import decisions on PostgreSQL', { timeout: 120000 }, () => 
     expect(second.statusCode, second.body).toBe(200);
     expect(second.json().items).toHaveLength(50);
     expect(second.json().items.every((file: { id: number }) => file.id > first.json().nextCursor)).toBe(true);
+  });
+  it('offers replacement for changed plain TXT content even without author or ISBN', async () => {
+    const folder = join(root, 'plain-text-collision-library');
+    await mkdir(folder);
+    const { libraryId, libraryFolderId } = await seedLibrary(ctx.db, { rootPath: folder, mode: 'book_per_file', allowedFormats: ['txt'] });
+    libraryIds.push(libraryId);
+    const original = await ctx.app.get(UploadService).upload(libraryId, libraryFolderId, 'plain.txt', Readable.from(['Original plain text']), user);
+    const [file] = await ctx.db.select().from(schema.bookFiles).where(eq(schema.bookFiles.bookId, original.bookId));
+    const boundary = 'bookorbit-plain-' + randomUUID();
+    const payload = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="plain.txt"\r\nContent-Type: text/plain\r\n\r\nChanged plain text\r\n--${boundary}--\r\n`,
+    );
+    const headers = { authorization: `Bearer ${ctx.adminToken}` };
+    const incoming = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/libraries/${libraryId}/upload?folderId=${libraryFolderId}`,
+      headers: { ...headers, 'content-type': `multipart/form-data; boundary=${boundary}` },
+      payload,
+    });
+    expect(incoming.statusCode, incoming.body).toBe(409);
+    const id = incoming.json().errorMeta.reviewId;
+    const review = await ctx.app.inject({ method: 'GET', url: `/api/v1/imports/reviews/${id}`, headers });
+    expect(review.statusCode, review.body).toBe(200);
+    expect(review.json().matches[0]).toMatchObject({ bookId: original.bookId, exact: false, reasons: ['destination_path'] });
+    expect(await readFile(file.absolutePath, 'utf8')).toBe('Original plain text');
+    const replaced = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/imports/reviews/${id}/resolve`,
+      headers,
+      payload: { action: 'replace', bookId: original.bookId, fileId: file.id, expectedSha256: await fullFileSha256(file.absolutePath) },
+    });
+    expect(replaced.statusCode, replaced.body).toBe(201);
+    expect(replaced.json().bookId).toBe(original.bookId);
+    expect(await readFile(file.absolutePath, 'utf8')).toBe('Changed plain text');
+    expect(await ctx.db.select().from(schema.books).where(eq(schema.books.libraryId, libraryId))).toHaveLength(1);
   });
 });

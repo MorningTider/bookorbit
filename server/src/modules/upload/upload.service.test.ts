@@ -143,6 +143,7 @@ describe('UploadService', () => {
       pathPolicy as any,
       selfWrites,
       {
+        destinationOwner: vi.fn().mockResolvedValue(undefined),
         extractIdentity: vi.fn().mockResolvedValue({ title: 'book', authors: [], format: 'epub' }),
         matches: vi.fn().mockResolvedValue([[]]),
         recordOrigin: vi.fn().mockResolvedValue(undefined),
