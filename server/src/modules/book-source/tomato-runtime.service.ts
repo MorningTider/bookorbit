@@ -1,3 +1,4 @@
+import type { BookSourceJobProgress } from '@bookorbit/types';
 import { Interval } from '@nestjs/schedule';
 import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -13,7 +14,7 @@ import { bookSourceConfig, storageConfig } from '../../config/config';
 import { readBoundedText } from '../../common/utils/bounded-response';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 import { assertSourceEpub } from './validate-source-epub';
-import { assertTomatoComplete, tomatoBookId, tomatoJobId, tomatoJobState } from './tomato-protocol';
+import { assertTomatoComplete, tomatoBookId, tomatoJobId, tomatoJobState, tomatoJobProgress } from './tomato-protocol';
 
 const RELEASE_HASHES: Record<string, string> = {
   x64: 'd9db872448e3cda78a18eaa3c7ee162ce631251ed51eb789f8e6676abe118722',
@@ -30,7 +31,11 @@ export class TomatoRuntimeService {
     @Inject(storageConfig.KEY) private readonly storage: ConfigType<typeof storageConfig>,
   ) {}
 
-  async download(bookId: string, signal: AbortSignal): Promise<{ content: Buffer; title: string }> {
+  async download(
+    bookId: string,
+    signal: AbortSignal,
+    onProgress?: (progress: BookSourceJobProgress) => void,
+  ): Promise<{ content: Buffer; title: string }> {
     tomatoBookId(bookId);
     if (this.busy) throw new ConflictException('已有番茄下载正在执行，请等待当前任务完成');
     this.busy = true;
@@ -126,8 +131,21 @@ export class TomatoRuntimeService {
       )
         throw new BadGatewayException('番茄书名缺失或书籍不匹配');
       const title = preview.book_name.trim().slice(0, 200);
+      let progress: BookSourceJobProgress = { phase: 'preparing', title };
+      onProgress?.(progress);
       const jobId = tomatoJobId(await request('/api/jobs', { book_id: bookId }));
-      while (tomatoJobState(await request(`/api/jobs?id=${jobId}`), jobId, bookId) !== 'done') await delay(500, undefined, { signal: deadline });
+      while (true) {
+        const snapshot = await request(`/api/jobs?id=${jobId}`);
+        const state = tomatoJobState(snapshot, jobId, bookId);
+        const next = tomatoJobProgress(snapshot, jobId, bookId);
+        if (next) {
+          progress = { ...next, title };
+          onProgress?.(progress);
+        }
+        if (state === 'done') break;
+        await delay(500, undefined, { signal: deadline });
+      }
+      onProgress?.({ ...progress, phase: 'validating' });
       assertTomatoComplete(await request('/api/history?limit=1'), bookId);
       const files = (await readdir(output)).filter((name) => name.endsWith('.epub'));
       if (files.length !== 1) throw new BadGatewayException('番茄下载未生成唯一 EPUB');

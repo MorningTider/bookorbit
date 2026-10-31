@@ -1,3 +1,4 @@
+import { BookSourceProgress } from './book-source-progress.service';
 import { ForbiddenException, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { Permission } from '@bookorbit/types';
@@ -16,6 +17,7 @@ export class BookSourceWorker implements OnModuleDestroy {
   private active: { id: number; controller: AbortController; promise: Promise<void> } | null = null;
 
   constructor(
+    private readonly progress: BookSourceProgress,
     private readonly repository: BookSourceJobRepository,
     private readonly sources: BookSourceService,
     private readonly auth: AuthService,
@@ -70,6 +72,7 @@ export class BookSourceWorker implements OnModuleDestroy {
   private async run(job: Awaited<ReturnType<BookSourceJobRepository['claim']>> & {}, controller: AbortController) {
     const startedAt = Date.now();
     let importing = false;
+    this.progress.begin(job.id, job.userId);
     this.logger.log(`[book_source.job] [start] jobId=${job.id} userId=${job.userId} libraryId=${job.libraryId} - background acquisition started`);
     try {
       const user = await this.actingUser(job.userId);
@@ -91,6 +94,7 @@ export class BookSourceWorker implements OnModuleDestroy {
           if (!(await this.repository.beginImport(job.id, this.workerId, title))) throw new ForbiddenException('下载已取消或任务租约失效');
           importing = true;
         },
+        (progress) => this.progress.update(job.id, progress),
       );
       await this.repository.finish(job.id, this.workerId, { status: 'completed', resultBookId: result.bookId, error: null });
       this.logger.log(
@@ -111,6 +115,8 @@ export class BookSourceWorker implements OnModuleDestroy {
       this.logger.warn(
         `[book_source.job] [fail] jobId=${job.id} userId=${job.userId} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(message)}" - background acquisition failed`,
       );
+    } finally {
+      this.progress.end(job.id);
     }
   }
 

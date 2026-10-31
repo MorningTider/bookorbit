@@ -1,3 +1,4 @@
+import type { BookSourceJobProgress } from '@bookorbit/types';
 import { randomUUID } from 'node:crypto';
 import { BadGatewayException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
@@ -16,7 +17,7 @@ export class ChapterDownloadService {
   private readonly logger = new Logger(ChapterDownloadService.name);
   constructor(@Inject(bookSourceConfig.KEY) private readonly config: ConfigType<typeof bookSourceConfig>) {}
 
-  async download(adapter: ChapterSourceAdapter, bookId: string, signal: AbortSignal) {
+  async download(adapter: ChapterSourceAdapter, bookId: string, signal: AbortSignal, onProgress?: (progress: BookSourceJobProgress) => void) {
     const startedAt = Date.now();
     const deadline = AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs)]);
     this.logger.log(`[book_source.chapters] [start] provider=${adapter.key} bookId=${bookId} - chapter acquisition started`);
@@ -26,6 +27,7 @@ export class ChapterDownloadService {
       const catalog = await adapter.catalog(bookId, deadline);
       if (!catalog.chapters.length || catalog.chapters.length > 1000) throw new BadGatewayException('章节数量超过限制或为空');
       const title = `${catalog.title}（公开免费章节选集）`;
+      onProgress?.({ phase: 'downloading', title, completedChapters: 0, totalChapters: catalog.chapters.length });
       const path = join(root, 'source.txt');
       const output = await open(path, 'wx', 0o600);
       let bytes = 0;
@@ -40,11 +42,13 @@ export class ChapterDownloadService {
           bytes += Buffer.byteLength(content);
           if (bytes > 64 * 1024 * 1024) throw new BadGatewayException('章节正文超过64 MiB限制');
           await output.writeFile(content);
+          onProgress?.({ phase: 'downloading', title, completedChapters: index + 1, totalChapters: catalog.chapters.length });
         }
       } finally {
         await output.close();
       }
       deadline.throwIfAborted();
+      onProgress?.({ phase: 'validating', title, completedChapters: catalog.chapters.length, totalChapters: catalog.chapters.length });
       const epub = join(root, 'book.epub');
       await convertTxtToEpub(path, epub, title, {
         encoding: 'utf8',

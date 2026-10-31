@@ -1,3 +1,4 @@
+import { BookSourceProgress } from './book-source-progress.service';
 import { DownloadSourcePolicy } from './download-source-policy.service';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { Test } from '@nestjs/testing';
@@ -28,6 +29,7 @@ const row = {
 async function service(assertEnabled = () => Promise.resolve(undefined)) {
   const module = await Test.createTestingModule({
     providers: [
+      BookSourceProgress,
       { provide: DownloadSourcePolicy, useValue: { enabled: () => Promise.resolve(true), assertEnabled } },
       { provide: ChapterRuleRegistry, useValue: { all: vi.fn().mockResolvedValue([]), get: vi.fn().mockResolvedValue({ key: 'sample' }) } },
       BookSourceJobService,

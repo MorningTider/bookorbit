@@ -1,3 +1,4 @@
+import { BookSourceProgress } from './book-source-progress.service';
 import { DownloadSourcePolicy } from './download-source-policy.service';
 import { MetadataPreferencesModule } from '../metadata-preferences/metadata-preferences.module';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
@@ -28,6 +29,7 @@ import { BookSourceController } from './book-source.controller';
     BookSourceJobRepository,
     BookSourceJobService,
     BookSourceWorker,
+    BookSourceProgress,
   ],
   exports: [TomatoRuntimeService],
 })

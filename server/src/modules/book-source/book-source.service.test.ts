@@ -55,7 +55,7 @@ describe('Book source acquisition', () => {
   it('imports validated EPUB through the existing user-scoped upload service', async () => {
     const signal = new AbortController().signal;
     await expect((await service()).acquireTomato(3, 4, '7290175791344651298', user, signal)).resolves.toMatchObject({ bookId: 11 });
-    expect(download).toHaveBeenCalledWith('7290175791344651298', signal);
+    expect(download).toHaveBeenCalledWith('7290175791344651298', signal, undefined);
     expect(upload).toHaveBeenCalledWith(3, 4, '测试小说.epub', expect.anything(), user);
   });
   it('never imports failed or cancelled downloads', async () => {

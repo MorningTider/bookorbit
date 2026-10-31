@@ -11,6 +11,12 @@ export interface BookSourceStatus {
 }
 
 export type BookSourceJobStatus = "queued" | "downloading" | "importing" | "completed" | "failed" | "cancelled";
+export interface BookSourceJobProgress {
+  phase: "preparing" | "downloading" | "validating";
+  completedChapters?: number;
+  totalChapters?: number;
+  title?: string;
+}
 export interface BookSourceJob {
   id: number;
   libraryId: number;
@@ -20,6 +26,7 @@ export interface BookSourceJob {
   status: BookSourceJobStatus;
   retryable: boolean;
   attempts: number;
+  progress?: BookSourceJobProgress;
   cancelRequested: boolean;
   resultBookId: number | null;
   error: string | null;

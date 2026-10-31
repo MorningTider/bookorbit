@@ -1,9 +1,10 @@
+import { BookSourceProgress } from './book-source-progress.service';
 import { DownloadSourcePolicy } from './download-source-policy.service';
 import { BadRequestException } from '@nestjs/common';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { ForbiddenException, Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import type { BookSourceJob, BookSourceJobPage, BookSourceJobStatus } from '@bookorbit/types';
+import type { BookSourceJob, BookSourceJobPage, BookSourceJobStatus, BookSourceJobProgress } from '@bookorbit/types';
 import { bookSourceConfig } from '../../config/config';
 import type { RequestUser } from '../../common/types/request-user';
 import { bookSourceJobs } from '../../db/schema';
@@ -13,13 +14,14 @@ import { qidianBookId } from './qidian-chapter-source';
 import { tomatoBookId } from './tomato-protocol';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 
-export function sourceJobResponse(job: typeof bookSourceJobs.$inferSelect): BookSourceJob {
+export function sourceJobResponse(job: typeof bookSourceJobs.$inferSelect, progress?: BookSourceJobProgress): BookSourceJob {
   return {
     id: job.id,
     libraryId: job.libraryId,
     sourceBookId: job.sourceBookId.includes(':') ? job.sourceBookId.split(':')[1]! : job.sourceBookId,
     ...(job.sourceBookId.includes(':') ? { source: job.sourceBookId.split(':')[0]! } : {}),
-    title: job.title,
+    title: job.title || progress?.title || '',
+    ...(progress ? { progress } : {}),
     status: job.status as BookSourceJobStatus,
     attempts: job.attempts,
     retryable: job.retryable,
@@ -35,6 +37,7 @@ export function sourceJobResponse(job: typeof bookSourceJobs.$inferSelect): Book
 export class BookSourceJobService {
   private readonly logger = new Logger(BookSourceJobService.name);
   constructor(
+    private readonly progress: BookSourceProgress,
     private readonly downloadPolicy: DownloadSourcePolicy,
     private readonly repository: BookSourceJobRepository,
     private readonly libraries: LibraryService,
@@ -73,11 +76,14 @@ export class BookSourceJobService {
 
   async list(user: RequestUser, cursor?: number): Promise<BookSourceJobPage> {
     const rows = await this.repository.list(user.id, cursor);
-    return { items: rows.slice(0, 25).map(sourceJobResponse), nextCursor: rows.length > 25 ? rows[24]!.id : null };
+    return {
+      items: rows.slice(0, 25).map((job) => sourceJobResponse(job, this.progress.read(job.id, user.id))),
+      nextCursor: rows.length > 25 ? rows[24]!.id : null,
+    };
   }
 
   async get(id: number, user: RequestUser) {
-    return sourceJobResponse(await this.repository.owned(id, user.id));
+    return sourceJobResponse(await this.repository.owned(id, user.id), this.progress.read(id, user.id));
   }
 
   async cancel(id: number, user: RequestUser) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertTomatoComplete, tomatoBookId, tomatoJobId, tomatoJobState } from './tomato-protocol';
+import { tomatoJobProgress, assertTomatoComplete, tomatoBookId, tomatoJobId, tomatoJobState } from './tomato-protocol';
 
 describe('Tomato download protocol', () => {
   it('accepts numeric book identities and rejects paths or commands', () => {
@@ -34,4 +34,21 @@ describe('Tomato download protocol', () => {
       expect(() => assertTomatoComplete({ items: [{ book_id: 'book', ...row }] }, 'book')).toThrow('完整性无法确认');
     expect(() => assertTomatoComplete({ items: [{ book_id: 'other' }] }, 'book')).toThrow('完整性无法确认');
   });
+});
+
+it('reports only valid counts for the selected job and book, without estimating missing progress', () => {
+  const job = { id: 1, book_id: 'book', progress: { saved_chapters: 25, chapter_total: 100 } };
+  expect(tomatoJobProgress({ items: [job] }, 1, 'book')).toEqual({ phase: 'downloading', completedChapters: 25, totalChapters: 100 });
+  expect(tomatoJobProgress({ items: [job] }, 2, 'book')).toBeUndefined();
+  expect(tomatoJobProgress({ items: [job] }, 1, 'other')).toBeUndefined();
+  for (const progress of [
+    null,
+    {},
+    { saved_chapters: '2', chapter_total: 10 },
+    { saved_chapters: 11, chapter_total: 10 },
+    { saved_chapters: -1, chapter_total: 10 },
+    { saved_chapters: 0, chapter_total: 0 },
+  ]) {
+    expect(tomatoJobProgress({ items: [{ ...job, progress }] }, 1, 'book')).toBeUndefined();
+  }
 });

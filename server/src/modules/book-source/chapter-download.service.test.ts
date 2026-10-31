@@ -19,7 +19,13 @@ function adapter(): ChapterSourceAdapter {
 }
 describe('reusable chapter downloader', () => {
   it('builds a validated EPUB selection with metadata, source titles, and escaped paragraphs', async () => {
-    const result = await (await setup()).download(adapter(), '101', new AbortController().signal);
+    const progress = vi.fn();
+    const result = await (await setup()).download(adapter(), '101', new AbortController().signal, progress);
+    expect(progress.mock.calls.map(([value]) => [value.phase, value.completedChapters, value.totalChapters])).toEqual([
+      ['downloading', 0, 1],
+      ['downloading', 1, 1],
+      ['validating', 1, 1],
+    ]);
     expect(result.title).toBe('测试作品（公开免费章节选集）');
     const zip = await unzipper.Open.buffer(result.content);
     const nav = (await zip.files.find((f) => f.path === 'OEBPS/nav.xhtml')!.buffer()).toString();

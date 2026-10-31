@@ -29,6 +29,21 @@ const statusLabels: Record<BookSourceJobStatus, string> = {
   failed: 'chapterSources.status.failed',
   cancelled: 'chapterSources.status.cancelled',
 }
+export function sourceJobPercent(job: BookSourceJob): number | undefined {
+  if (job.status === 'completed') return 100
+  const progress = job.progress
+  if (
+    !progress ||
+    !Number.isSafeInteger(progress.completedChapters) ||
+    !Number.isSafeInteger(progress.totalChapters) ||
+    !progress.totalChapters ||
+    progress.totalChapters < 1 ||
+    progress.completedChapters! < 0 ||
+    progress.completedChapters! > progress.totalChapters
+  )
+    return
+  return Math.floor((100 * progress.completedChapters!) / progress.totalChapters)
+}
 export function useFanqieAcquisition() {
   const metadata = useMetadataSearch()
   const destinations = useRequestDestinationDefault()
@@ -292,6 +307,8 @@ export function useFanqieAcquisition() {
     await refreshJobs()
   }
   function statusLabel(job: BookSourceJob) {
+    if (job.status === 'downloading' && job.progress?.phase === 'preparing') return i18n.global.t('chapterSources.preparing')
+    if (job.status === 'downloading' && job.progress?.phase === 'validating') return i18n.global.t('chapterSources.validating')
     return i18n.global.t(statusLabels[job.status])
   }
   onUnmounted(() => {
@@ -333,6 +350,7 @@ export function useFanqieAcquisition() {
     nextPage,
     firstPage,
     statusLabel,
+    progressPercent: sourceJobPercent,
     results: computed(() => metadata.results.value.filter((candidate) => enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian'))),
     isSearching: metadata.isStreaming,
     hasSearched: metadata.hasSearched,

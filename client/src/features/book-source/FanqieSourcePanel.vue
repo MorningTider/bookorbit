@@ -49,6 +49,7 @@ const {
   nextPage,
   firstPage,
   statusLabel,
+  progressPercent,
   retry,
   error,
   results,
@@ -183,6 +184,24 @@ onMounted(load)
                 >
                   {{ statusLabel(job) }}<span v-if="job.cancelRequested && job.status === 'downloading'">{{ t('chapterSources.cancelling') }}</span>
                 </span>
+                <div v-if="['downloading', 'importing', 'completed'].includes(job.status)" class="mt-2 space-y-1">
+                  <progress
+                    class="h-2 w-full min-w-32 accent-primary"
+                    :aria-label="t('chapterSources.downloadProgress')"
+                    :max="100"
+                    :value="progressPercent(job)"
+                  />
+                  <p v-if="job.status !== 'completed' && progressPercent(job) !== undefined" class="text-xs text-muted-foreground">
+                    {{
+                      t('chapterSources.chapterProgress', {
+                        completed: job.progress?.completedChapters,
+                        total: job.progress?.totalChapters,
+                        percent: progressPercent(job),
+                      })
+                    }}
+                  </p>
+                  <p v-else-if="job.status === 'completed'" class="text-xs text-muted-foreground">100%</p>
+                </div>
                 <p v-if="job.error" class="mt-2 max-w-sm break-words text-destructive">{{ job.error }}</p>
                 <p class="mt-1 text-xs text-muted-foreground">{{ t('chapterSources.taskUpdated', { time: taskTime(job.updatedAt) }) }}</p>
               </td>

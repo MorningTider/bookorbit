@@ -1,3 +1,4 @@
+import type { BookSourceJobProgress } from '@bookorbit/types';
 import { BadGatewayException, BadRequestException } from '@nestjs/common';
 
 export function tomatoBookId(input: string): string {
@@ -20,6 +21,23 @@ export function tomatoJobState(value: unknown, jobId: number, bookId: string): '
   if (Array.isArray(job.format_options) && job.format_options.length) throw new BadGatewayException('下载器要求交互选择格式');
   if (job.state !== 'queued' && job.state !== 'running' && job.state !== 'done') throw new BadGatewayException('番茄下载失败，未入库');
   return job.state;
+}
+
+export function tomatoJobProgress(value: unknown, jobId: number, bookId: string): BookSourceJobProgress | undefined {
+  const job = objectItems(value).find((item) => item.id === jobId && item.book_id === bookId);
+  const progress = job?.progress;
+  if (!progress || typeof progress !== 'object' || !('saved_chapters' in progress) || !('chapter_total' in progress)) return;
+  const completed = progress.saved_chapters;
+  const total = progress.chapter_total;
+  if (
+    !Number.isSafeInteger(completed) ||
+    !Number.isSafeInteger(total) ||
+    Number(total) <= 0 ||
+    Number(completed) < 0 ||
+    Number(completed) > Number(total)
+  )
+    return;
+  return { phase: 'downloading', completedChapters: Number(completed), totalChapters: Number(total) };
 }
 
 export function assertTomatoComplete(value: unknown, bookId: string): void {

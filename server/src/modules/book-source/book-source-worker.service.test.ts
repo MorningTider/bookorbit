@@ -1,3 +1,4 @@
+import { BookSourceProgress } from './book-source-progress.service';
 import { Test } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { Permission } from '@bookorbit/types';
@@ -12,9 +13,10 @@ const sources = { acquireQidian: vi.fn(), acquireTomato: vi.fn() };
 const auth = { findActingUser: vi.fn() };
 const job = { id: 1, userId: 7, libraryId: 3, folderId: null, sourceBookId: '7290175791344651298' };
 const user = { id: 7, active: true, isSuperuser: false, permissions: [Permission.LibraryUpload, Permission.BookRequestSelfFulfill] };
-async function worker() {
+async function worker(progress = new BookSourceProgress()) {
   const module = await Test.createTestingModule({
     providers: [
+      { provide: BookSourceProgress, useValue: progress },
       BookSourceWorker,
       { provide: BookSourceJobRepository, useValue: repository },
       { provide: BookSourceService, useValue: sources },
@@ -49,6 +51,7 @@ describe('BookSourceWorker durable orchestration', () => {
       '1010868264',
       expect.objectContaining({ id: 7 }),
       expect.any(AbortSignal),
+      expect.any(Function),
       expect.any(Function),
     );
     expect(sources.acquireTomato).not.toHaveBeenCalled();
@@ -145,4 +148,25 @@ describe('BookSourceWorker durable orchestration', () => {
       await instance.onModuleDestroy();
     }
   });
+});
+
+it('publishes real worker progress only to the owner and clears it after completion', async () => {
+  vi.resetAllMocks();
+  auth.findActingUser.mockResolvedValue({ ...user });
+  repository.claim.mockReset().mockResolvedValueOnce(job).mockResolvedValue(null);
+  const progress = new BookSourceProgress();
+  let finish!: (value: { bookId: number }) => void;
+  sources.acquireTomato.mockImplementation((_a, _b, _c, _d, _e, _f, report) => {
+    report({ phase: 'downloading', completedChapters: 25, totalChapters: 100, title: '测试作品' });
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  });
+  const instance = await worker(progress);
+  await instance.tick();
+  await vi.waitFor(() => expect(progress.read(1, 7)?.completedChapters).toBe(25));
+  expect(progress.read(1, 8)).toBeUndefined();
+  finish({ bookId: 12 });
+  await vi.waitFor(() => expect(progress.read(1, 7)).toBeUndefined());
+  await instance.onModuleDestroy();
 });

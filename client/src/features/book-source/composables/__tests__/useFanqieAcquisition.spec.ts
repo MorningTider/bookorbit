@@ -43,7 +43,7 @@ vi.mock('@/features/book/composables/useMetadataSearch', async () => {
     }),
   }
 })
-import { useFanqieAcquisition } from '../useFanqieAcquisition'
+import { sourceJobPercent, useFanqieAcquisition } from '../useFanqieAcquisition'
 const candidate: MetadataCandidate = { provider: 'fanqie', providerId: '7290175791344651298', title: '测试小说', authors: ['作者'] }
 const job: BookSourceJob = {
   id: 11,
@@ -343,4 +343,11 @@ describe('task record deletion', () => {
     expect(model.error.value).toBeTruthy()
     wrapper.unmount()
   })
+})
+
+it('uses real chapter counts and never estimates unknown or invalid progress', () => {
+  expect(sourceJobPercent({ ...job, progress: { phase: 'downloading', completedChapters: 25, totalChapters: 100 } })).toBe(25)
+  expect(sourceJobPercent({ ...job, progress: { phase: 'preparing' } })).toBeUndefined()
+  expect(sourceJobPercent({ ...job, progress: { phase: 'downloading', completedChapters: 101, totalChapters: 100 } })).toBeUndefined()
+  expect(sourceJobPercent({ ...job, status: 'completed' })).toBe(100)
 })
