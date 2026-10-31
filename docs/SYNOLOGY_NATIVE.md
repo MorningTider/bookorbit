@@ -508,3 +508,9 @@ a507f70f 取消单来源下拉框，聚合已启用的可下载来源。设置 �
 同载荷自用正式 3.5.0-10034，源码与打包提交 243153c5，SHA256 5d63309e105b1c19078728900ac6c9e2cebeb150a6ecdd8da3d8f875ada9dc87，已通过 DSM 套件中心安装。最终 stable/private、pending 为空、INFO 无 Beta；12 项生产 API、10 项缓存请求和 8 份已安装关键模块/页面哈希通过，总书数 19。正式升级后再次对比书目 33、文件、元数据及阅读数据摘要一致，实际页面仍显示任务列表。最终收据 local/synology-native/lifecycle-check/task-progress-final-10034.json。
 
 按既有清理要求，最终验证后删除 10028 至 10033 六份旧/中间 SPK，仅保留 local/synology-native/spk/task-progress-private-stable-10034/bookorbit-native_x86_64_3.5.0-10034.spk；Downloads 中没有历史 BookOrbit SPK。群晖清理本轮五个只含 service.json 的生命周期副本目录，在线配置哈希保持一致，配置备份目录与 PostgreSQL 备份目录均为空，应用状态目录没有 SPK。未创建数据库备份。已删除的完成任务记录不会自动重新出现，其书籍和文件仍保留；验收任务 3 已取消并从页面删除，原历史取消任务 1 保留供用户自行管理。
+
+## 2026-10-31 服务器字体导入（不需要套件升级）
+
+通过现有“服务端字体”页面导入五个官方未修改字体：Noto Serif CJK SC Regular/Bold、Noto Sans CJK SC Regular/Bold、LXGW WenKai Regular，共 3 个字体家族、5 个文件，页面全部返回已添加。浏览器 document.fonts 的五个字形均为 loaded，常规为 400、粗体为 700。字体不是塞入安装包的临时文件，数据存放在应用 data/fonts；该目录下 licenses 保存三份 SIL Open Font License 和来源清单。notofonts/noto-cjk 固定提交 f8d157532fbfaeda587e826d4cd5b21a49186f7c，LXGW WenKai v1.530，完整 URL、大小和 SHA256 见 scripts/synology/native/reading-fonts-manifest.json。没有导入系统专有字体，也没有更改用户默认阅读字体。
+
+下载来源滑动开关代码已完成，11 项原有提供商筛选/保存测试通过；增加按钮后，测试工具按 aria-labelledby 区分提供商与独立下载开关，避免混为一组。尚待本轮组合包部署后页面验收，不能仅凭源码修改记为已上线。

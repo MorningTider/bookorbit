@@ -1589,15 +1589,15 @@
         "noFontsYet": "暂无服务端字体",
         "noFontsHint": "在此处添加的字体将对全部用户的阅读器生效。",
         "addFonts": "添加字体",
-        "filterLabel": "筛选品类",
-        "filterPlaceholder": "筛选品类",
+        "filterLabel": "筛选字体家族",
+        "filterPlaceholder": "筛选字体家族",
         "filterClear": "清除过滤器",
-        "noMatches": "没有匹配的家庭“{query}”",
+        "noMatches": "没有匹配“{query}”的字体家族",
         "previewLabel": "预览文本",
-        "previewPlaceholder": "在每个家庭中键入预览它",
+        "previewPlaceholder": "输入文本，预览各字体效果",
         "previewSize": "预览大小",
         "previewSizeOption": "{size} px",
-        "familiesUnit": "{count, plural, one {家庭} other {家庭}}",
+        "familiesUnit": "{count, plural, one {个字体家族} other {个字体家族}}",
         "filesOfMax": "{count} 共 {max} 文件",
         "onDisk": "{size} 在磁盘上",
         "columns": {
@@ -1625,10 +1625,10 @@
           "addFiles": "添加文件",
           "remove": "删除品类…"
         },
-        "footerHint": "每个读者在读者的字体列表中看到这些内容，并且可以在阅读器的 释义词下隐藏其中任何内容。",
+        "footerHint": "这些字体对所有用户可见。用户可在阅读器设置的字体列表中隐藏不需要的字体。",
         "empty": {
-          "dropHint": "或丢弃此页面上任何地方的文件",
-          "tip": "一个家庭读起来最好为四个文件：定期文件，意大利文文件，粗体和粗体斜体。一个变量文件每个重量都可以站在一起。"
+          "dropHint": "也可将字体文件拖放到此页面",
+          "tip": "同一字体家族可以包含常规、斜体、粗体和粗斜体文件；可变字体可用一个文件提供多种字重。"
         },
         "drop": {
           "title": "{count, plural, one {放下来为每个阅读者添加 # 文件} other {放下来为每个阅读者添加# 文件}}"
@@ -1641,7 +1641,7 @@
           "duplicateCount": "{count} 已经在这里",
           "refusedCount": "{count} 未添加",
           "dismiss": "关闭",
-          "newFamily": "新品类",
+          "newFamily": "新字体家族",
           "states": {
             "queued": "等待中",
             "uploading": "上传中",
@@ -2751,7 +2751,7 @@
         "dropFilesHere": "将文件拖放到这里",
         "dragFontsPrefix": "拖动字体文件到此处或",
         "browse": "浏览",
-        "fileTypesHint": "TTF, OTF, WOFFF, WOFF2 - 每个最大50MB",
+        "fileTypesHint": "TTF、OTF、WOFF、WOFF2，每个文件最大 50 MB",
         "yourFonts": "您的字体",
         "fontsUsed": "已使用：{count}/{max}",
         "noFontsYet": "尚未上传字体",
@@ -4276,7 +4276,7 @@
         "requests": "当书轨迹搜索请求的书籍，下载客户端获取它们，以及下载完成后会发生什么情况。",
         "admin-tts": "文字转语音引擎读取器可以用于读取，每个引擎提供的声音以及它们出现的顺序。",
         "book-dock": "Book Dock 拖放文件夹，自动获取新文件的元数据，以及单独完成文件的得分。",
-        "server-fonts": "上传此服务器上每个阅读器的字体一次。每个阅读器仍然可以隐藏其中任何字体。",
+        "server-fonts": "统一管理所有用户可使用的阅读字体。用户仍可在自己的阅读器设置中隐藏不需要的字体。",
         "audit-log": "可检索的记录，按事件、人、影响物品和日期列出谁改变了什么以及何时进行过滤。"
       }
     },

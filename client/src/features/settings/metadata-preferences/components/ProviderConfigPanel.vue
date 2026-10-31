@@ -269,7 +269,7 @@ function discard() {
 
 const downloadSourceKeys = computed(() => (['fanqie', 'qidian'] as const).filter((key) => draft.value?.[key]))
 function toggleDownloadSource(key: 'fanqie' | 'qidian') {
-  if (!draft.value?.[key]) return
+  if (!draft.value?.[key]?.enabled || props.saving) return
   draft.value[key].downloadEnabled = draft.value[key].downloadEnabled === false
 }
 
@@ -374,18 +374,24 @@ function clearFilters() {
       >
         <h2 class="font-semibold">{{ t('chapterSources.downloadSettings') }}</h2>
         <p class="text-sm text-muted-foreground">{{ t('chapterSources.downloadSettingsHint') }}</p>
-        <label v-for="key in downloadSourceKeys" :key="key" class="flex items-center justify-between gap-3 py-2">
+        <div v-for="key in downloadSourceKeys" :key="key" class="flex items-center justify-between gap-3 py-2">
           <span>{{ t(key === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian') }}</span>
-          <input
-            type="checkbox"
+          <button
+            type="button"
             role="switch"
             :aria-label="t('chapterSources.downloadToggle', { source: t(key === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian') })"
-            :checked="draft[key].enabled && draft[key].downloadEnabled !== false"
+            :aria-checked="draft[key].enabled && draft[key].downloadEnabled !== false"
             :disabled="!draft[key].enabled || saving"
-            class="size-5 accent-primary"
-            @change="toggleDownloadSource(key)"
-          />
-        </label>
+            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-50"
+            :class="draft[key].enabled && draft[key].downloadEnabled !== false ? 'bg-primary' : 'border border-border bg-muted'"
+            @click="toggleDownloadSource(key)"
+          >
+            <span
+              class="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-xs transition-transform"
+              :class="draft[key].enabled && draft[key].downloadEnabled !== false ? 'translate-x-4.5' : 'translate-x-0.5'"
+            />
+          </button>
+        </div>
       </section>
 
       <div

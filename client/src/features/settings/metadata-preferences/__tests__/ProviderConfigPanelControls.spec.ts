@@ -65,7 +65,7 @@ function mountPanel(config: ProviderConfigurations = makeConfig(), statuses: Pro
 }
 
 function providerNames(wrapper: VueWrapper): string[] {
-  return wrapper.findAll('button[role="switch"]').map((toggle) => {
+  return wrapper.findAll('button[role="switch"][aria-labelledby]').map((toggle) => {
     const labelledBy = toggle.attributes('aria-labelledby') ?? ''
     return wrapper.get(`#${labelledBy}`).text()
   })
@@ -78,7 +78,7 @@ function clickFilter(wrapper: VueWrapper, label: string) {
 }
 
 function rowFor(wrapper: VueWrapper, name: string) {
-  const toggle = wrapper.findAll('button[role="switch"]').find((candidate) => {
+  const toggle = wrapper.findAll('button[role="switch"][aria-labelledby]').find((candidate) => {
     const labelledBy = candidate.attributes('aria-labelledby') ?? ''
     return wrapper.get(`#${labelledBy}`).text() === name
   })
@@ -135,12 +135,12 @@ describe('ProviderConfigPanel browsing', () => {
     expect(providerNames(wrapper)).toEqual(['Aladin'])
 
     await search.setValue('nothing matches this')
-    expect(wrapper.findAll('button[role="switch"]')).toHaveLength(0)
+    expect(wrapper.findAll('button[role="switch"][aria-labelledby]')).toHaveLength(0)
     expect(wrapper.text()).toContain('No sources match this filter')
 
     const clear = wrapper.findAll('button').find((candidate) => candidate.text() === 'Clear filters')
     await clear?.trigger('click')
-    expect(wrapper.findAll('button[role="switch"]')).toHaveLength(19)
+    expect(wrapper.findAll('button[role="switch"][aria-labelledby]')).toHaveLength(19)
     wrapper.unmount()
   })
 })
@@ -225,8 +225,9 @@ describe('ProviderConfigPanel enable requirements', () => {
 describe('novel download switches', () => {
   it('saves download disablement without disabling metadata', async () => {
     const wrapper = mountPanel(makeConfig({ fanqie: { enabled: true, downloadEnabled: true } }))
-    const toggle = wrapper.get('input[role="switch"][aria-label="Enable downloads from Fanqie"]')
-    await toggle.setValue(false)
+    const toggle = wrapper.get('button[role="switch"][aria-label="Enable downloads from Fanqie"]')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-checked')).toBe('false')
     await wrapper.get('form').trigger('submit')
     expect((wrapper.emitted('save')?.[0]?.[0] as ProviderConfigurations).fanqie).toEqual({ enabled: true, downloadEnabled: false })
     wrapper.unmount()
