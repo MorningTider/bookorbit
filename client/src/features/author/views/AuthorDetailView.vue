@@ -128,6 +128,12 @@ const draftDescription = ref('')
 const draftPreviewImage = ref<AuthorMetadataCandidate | null>(null)
 const includePreviewImage = ref(true)
 const previewImageToSave = computed(() => (!author.value?.imageUrl && includePreviewImage.value ? draftPreviewImage.value : null))
+
+watch(metadataPreview, (candidate) => {
+  if (editOpen.value && !author.value?.imageUrl && !draftPreviewImage.value && candidate?.imageUrl) {
+    draftPreviewImage.value = candidate
+  }
+})
 const draftFacts = ref<AuthorFactsDraft>(authorFactsDraft(null))
 const invalidFacts = ref<AuthorFactsField[]>([])
 const seededDrafts = ref<{ name: string; sortName: string; description: string; facts: AuthorFactsDraft } | null>(null)

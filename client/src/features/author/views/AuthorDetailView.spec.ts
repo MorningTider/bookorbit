@@ -448,6 +448,30 @@ describe('AuthorDetailView', () => {
     })
     expect(mocks.author.value?.imageUrl).toBe('/api/v1/authors/7/image')
   })
+  it('saves a portrait that arrives after the edit form was opened without replacing typed text', async () => {
+    vi.mocked(updateAuthor).mockResolvedValue(makeAuthor({ imageUrl: '/api/v1/authors/7/image', description: 'Typed biography' }))
+    const wrapper = await openEditPanel()
+    await editFields(wrapper).description.setValue('Typed biography')
+    mocks.preview.value = {
+      provider: 'baiduBaike',
+      providerId: 'Author/42',
+      name: 'Author',
+      description: 'Late provider biography',
+      imageUrl: 'https://bkimg.cdn.bcebos.com/pic/a.jpg',
+    } as AuthorMetadataCandidate
+    await flushPromises()
+    expect(wrapper.find('[data-testid="save-preview-image"]').exists()).toBe(true)
+    expect((editFields(wrapper).description.element as HTMLTextAreaElement).value).toBe('Typed biography')
+    await findButtonByLabel(wrapper, 'common.save').trigger('click')
+    await flushPromises()
+    expect(updateAuthor).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        description: 'Typed biography',
+        previewImage: { provider: 'baiduBaike', providerId: 'Author/42' },
+      }),
+    )
+  })
   it('allows opting out of saving the preview portrait', async () => {
     mocks.preview.value = {
       provider: 'qidian',
