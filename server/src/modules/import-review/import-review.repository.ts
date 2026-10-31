@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, exists, gt, inArray, isNotNull, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, exists, getTableColumns, gt, inArray, isNotNull, lt, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { ImportDuplicatePolicy, ImportIdentity } from '@bookorbit/types';
 import { DB } from '../../db/db.module';
@@ -124,8 +124,31 @@ export class ImportReviewRepository {
       .limit(201);
     const ids = rows.slice(0, 200).map((x) => x.bookId);
     if (!ids.length) return { rows: [], files: [], authors: [], origins: [] };
-    const [files, authorRows, origins] = await Promise.all([
-      this.db.select().from(bookFiles).where(inArray(bookFiles.bookId, ids)).orderBy(bookFiles.id).limit(2001),
+    const rankedFiles = this.db
+      .select({
+        ...getTableColumns(bookFiles),
+        previewRank: sql<number>`row_number() over (partition by ${bookFiles.bookId} order by ${bookFiles.id})`.as('preview_rank'),
+      })
+      .from(bookFiles)
+      .where(and(inArray(bookFiles.bookId, ids), eq(bookFiles.role, 'content')))
+      .as('ranked_import_files');
+    const [previewFiles, fingerprintFiles, authorRows, origins] = await Promise.all([
+      this.db.select().from(rankedFiles).where(lte(rankedFiles.previewRank, 50)).limit(10000),
+      fingerprint
+        ? this.db
+            .select()
+            .from(bookFiles)
+            .where(
+              and(
+                inArray(bookFiles.bookId, ids),
+                eq(bookFiles.role, 'content'),
+                eq(bookFiles.fileHash, fingerprint.hash),
+                eq(bookFiles.sizeBytes, fingerprint.size),
+              ),
+            )
+            .orderBy(bookFiles.id)
+            .limit(21)
+        : Promise.resolve([]),
       this.db
         .select({ bookId: bookAuthors.bookId, name: authors.name })
         .from(bookAuthors)
@@ -135,6 +158,7 @@ export class ImportReviewRepository {
         .limit(2001),
       this.db.select().from(bookImportIdentities).where(inArray(bookImportIdentities.bookId, ids)).limit(2001),
     ]);
+    const files = [...new Map([...previewFiles, ...fingerprintFiles].map((file) => [file.id, file])).values()];
     const completed = policy.sourceIdentity
       ? await this.db
           .select({ bookId: bookSourceJobs.resultBookId, source: bookSourceJobs.sourceBookId })

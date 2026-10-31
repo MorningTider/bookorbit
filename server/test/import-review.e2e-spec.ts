@@ -226,4 +226,57 @@ describe('duplicate import decisions on PostgreSQL', { timeout: 120000 }, () => 
     expect(discarded.statusCode, discarded.body).toBe(200);
     expect(await ctx.db.select().from(schema.books).where(eq(schema.books.libraryId, libraryId))).toHaveLength(1);
   });
+  it('keeps matching and file selection paginated for a book with 2614 audio tracks', async () => {
+    const folder = join(root, 'large-audio-library');
+    await mkdir(folder);
+    const { libraryId, libraryFolderId } = await seedLibrary(ctx.db, { rootPath: folder, mode: 'book_per_folder', allowedFormats: ['txt', 'm4a'] });
+    libraryIds.push(libraryId);
+    const origin = { provider: 'fanqie', id: 'large-audio-scale-fixture' };
+    const original = await ctx.app
+      .get(UploadService)
+      .upload(libraryId, libraryFolderId, 'metadata.txt', Readable.from(['Scale test metadata']), user, { origin });
+    let firstTrackId: number | undefined;
+    for (let offset = 0; offset < 2614; offset += 500) {
+      const rows = await ctx.db
+        .insert(schema.bookFiles)
+        .values(
+          Array.from({ length: Math.min(500, 2614 - offset) }, (_, index) => ({
+            bookId: original.bookId,
+            libraryFolderId,
+            absolutePath: join(folder, `track-${offset + index}.m4a`),
+            relPath: `track-${offset + index}.m4a`,
+            ino: BigInt(100000 + offset + index),
+            sizeBytes: 100,
+            format: 'm4a',
+            role: 'content',
+            sortOrder: offset + index,
+          })),
+        )
+        .returning({ id: schema.bookFiles.id });
+      firstTrackId ??= rows[0].id;
+    }
+    await ctx.db.update(schema.books).set({ primaryFileId: firstTrackId }).where(eq(schema.books.id, original.bookId));
+    const headers = { authorization: `Bearer ${ctx.adminToken}` };
+    const check = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/imports/check',
+      headers,
+      payload: { libraryId, candidates: [{ key: 'large', identity: { origin, format: 'm4a' } }] },
+    });
+    expect(check.statusCode, check.body).toBe(201);
+    expect(check.json()[0].matches[0]).toMatchObject({ bookId: original.bookId, exact: true });
+    expect(check.json()[0].matches[0].files).toHaveLength(50);
+    const first = await ctx.app.inject({ method: 'GET', url: `/api/v1/imports/books/${original.bookId}/files?format=m4a`, headers });
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json().items).toHaveLength(50);
+    expect(first.json().nextCursor).toBeTypeOf('number');
+    const second = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/v1/imports/books/${original.bookId}/files?format=m4a&cursor=${first.json().nextCursor}`,
+      headers,
+    });
+    expect(second.statusCode, second.body).toBe(200);
+    expect(second.json().items).toHaveLength(50);
+    expect(second.json().items.every((file: { id: number }) => file.id > first.json().nextCursor)).toBe(true);
+  });
 });

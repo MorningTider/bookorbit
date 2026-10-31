@@ -145,15 +145,17 @@ export class ImportReviewService implements OnApplicationBootstrap {
     const editable = effective.acrossLibraries ? await this.libraries.findEditableLibraryIds(user) : [libraryId];
     const fingerprint = incoming && effective.contentHash ? { hash: await computeFileHash(incoming.path), size: incoming.size } : undefined;
     const found = await this.repository.findCandidates(identities, scope, effective, user, fingerprint);
-    if (found.rows.length >= 200 || found.files.length > 2000 || found.authors.length > 2000 || found.origins.length > 2000)
+    if (found.rows.length >= 200 || found.files.length > 10021 || found.authors.length > 2000 || found.origins.length > 2000)
       throw new ConflictException('Too many duplicate candidates; narrow the library scope or rules');
     let incomingSha: string | undefined;
     const contentBooks = new Set<number>();
     if (fingerprint && incoming) {
       const files = found.files.filter((f) => f.fileHash === fingerprint.hash && f.sizeBytes === fingerprint.size);
-      if (files.length > 20) throw new ConflictException('Too many identical fingerprints; review duplicates before importing');
       if (files.length) incomingSha = await fullFileSha256(incoming.path);
+      let comparisons = 0;
       for (const file of files) {
+        if (contentBooks.has(file.bookId)) continue;
+        if (++comparisons > 20) throw new ConflictException('Too many files share this fingerprint; narrow the duplicate rules');
         const current = await this.repository.file(file.id);
         if (!current) continue;
         await this.paths.assertWithinRoot(file.absolutePath, current.root);
@@ -162,6 +164,16 @@ export class ImportReviewService implements OnApplicationBootstrap {
         if ((await fullFileSha256(file.absolutePath)) === incomingSha) contentBooks.add(file.bookId);
       }
     }
+    const filesByBook = new Map<number, (typeof found.files)[number][]>();
+    const authorsByBook = new Map<number, string[]>();
+    const originsByBook = new Map<number, (typeof found.origins)[number][]>();
+    for (const file of found.files) {
+      const group = filesByBook.get(file.bookId);
+      if (group) group.push(file);
+      else filesByBook.set(file.bookId, [file]);
+    }
+    for (const author of found.authors) authorsByBook.set(author.bookId, [...(authorsByBook.get(author.bookId) ?? []), author.name]);
+    for (const origin of found.origins) originsByBook.set(origin.bookId, [...(originsByBook.get(origin.bookId) ?? []), origin]);
     return identities.map((identity) =>
       found.rows
         .flatMap((row) => {
@@ -171,10 +183,10 @@ export class ImportReviewService implements OnApplicationBootstrap {
             importMediaKind(row.primaryFormat) !== importMediaKind(identity.format)
           )
             return [];
-          const fileRows = found.files.filter((f) => f.bookId === row.bookId);
+          const fileRows = filesByBook.get(row.bookId) ?? [];
           if (!fileRows.length) return [];
-          const names = found.authors.filter((a) => a.bookId === row.bookId).map((a) => a.name);
-          const origins = found.origins.filter((o) => o.bookId === row.bookId);
+          const names = authorsByBook.get(row.bookId) ?? [];
+          const origins = originsByBook.get(row.bookId) ?? [];
           const reasons: ImportDuplicateReason[] = [];
           if (contentBooks.has(row.bookId)) reasons.push('content_hash');
           if (effective.sourceIdentity && identity.origin) {
