@@ -14,7 +14,7 @@ import tempfile
 
 def digest(path):
     result=hashlib.sha256()
-    with path.open('rb') as stream:
+    with pathlib.Path(path).open('rb') as stream:
         for chunk in iter(lambda:stream.read(1024*1024),b''):result.update(chunk)
     return result.hexdigest()
 
@@ -34,7 +34,7 @@ def member(tar,path,name,mode=None):
     if mode is not None:item.mode=mode
     item.mode=0o755 if path.is_dir() or path.stat().st_mode&0o111 else 0o644
     if item.isfile():
-        with path.open('rb') as stream:tar.addfile(item,stream)
+        with pathlib.Path(path).open('rb') as stream:tar.addfile(item,stream)
     else:tar.addfile(item)
 
 

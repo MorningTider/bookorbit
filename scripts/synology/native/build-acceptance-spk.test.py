@@ -12,6 +12,9 @@ m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class PackagingTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=pathlib.Path(self.temp.name)
+    def test_cli_evidence_path_accepts_string(self):
+        path=self.root/'receipt.json';path.write_text('{}')
+        self.assertEqual(m.digest(str(path)),m.digest(path))
     def test_migration_content_bound(self):
         path=self.root/'app/migrations';path.mkdir(parents=True);(path/'001.sql').write_text('select 1;')
         first=m.migration_digest(self.root);(path/'001.sql').write_text('select 2;')
