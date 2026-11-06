@@ -566,3 +566,9 @@ a507f70f 取消单来源下拉框，聚合已启用的可下载来源。设置 �
 下载器上述失败任务仍返回state=done，包装阶段progress.saved_chapters=1，但history明确failed_chapters=1，因此不能把done或包装进度视作正文成功。BookOrbit现有assertTomatoComplete会检查history并拒绝缺章入库，该保护应保留。
 
 上游Issue #286维护者曾说明相同register_key空响应也可伴随章节被审核/不可用，不能据报错直接认定DNS或付费。本次缺失章节的具体受限原因仍未确定，已请用户用官方App核对第29章《开国名将谱》是否可直接阅读，以区分客户端访问条件与下载器接口兼容性。未修改线上下载器、配置或生产任务；未导入抽样生成的EPUB。脱敏证据：local/synology-native/lifecycle-check/tomato-chapter-compatibility-20261106.json。官方来源：https://github.com/zhongbai2333/Tomato-Novel-Downloader/releases/tag/v2.4.16 、https://github.com/zhongbai2333/Tomato-Novel-Downloader/issues/286 。
+
+### 会员账号信息补充（2026-11-06）
+
+用户已核实：本人开通VIP后，官方App可正常阅读此前受限的后续章节。这说明会员账号在官方客户端具有阅读权限；现有BookOrbit番茄链路没有传递该账号身份，下一步应验证正常账号授权及章节访问能力。锁定下载器的Config没有番茄Cookie/账号授权字段，/api/login只接收管理页面密码，不是番茄账号接口，不能简单增加登录表单宣称已支持VIP下载。
+
+已打开独立Chrome官方登录页https://fanqienovel.com/main/writer/login并切换扫码登录，等待用户自行登录以开展本机验证。当前未读取或传输用户凭据，未修改生产包或任务。需求和状态见CUSTOMIZATION_REQUIREMENTS.md“番茄个人账号授权需求”；登录支持与会员下载均处于待验证，不能标记完成。
