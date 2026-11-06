@@ -38,17 +38,22 @@ it('cleans abandoned staging without following symlinks or removing live downloa
     const live = join(staging, 'tomato-new123');
     const unrelated = join(staging, 'user-files');
     const outside = join(root, 'outside');
-    for (const directory of [expired, live, unrelated, outside]) await mkdir(directory);
+    const resume = join(staging, 'tomato-resume-7328230298259295294');
+    const expiredResume = join(staging, 'tomato-resume-7294485363593055286');
+    for (const directory of [expired, live, unrelated, outside, resume, expiredResume]) await mkdir(directory);
     const old = new Date(Date.now() - 3 * 3600000);
     await utimes(expired, old, old);
     await utimes(unrelated, old, old);
+    await utimes(resume, old, old);
+    const weekOld = new Date(Date.now() - 8 * 24 * 3600000);
+    await utimes(expiredResume, weekOld, weekOld);
     await symlink(outside, join(staging, 'tomato-link12'));
     const runtime = new TomatoRuntimeService(
       { tomatoBinaryPath: '', timeoutMs: 5000 },
       { appDataPath: root, bookDockPath: root, libraryBrowseRoot: root },
     );
     await runtime.cleanupStaging();
-    expect((await readdir(staging)).sort()).toEqual(['tomato-link12', 'tomato-new123', 'user-files']);
+    expect((await readdir(staging)).sort()).toEqual(['tomato-link12', 'tomato-new123', 'tomato-resume-7328230298259295294', 'user-files']);
     expect(await readdir(outside)).toEqual([]);
   } finally {
     await rm(root, { recursive: true, force: true });

@@ -13,12 +13,13 @@ require("reflect-metadata");
 const { TomatoRuntimeService } = require("./dist/modules/book-source/tomato-runtime.service.js");
 const root = await mkdtemp(join(tmpdir(), "bookorbit-runtime-check-"));
 
-async function assertClean(directory) {
+async function assertClean(directory, retainResume) {
   const files = await readdir(join(directory, "source-staging")).catch((error) => {
     if (error.code === "ENOENT") return [];
     throw error;
   });
-  assert.equal(files.length, 0, "Download staging must be empty");
+  assert.equal(files.length, retainResume ? 1 : 0, "Only failed or cancelled chapter caches may remain");
+  if (retainResume) assert.match(files[0], /^tomato-resume-\d{10,25}$/);
   for (const pid of (await readdir("/proc")).filter((name) => /^\d+$/.test(name))) {
     const command = await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "");
     assert.ok(!(command.includes(binary) && command.includes(root)), "Downloader child must exit");
@@ -46,8 +47,8 @@ try {
     } finally {
       clearTimeout(timer);
     }
-    await assertClean(directory);
-    console.log(JSON.stringify({ mode, stagingClean: true, childExited: true }));
+    await assertClean(directory, mode !== "success");
+    console.log(JSON.stringify({ mode, cacheRetained: mode !== "success", childExited: true }));
   }
 } finally {
   await rm(root, { recursive: true, force: true });

@@ -2,7 +2,7 @@ import type { BookSourceJobProgress } from '@bookorbit/types';
 import { Interval } from '@nestjs/schedule';
 import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { opendir, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { opendir, lstat, mkdir, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { createServer } from 'node:net';
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -13,6 +13,7 @@ import type { ConfigType } from '@nestjs/config';
 import { bookSourceConfig, storageConfig } from '../../config/config';
 import { readBoundedText } from '../../common/utils/bounded-response';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
+import { DownloadIdleDeadline } from './download-idle-deadline';
 import { assertSourceEpub } from './validate-source-epub';
 import { assertTomatoComplete, tomatoBookId, tomatoJobId, tomatoJobState, tomatoJobProgress } from './tomato-protocol';
 
@@ -25,6 +26,7 @@ const MAX_BOOK_BYTES = 64 * 1024 * 1024;
 @Injectable()
 export class TomatoRuntimeService {
   private busy = false;
+  private activeRoot: string | undefined;
   private readonly logger = new Logger(TomatoRuntimeService.name);
   constructor(
     @Inject(bookSourceConfig.KEY) private readonly config: ConfigType<typeof bookSourceConfig>,
@@ -40,18 +42,28 @@ export class TomatoRuntimeService {
     if (this.busy) throw new ConflictException('已有番茄下载正在执行，请等待当前任务完成');
     this.busy = true;
     const startedAt = Date.now();
-    this.logger.log(`[book_source.tomato_download] [start] bookId=${bookId} - download started`);
+    this.logger.log(`[book_source.tomato_download] [start] bookId=${bookId} idleTimeoutMs=${this.config.timeoutMs} - download started`);
     let root: string | undefined;
     let child: ChildProcess | undefined;
+    let idle: DownloadIdleDeadline | undefined;
+    let complete = false;
     try {
       await this.verifyBinary();
-      const deadline = AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs)]);
+      idle = new DownloadIdleDeadline(this.config.timeoutMs, signal);
+      const deadline = idle.signal;
       deadline.throwIfAborted();
       const parent = join(this.storage.appDataPath, 'source-staging');
       await mkdir(parent, { recursive: true, mode: 0o700 });
-      root = await mkdtemp(join(parent, 'tomato-'));
+      root = join(parent, `tomato-resume-${bookId}`);
+      await mkdir(root, { recursive: true, mode: 0o700 });
+      const rootInfo = await lstat(root);
+      if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink()) throw new BadGatewayException('番茄章节缓存目录无效');
+      this.activeRoot = root;
+      await utimes(root, new Date(), new Date());
       const output = join(root, 'books');
-      await mkdir(output, { mode: 0o700 });
+      await mkdir(output, { recursive: true, mode: 0o700 });
+      const outputInfo = await lstat(output);
+      if (!outputInfo.isDirectory() || outputInfo.isSymbolicLink()) throw new BadGatewayException('番茄章节缓存目录无效');
       await writeFile(
         join(root, 'config.yml'),
         JSON.stringify({
@@ -78,7 +90,7 @@ export class TomatoRuntimeService {
         [join(__dirname, 'tomato-runtime-guard.js'), this.config.tomatoBinaryPath, root, String(process.pid), String(this.config.timeoutMs + 10000)],
         {
           cwd: root,
-          stdio: 'ignore',
+          stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
           env: tomatoRuntimeEnvironment(root, port, password),
         },
       );
@@ -139,6 +151,7 @@ export class TomatoRuntimeService {
         const state = tomatoJobState(snapshot, jobId, bookId);
         const next = tomatoJobProgress(snapshot, jobId, bookId);
         if (next) {
+          if (idle.advance(next.completedChapters ?? 0) && child.connected) child.send({ type: 'progress' });
           progress = { ...next, title };
           onProgress?.(progress);
         }
@@ -159,22 +172,30 @@ export class TomatoRuntimeService {
       this.logger.log(
         `[book_source.tomato_download] [end] bookId=${bookId} durationMs=${Date.now() - startedAt} bytes=${bytes.length} - download completed`,
       );
+      complete = true;
       return { content: bytes, title };
-    } catch (error) {
+    } catch (caught) {
+      const error = idle?.signal.aborted && !signal.aborted ? idle.signal.reason : caught;
       this.logger.warn(
         `[book_source.tomato_download] [fail] bookId=${bookId} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(error instanceof Error ? error.message : String(error))}" - download failed`,
       );
+      if (idle?.signal.aborted && !signal.aborted) throw idle.signal.reason;
       if (error instanceof BadGatewayException || error instanceof ServiceUnavailableException) throw error;
       throw new BadGatewayException(signal.aborted ? '番茄下载已取消' : '番茄下载失败或超时');
     } finally {
+      idle?.dispose();
       try {
         if (child && child.exitCode === null && child.pid) {
           const exited = once(child, 'exit');
           child.kill('SIGTERM');
           await Promise.race([exited, delay(5000, undefined, { ref: false })]);
         }
-        if (root) await rm(root, { recursive: true, force: true });
+        if (root && this.activeRoot === root) {
+          if (complete) await rm(root, { recursive: true, force: true });
+          else await utimes(root, new Date(), new Date());
+        }
       } finally {
+        this.activeRoot = undefined;
         this.busy = false;
       }
     }
@@ -193,11 +214,16 @@ export class TomatoRuntimeService {
       let scanned = 0;
       for await (const entry of directory) {
         if (++scanned > 1000) break;
-        if (!entry.isDirectory() || !/^tomato-[a-zA-Z0-9]{6}$/.test(entry.name)) continue;
+        if (!entry.isDirectory() || !/^tomato-(?:[a-zA-Z0-9]{6}|resume-\d{10,25})$/.test(entry.name)) continue;
         const path = join(this.storage.appDataPath, 'source-staging', entry.name);
+        if (path === this.activeRoot) continue;
         const info = await lstat(path).catch(() => null);
-        // Every guarded download is limited to one hour, including after a parent crash.
-        if (!info?.isDirectory() || info.isSymbolicLink() || Date.now() - info.mtimeMs < 2 * 3600000) continue;
+        if (
+          !info?.isDirectory() ||
+          info.isSymbolicLink() ||
+          Date.now() - info.mtimeMs < (entry.name.startsWith('tomato-resume-') ? 7 * 24 * 3600000 : 2 * 3600000)
+        )
+          continue;
         await rm(path, { recursive: true, force: true });
         removed++;
       }

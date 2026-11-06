@@ -10,7 +10,10 @@ function runGuard() {
     return;
   }
   const child = spawn(binary, ['--server', '--data-dir', root], { cwd: root, stdio: 'ignore', detached: true, env: process.env });
-  const startedAt = Date.now();
+  let progressedAt = Date.now();
+  process.on('message', (message: unknown) => {
+    if (message && typeof message === 'object' && 'type' in message && message.type === 'progress') progressedAt = Date.now();
+  });
   const stop = () => {
     if (!child.pid || child.exitCode !== null) return;
     try {
@@ -20,18 +23,21 @@ function runGuard() {
     }
   };
   const watchdog = setInterval(() => {
-    if (process.ppid !== parentPid || Date.now() - startedAt > timeoutMs) stop();
+    if (process.ppid !== parentPid || Date.now() - progressedAt > timeoutMs) stop();
   }, 250);
   watchdog.unref();
   process.once('SIGTERM', stop);
   process.once('SIGINT', stop);
+  process.once('disconnect', stop);
   child.once('error', () => {
     clearInterval(watchdog);
     process.exitCode = 1;
+    if (process.connected) process.disconnect?.();
   });
   child.once('exit', (code) => {
     clearInterval(watchdog);
     process.exitCode = code === 0 ? 0 : 1;
+    if (process.connected) process.disconnect?.();
   });
 }
 
