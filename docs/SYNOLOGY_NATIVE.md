@@ -558,3 +558,11 @@ a507f70f 取消单来源下拉框，聚合已启用的可下载来源。设置 �
 核对上游v2.4.16发布记录与v2.4.15比较，公开变更主要为TTS与CI，未发现正文下载源码修复依据；未据此替换生产下载器。本次未修改生产配置、数据库、任务或SPK，也未再次重试任务10。原28章缓存保留，Mac隔离进程退出。整本获取能力仍待解决，不能把闲置超时与续传修复的通过结果写成该书完整下载成功。后续应核实上游正文可用性及授权来源，不以延长超时、导入缺章EPUB或重复点击重试作为完成验收。
 
 脱敏汇总：local/synology-native/lifecycle-check/tomato-partial-followup-20261106.json。
+
+### v2.4.16 隔离单章兼容性核验（2026-11-06）
+
+进一步从上游官方发行元数据核对并下载Linux_musl_amd64 v2.4.16，SHA-256=c97b039f798f1ffa9e0faa4ff5961bf3a11ce5242399ec94d35515cedb15efdf。在本机隔离Linux环境按正常Web API逐项测试同书第28、29、34、100、197章，独立临时目录、无生产数据或认证：28章成功取得1/1章；29、34、100、197章均为成功0/1、失败1/1、持久章节0。可确认失败不只集中在某个批次的第一个坏章节，直接升级到当前最新版也没有解决这几个样本；不能据4个失败样本宣称已逐章穷举全部169章。
+
+下载器上述失败任务仍返回state=done，包装阶段progress.saved_chapters=1，但history明确failed_chapters=1，因此不能把done或包装进度视作正文成功。BookOrbit现有assertTomatoComplete会检查history并拒绝缺章入库，该保护应保留。
+
+上游Issue #286维护者曾说明相同register_key空响应也可伴随章节被审核/不可用，不能据报错直接认定DNS或付费。本次缺失章节的具体受限原因仍未确定，已请用户用官方App核对第29章《开国名将谱》是否可直接阅读，以区分客户端访问条件与下载器接口兼容性。未修改线上下载器、配置或生产任务；未导入抽样生成的EPUB。脱敏证据：local/synology-native/lifecycle-check/tomato-chapter-compatibility-20261106.json。官方来源：https://github.com/zhongbai2333/Tomato-Novel-Downloader/releases/tag/v2.4.16 、https://github.com/zhongbai2333/Tomato-Novel-Downloader/issues/286 。
