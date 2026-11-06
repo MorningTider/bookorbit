@@ -582,3 +582,15 @@ a507f70f 取消单来源下拉框，聚合已启用的可下载来源。设置 �
 官网书架同时展示“因版权问题，以下书籍暂不支持浏览器阅读”，但本轮弹窗内没有可核对的目标书名，不能据此单独认定两个目标书均已列入该清单。用户确认本人VIP在App可读，而正常网页路径仍未提供正文，后续需要支持该账号会员阅读能力的实际正文适配，不能仅加登录表单或转发Cookie给不支持该参数的原下载器。
 
 账号授权与VIP正文下载仍未实现、未部署；本次未修改生产包、任务或原续传缓存。专用浏览器会话留在本机。脱敏证据：local/synology-native/lifecycle-check/fanqie-authenticated-web-feasibility-20261106.json。
+
+### 账号适配候选源码审查结论
+
+继续审查三个候选，均仅下载公开源码到本机临时目录并阅读，未安装或执行候选程序，未提供用户Cookie，也未改生产服务。
+
+- anlonely/fanqie-downloader-local：server.py的get_chapter（约696行）在带Cookie的请求中读取同一/reader/{item_id}网页，再解析页面状态；对当前已登录仍404的目标路径没有新增可用性证据。另含读取本机Chrome登录数据的辅助代码，本轮没有运行这些功能。候选根tree SHA：d1f6e7b6b2c731a1a231601af4d181be1fd18b04。
+- rainyautumn1/FanqieNovelDownloader：downloader.py的get_chapter_content（约846行）也是Cookie加网页HTML内容提取。找不到阅读正文时会返回“未找到内容或内容被锁定（VIP章节）”作为文本，不能当作章节下载成功。README宣称SVIP支持不能代替当前目标书实际正文验收。根tree SHA：a75e7a40a2d0b2c4e4e18a14481bcf85a3f8b241。
+- hesan1232/fanqie.koplugin：README的“正文与段评来源”明确把书架/进度的扫码登录与正文链路分开；正文依赖另一套非公开客户端协议和本地内容解密，不是已验证的会员授权导出接口。本轮没有移植、运行其正文或内容解密模块。根tree SHA：9ba6f8151a24815be1c5a6917750704031defa96。
+
+结论：已完成正常网页登录、目标章节访问和三个候选实现的可行性核验，但没有找到支持这两个出版版本的已验证授权会员正文下载或EPUB/TXT导出接口。继续仅增加登录表单无法解决已观测到的正文访问失败。该项仍未实现，不生成或部署宣称支持VIP下载的SPK；原下载链路、用户缓存与数据库保持不变。后续接入以平台支持的授权下载接口或可供外部阅读的正常导出文件为依据，不将解除受保护正文加密作为实现路径。
+
+审查来源：https://github.com/anlonely/fanqie-downloader-local/blob/main/server.py 、https://github.com/rainyautumn1/FanqieNovelDownloader/blob/main/downloader.py 、https://github.com/hesan1232/fanqie.koplugin#正文与段评来源 。脱敏汇总：local/synology-native/lifecycle-check/fanqie-account-adapter-source-review.json。
