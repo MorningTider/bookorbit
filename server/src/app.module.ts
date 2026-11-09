@@ -1,3 +1,4 @@
+import { BookCommentModule } from './modules/book-comment/book-comment.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -164,6 +165,7 @@ import { PodcastModule } from './modules/podcast/podcast.module';
     BookmarkModule,
     BookJournalModule,
     AnnotationModule,
+    BookCommentModule,
     NotebookModule,
     DashboardModule,
     HealthModule,

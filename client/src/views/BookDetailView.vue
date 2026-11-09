@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { BookDetail, BookMetadataLockField } from '@bookorbit/types'
 import BookDetailLayout from '@/features/book/components/detail/BookDetailLayout.vue'
+import CommentsTab from '@/features/book/components/detail/tabs/CommentsTab.vue'
 import DetailsTab from '@/features/book/components/detail/tabs/DetailsTab.vue'
 import FilesTab from '@/features/book/components/detail/tabs/FilesTab.vue'
 import EditMetadataTab from '@/features/book/components/detail/tabs/EditMetadataTab.vue'
@@ -164,6 +165,7 @@ function onCoverChanged() {
           />
           <FilesTab v-else-if="tab === 'files'" :book="detail" @refetch="fetch(detail.id)" />
           <ReadingLogTab v-else-if="tab === 'reading-log'" :book="detail" @saved="onMetadataSaved" @refetch="handleBookRefetch" />
+          <CommentsTab v-else-if="tab === 'comments'" :book="detail" />
           <HighlightsTab v-else-if="tab === 'highlights'" :book="detail" />
         </KeepAlive>
       </div>

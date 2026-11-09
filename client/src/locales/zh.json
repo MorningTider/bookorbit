@@ -15037,5 +15037,28 @@
     },
     "refresh": "刷新",
     "unitReplacementWarning": "本次包含 {count} 个文件。仅用上方所示的主文件替换选定文件，其余文件添加到同一本书；完整内容相同的已有文件会保留。"
+  },
+  "bookComments": {
+    "title": "书评与评论",
+    "visibility": "本服务器有权访问此书的用户可见，可互相回复。",
+    "back": "返回评论列表",
+    "error": "评论加载或保存失败，草稿已保留。",
+    "refresh": "刷新",
+    "deleted": "评论已删除",
+    "review": "书评",
+    "chapter": "章节评论",
+    "paragraph": "段评",
+    "reply": "回复",
+    "thread": "查看回复",
+    "delete": "删除",
+    "loading": "正在加载评论",
+    "empty": "暂无评论",
+    "more": "加载更多",
+    "replyTo": "回复 {name}",
+    "write": "写下你的评论",
+    "send": "发送",
+    "deleteTitle": "删除这条评论？",
+    "deleteBody": "已有回复仍会保留。",
+    "cancel": "取消"
   }
 }

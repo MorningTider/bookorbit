@@ -49,3 +49,5 @@ export * from './server-identity';
 export * from './book-source-jobs';
 
 export * from './import-reviews';
+
+export * from './book-comments';

@@ -15037,5 +15037,28 @@
     },
     "refresh": "Refresh",
     "unitReplacementWarning": "This import contains {count} files. Replacement applies to the primary incoming file shown above; remaining files are added to the selected book. Existing identical files are kept."
+  },
+  "bookComments": {
+    "title": "Reviews and comments",
+    "visibility": "Visible to server users with access to this book. You can reply to one another.",
+    "back": "Back to comments",
+    "error": "Unable to load or save comments. Your draft is retained.",
+    "refresh": "Refresh",
+    "deleted": "Comment deleted",
+    "review": "Book review",
+    "chapter": "Chapter comment",
+    "paragraph": "Paragraph comment",
+    "reply": "Reply",
+    "thread": "View replies",
+    "delete": "Delete",
+    "loading": "Loading comments",
+    "empty": "No comments yet",
+    "more": "Load more",
+    "replyTo": "Reply to {name}",
+    "write": "Write a comment",
+    "send": "Send",
+    "deleteTitle": "Delete this comment?",
+    "deleteBody": "Existing replies will remain visible.",
+    "cancel": "Cancel"
   }
 }

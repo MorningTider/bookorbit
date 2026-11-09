@@ -96,3 +96,5 @@ export * from "./email";
 export * from "./book-source";
 
 export * from "./import-review";
+
+export * from "./book-comments";

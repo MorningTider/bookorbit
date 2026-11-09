@@ -639,7 +639,6 @@ export class BookRepository {
 
   private async enrichBookIds(bookRefs: Array<{ id: number; primaryFileId: number | null }>, userId: number) {
     const bookIds = bookRefs.map((book) => book.id);
-    const primaryFileIds = bookRefs.map((book) => book.primaryFileId).filter((id): id is number => id != null);
 
     if (bookIds.length === 0) {
       return {
@@ -748,16 +747,16 @@ export class BookRepository {
         })
         .from(userBookStatus)
         .where(and(eq(userBookStatus.userId, userId), inArray(userBookStatus.bookId, bookIds))),
-      primaryFileIds.length > 0
-        ? this.db
-            .select({
-              bookFileId: readingProgress.bookFileId,
-              percentage: readingProgress.percentage,
-              lastReadAt: readingProgress.lastReadAt,
-            })
-            .from(readingProgress)
-            .where(and(eq(readingProgress.userId, userId), inArray(readingProgress.bookFileId, primaryFileIds)))
-        : Promise.resolve([] as { bookFileId: number; percentage: number; lastReadAt: Date }[]),
+      this.db
+        .select({
+          bookId: bookFiles.bookId,
+          bookFileId: readingProgress.bookFileId,
+          percentage: readingProgress.percentage,
+          lastReadAt: readingProgress.lastReadAt,
+        })
+        .from(readingProgress)
+        .innerJoin(bookFiles, eq(bookFiles.id, readingProgress.bookFileId))
+        .where(and(eq(readingProgress.userId, userId), inArray(bookFiles.bookId, bookIds))),
       this.db
         .select({
           bookId: audiobookProgress.bookId,
@@ -768,12 +767,21 @@ export class BookRepository {
         .where(and(eq(audiobookProgress.userId, userId), inArray(audiobookProgress.bookId, bookIds))),
     ]);
 
-    const fileProgressById = new Map(fileProgressRows.map((row) => [row.bookFileId, row]));
+    const fileProgressByBook = new Map<number, (typeof fileProgressRows)[number]>();
+    for (const row of fileProgressRows) {
+      const previous = fileProgressByBook.get(row.bookId);
+      if (
+        !previous ||
+        row.lastReadAt > previous.lastReadAt ||
+        (row.lastReadAt.getTime() === previous.lastReadAt.getTime() && row.bookFileId > previous.bookFileId)
+      )
+        fileProgressByBook.set(row.bookId, row);
+    }
     const audiobookProgressByBookId = new Map(audiobookProgressRows.map((row) => [row.bookId, row]));
     const progressRows = bookRefs.flatMap((book) => {
       if (book.primaryFileId == null) return [];
 
-      const fileProgress = fileProgressById.get(book.primaryFileId);
+      const fileProgress = fileProgressByBook.get(book.id);
       const audioProgress = audiobookProgressByBookId.get(book.id);
       if (!fileProgress && !audioProgress) return [];
 

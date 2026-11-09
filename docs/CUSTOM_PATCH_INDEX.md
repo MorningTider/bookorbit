@@ -138,3 +138,9 @@ TXT 转换并发修复实机完成：a316516b 经 10024 验收后交付自用正
 证据：local/synology-native/lifecycle-check/private-stable-10037-acceptance.json、private-stable-10037-data-check.json、private-stable-readiness-10036.json、schema-upgrade-c5302612.json；页面与隔离验收材料见 local/synology-native/reports/stable-10037/。5 个本机历史 SPK 已删除，保留最终正式包；服务器升级自动配置副本按既有清理授权移除，当前配置、字体和业务数据库保留。源码与文档仅本地提交，不推送。
 
 能力边界：上传/断点上传/小说/Book Dock 及追加、替换的跨媒体组合由本机相关回归与 PG18 七项真实 HTTP 测试覆盖，不能把本次临时 TXT 页面验收写成所有媒体、全部故障组合实机穷举通过。Android 实机、公开发行材料及未执行的整机重启验收等原有后置事项不因本次交付自动完成。
+
+## 共享评论与最近阅读格式进度
+
+`packages/types/src/book-comments.ts`定义共同接口。服务端`book-comment`模块、`book_comments`表和Drizzle生成的0130迁移承载公共评论；每次服务调用通过BookService核对访问，管理删除路由另有ManageUsers权限。列表以id游标和限定条数查询，根线程与回复分别建立索引。
+
+网页`useBookComments`和`CommentsTab`负责评论草稿、幂等重试、回复、分页与删除确认。所有用户文本使用Vue文本插值。Android对应BA-C25。书架卡片在`BookRepository.enrichBookIds`按当前用户和当前页书籍批量读取各文件最后阅读时间，并选择最近一次的进度，回归覆盖辅助格式和较低新进度。
