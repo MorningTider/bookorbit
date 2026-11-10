@@ -4,13 +4,10 @@ export enum Permission {
   LibraryUpload = "library_upload",
   LibraryEditMetadata = "library_edit_metadata",
   LibraryDeleteBooks = "library_delete_books",
+  LibraryMergeBooks = "library_merge_books",
+  LibraryGenerateReadAloud = "library_generate_read_aloud",
   BookDockAccess = "book_dock_access",
   BookRequestAccess = "book_request_access",
-  PodcastManageFeeds = "podcast_manage_feeds",
-  PodcastDownload = "podcast_download",
-  PodcastEditMetadata = "podcast_edit_metadata",
-  PodcastManageRetention = "podcast_manage_retention",
-  PodcastPurge = "podcast_purge",
   DemoRestricted = "demo_restricted",
 
   // Devices & Access
@@ -47,13 +44,10 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.LibraryUpload]: "Upload books",
   [Permission.LibraryEditMetadata]: "Edit metadata",
   [Permission.LibraryDeleteBooks]: "Delete books",
+  [Permission.LibraryMergeBooks]: "Merge and link books",
+  [Permission.LibraryGenerateReadAloud]: "Generate read-aloud books",
   [Permission.BookDockAccess]: "Book Dock",
   [Permission.BookRequestAccess]: "Request books",
-  [Permission.PodcastManageFeeds]: "Manage podcast feeds",
-  [Permission.PodcastDownload]: "Download podcast episodes",
-  [Permission.PodcastEditMetadata]: "Edit podcast metadata",
-  [Permission.PodcastManageRetention]: "Manage podcast retention",
-  [Permission.PodcastPurge]: "Purge podcast content",
   [Permission.DemoRestricted]: "Demo restricted",
   [Permission.KoboSync]: "Kobo sync",
   [Permission.KoreaderSync]: "KOReader sync",
@@ -86,6 +80,9 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
  * the claim the authorization matrix exists to make and would no longer be true.
  */
 export const PERMISSION_REQUIRES: Partial<Record<Permission, readonly Permission[]>> = {
+  [Permission.LibraryGenerateReadAloud]: [Permission.LibraryUpload],
+  // A merge rewrites the kept book's metadata from the others, so it is metadata editing first.
+  [Permission.LibraryMergeBooks]: [Permission.LibraryEditMetadata],
   // Self-fulfilment adds a way to fulfil a request. Listing, viewing and the live queue all
   // answer to `BookRequestAccess`, so granting one without the other buys nothing at all.
   [Permission.BookRequestSelfFulfill]: [Permission.BookRequestAccess],

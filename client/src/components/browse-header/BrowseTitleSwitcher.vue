@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
+import type { Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { Check, ChevronDown, Search } from '@lucide/vue'
+import { Aperture, BookCopy, Check, ChevronDown, FolderOpen, Search } from '@lucide/vue'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatNumber } from '@/i18n/formatters'
@@ -20,8 +21,8 @@ const props = defineProps<{
 const { t } = useI18n()
 const router = useRouter()
 const { libraries } = useLibraries()
-const { bookScopes } = useSmartScopes()
-const { bookCollections } = useCollections()
+const { smartScopes } = useSmartScopes()
+const { collections } = useCollections()
 
 const open = ref(false)
 const query = ref('')
@@ -35,7 +36,7 @@ interface SwitchItem {
   id: number
   name: string
   icon: string | null
-  fallback: string
+  fallback: Component
   count: number | null
 }
 
@@ -46,38 +47,36 @@ const groups = computed(() => {
     {
       kind: 'library',
       label: t('components.browseHeader.switcher.libraries'),
-      items: libraries.value
-        .filter((library) => library.type !== 'podcasts')
-        .map((library) => ({
-          kind: 'library',
-          id: library.id,
-          name: library.name,
-          icon: library.icon ?? null,
-          fallback: 'BookCopy',
-          count: entityCount(library),
-        })),
+      items: libraries.value.map((library) => ({
+        kind: 'library',
+        id: library.id,
+        name: library.name,
+        icon: library.icon ?? null,
+        fallback: BookCopy,
+        count: entityCount(library),
+      })),
     },
     {
       kind: 'smartScope',
       label: t('components.browseHeader.switcher.smartScopes'),
-      items: bookScopes.value.map((scope) => ({
+      items: smartScopes.value.map((scope) => ({
         kind: 'smartScope',
         id: scope.id,
         name: scope.name,
         icon: scope.icon ?? null,
-        fallback: 'Aperture',
+        fallback: Aperture,
         count: entityCount(scope),
       })),
     },
     {
       kind: 'collection',
       label: t('components.browseHeader.switcher.collections'),
-      items: bookCollections.value.map((collection) => ({
+      items: collections.value.map((collection) => ({
         kind: 'collection',
         id: collection.id,
         name: collection.name,
         icon: collection.icon ?? null,
-        fallback: 'FolderOpen',
+        fallback: FolderOpen,
         count: entityCount(collection),
       })),
     },

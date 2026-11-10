@@ -20,6 +20,7 @@ import { useBookDownload } from './useBookDownload'
 import { useBookRefreshFeedback } from './useBookRefreshFeedback'
 import { detectChangedColumns, mergeBookCardWithDetail } from '@/features/book/lib/book-card-mapper'
 import { withIgnoreCache, type IgnoreCacheOptions } from '@/features/metadata-cache/lib/metadata-cache'
+import type { BulkReadingStatePatch } from './useBookStatus'
 
 export type ExportScope = 'primary' | 'all' | 'audio'
 
@@ -32,20 +33,41 @@ export type BulkEditableField = BulkEditableArrayField | BulkEditableScalarField
 export type BulkEditableValue = string | number | string[] | null
 
 export const BULK_EDITABLE_FIELD_LABELS: Record<BulkEditableField, string> = {
-  seriesName: 'Series',
-  publisher: 'Publisher',
-  language: 'Language',
-  publishedYear: 'Year',
-  authors: 'Authors',
-  genres: 'Genres',
-  tags: 'Tags',
-  narrators: 'Narrators',
+  get seriesName() {
+    return i18n.global.t('customUi.tableColumns.seriesName')
+  },
+  get publisher() {
+    return i18n.global.t('customUi.tableColumns.publisher')
+  },
+  get language() {
+    return i18n.global.t('customUi.tableColumns.language')
+  },
+  get publishedYear() {
+    return i18n.global.t('customUi.tableColumns.publishedYear')
+  },
+  get authors() {
+    return i18n.global.t('customUi.tableColumns.authors')
+  },
+  get genres() {
+    return i18n.global.t('customUi.tableColumns.genres')
+  },
+  get tags() {
+    return i18n.global.t('customUi.tableColumns.tags')
+  },
+  get narrators() {
+    return i18n.global.t('customUi.tableColumns.narrators')
+  },
 }
 
 export const BULK_EDITABLE_FIELD_OPTIONS: { value: BulkEditableField; label: string }[] = [
   ...BULK_EDITABLE_SCALAR_FIELDS,
   ...BULK_EDITABLE_ARRAY_FIELDS,
-].map((value) => ({ value, label: BULK_EDITABLE_FIELD_LABELS[value] }))
+].map((value) => ({
+  value,
+  get label() {
+    return BULK_EDITABLE_FIELD_LABELS[value]
+  },
+}))
 const BULK_FIELD_LOCK_FIELD: Record<BulkEditableField, BookMetadataLockField> = {
   seriesName: 'seriesName',
   publisher: 'publisher',
@@ -63,12 +85,15 @@ export type QuerySelectionState = BookSelectionQuery & {
   total: number
 }
 
-function buildLocalReadStatus(status: ReadStatus, existing: UserBookStatus | null, nowIso: string): UserBookStatus {
+function buildLocalReadStatus(patch: BulkReadingStatePatch, existing: UserBookStatus | null, nowIso: string): UserBookStatus {
+  const clearsLifecycle = patch.status === 'unread' || patch.status === 'want_to_read'
+  const hasStartedAt = Object.prototype.hasOwnProperty.call(patch, 'startedAt')
+  const hasFinishedAt = Object.prototype.hasOwnProperty.call(patch, 'finishedAt')
   return {
-    status,
+    status: patch.status,
     source: 'manual',
-    startedAt: existing?.startedAt ?? null,
-    finishedAt: existing?.finishedAt ?? null,
+    startedAt: clearsLifecycle ? null : hasStartedAt ? (patch.startedAt ?? null) : (existing?.startedAt ?? null),
+    finishedAt: clearsLifecycle ? null : hasFinishedAt ? (patch.finishedAt ?? null) : (existing?.finishedAt ?? null),
     updatedAt: nowIso,
   }
 }
@@ -201,9 +226,9 @@ export function useBookBulkActions(
       }
     }
     if (failed > 0) {
-      toast.warning(`Refreshed ${processed} book${processed === 1 ? '' : 's'}, ${failed} failed`)
+      toast.warning(i18n.global.t('customUi.bulkActions.refreshPartial', { processed, failed }))
     } else {
-      toast.success(`Refreshed metadata for ${processed} book${processed === 1 ? '' : 's'}`)
+      toast.success(i18n.global.t('customUi.bulkActions.refreshSuccess', { count: processed }))
     }
   }
 
@@ -267,25 +292,26 @@ export function useBookBulkActions(
     await exportBooks(ids, scope === 'all', scope === 'audio' ? 'audio' : undefined)
   }
 
-  async function handleBulkSetStatus(status: ReadStatus) {
+  async function handleBulkSetStatus(input: ReadStatus | BulkReadingStatePatch) {
     if (!hasSelection()) return
+    const patch: BulkReadingStatePatch = typeof input === 'string' ? { status: input } : input
     const ids = querySelection?.value ? [] : [...selectedIds.value]
     const res = await api('/api/v1/books/bulk-set-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...getSelectionPayload(), status }),
+      body: JSON.stringify({ ...getSelectionPayload(), ...patch }),
     })
     if (!res.ok) {
-      toast.error(i18n.global.t('customUi.runtimeMessages.failedToUpdateStatus'))
+      toast.error(i18n.global.t('book.bulkReadingState.failed'))
       return
     }
     const nowIso = new Date().toISOString()
     updateSelectedBooks(ids, (book) => ({
       ...book,
-      readStatus: buildLocalReadStatus(status, book.readStatus, nowIso),
+      readStatus: buildLocalReadStatus(patch, book.readStatus, nowIso),
     }))
     const count = querySelection?.value ? querySelection.value.total : ids.length
-    toast.success(`Updated status for ${count} book${count === 1 ? '' : 's'}`)
+    toast.success(i18n.global.t('book.bulkReadingState.updated', { count }))
   }
 
   async function handleBulkSetRating(rating: number | null) {
@@ -334,7 +360,7 @@ export function useBookBulkActions(
       body: JSON.stringify({ ...getSelectionPayload(), field, value }),
     })
     if (!res.ok) {
-      toast.error(`Failed to update ${field}`)
+      toast.error(i18n.global.t('customUi.bulkActions.updateFailed', { field: BULK_EDITABLE_FIELD_LABELS[field] }))
       return
     }
     const editableIds = books
@@ -370,10 +396,12 @@ export function useBookBulkActions(
     })
     const count = querySelection?.value ? querySelection.value.total : editableIds.length
     if (skippedCount > 0) {
-      toast.success(`Updated ${field} for ${count} book${count === 1 ? '' : 's'} (${skippedCount} locked skipped)`)
+      toast.success(
+        i18n.global.t('customUi.bulkActions.updateFieldSkipped', { field: BULK_EDITABLE_FIELD_LABELS[field], count, skipped: skippedCount }),
+      )
       return
     }
-    toast.success(`Updated ${field} for ${count} book${count === 1 ? '' : 's'}`)
+    toast.success(i18n.global.t('customUi.bulkActions.updateField', { field: BULK_EDITABLE_FIELD_LABELS[field], count }))
   }
 
   async function handleBulkSetMetadataLock(locked: boolean) {
@@ -385,7 +413,7 @@ export function useBookBulkActions(
       body: JSON.stringify({ ...getSelectionPayload(), locked }),
     })
     if (!res.ok) {
-      toast.error(`Failed to ${locked ? 'lock' : 'unlock'} metadata`)
+      toast.error(i18n.global.t(locked ? 'customUi.bulkActions.lockFailed' : 'customUi.bulkActions.unlockFailed'))
       return
     }
     updateSelectedBooks(ids, (book) => ({
@@ -411,7 +439,7 @@ export function useBookBulkActions(
       return
     }
     onDeleted(ids)
-    toast.success(`Deleted ${count} book${count === 1 ? '' : 's'}`)
+    toast.success(i18n.global.t('customUi.bulkActions.deleted', { count }))
   }
 
   return {

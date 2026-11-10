@@ -225,7 +225,7 @@ describe('useBookBulkActions', () => {
     await handleBulkSetStatus('abandoned')
 
     expect(books.value[0]?.readStatus).toEqual(originalStatus)
-    expect(mocks.toastError).toHaveBeenCalledWith('Failed to update status')
+    expect(mocks.toastError).toHaveBeenCalledWith('Failed to update reading state')
   })
 
   it('patches selected books with the new metadata lock state after a successful bulk update', async () => {
@@ -262,7 +262,7 @@ describe('useBookBulkActions', () => {
     await handleBulkSetField('language', 'fr')
 
     expect(books.value.map((book) => book.language)).toEqual(['fr', 'de', 'fr'])
-    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated language for 2 books (1 locked skipped)')
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated Language for 2 books (1 locked skipped)')
   })
 
   it('replaces relation list fields locally for editable books', async () => {
@@ -279,7 +279,7 @@ describe('useBookBulkActions', () => {
     await handleBulkSetField('authors', ['New A', 'New B'])
 
     expect(books.value.map((book) => book.authors)).toEqual([['New A', 'New B'], ['Old B'], ['New A', 'New B']])
-    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated authors for 2 books (1 locked skipped)')
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated Authors for 2 books (1 locked skipped)')
   })
 
   it('sends bulk status updates using query selection payloads', async () => {
@@ -300,7 +300,7 @@ describe('useBookBulkActions', () => {
         }),
       }),
     )
-    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated status for 500 books')
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated reading state for 500 books')
   })
 
   it('forwards query sort specs in bulk payloads', async () => {
@@ -330,6 +330,23 @@ describe('useBookBulkActions', () => {
         }),
       }),
     )
+  })
+
+  it('sends explicit reading dates and applies them to loaded books', async () => {
+    mocks.api.mockResolvedValue({ ok: true })
+    const selectedIds = ref(new Set([1]))
+    const books = ref([makeBook({ id: 1, readStatus: makeReadStatus({ finishedAt: '2026-04-20' }) })])
+    const { handleBulkSetStatus } = useBookBulkActions(selectedIds, vi.fn(), books)
+
+    await handleBulkSetStatus({ status: 'read', startedAt: '2026-01-05', finishedAt: null })
+
+    expect(mocks.api).toHaveBeenCalledWith(
+      '/api/v1/books/bulk-set-status',
+      expect.objectContaining({
+        body: JSON.stringify({ bookIds: [1], status: 'read', startedAt: '2026-01-05', finishedAt: null }),
+      }),
+    )
+    expect(books.value[0]?.readStatus).toMatchObject({ status: 'read', startedAt: '2026-01-05', finishedAt: null })
   })
 
   it('sends bulk rating updates using query selection payloads', async () => {
@@ -372,7 +389,7 @@ describe('useBookBulkActions', () => {
         }),
       }),
     )
-    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated language for 500 books')
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Updated Language for 500 books')
   })
 
   it('sends bulk metadata lock updates using query selection payloads', async () => {

@@ -5,6 +5,7 @@ import { SelfWriteRegistryModule } from '../../common/self-write-registry.module
 import { Module } from '@nestjs/common';
 
 import { AppSettingsModule } from '../app-settings/app-settings.module';
+import { AppAttestModule } from '../app-attest/app-attest.module';
 import { BookCoverStoreModule } from '../book-cover-store/book-cover-store.module';
 import { BookMetadataFetchModule } from '../book-metadata-fetch/book-metadata-fetch.module';
 import { FileWriteModule } from '../file-write/file-write.module';
@@ -13,6 +14,8 @@ import { MetadataModule } from '../metadata/metadata.module';
 import { PathModule } from '../path/path.module';
 import { ScannerModule } from '../scanner/scanner.module';
 import { BookFileUploadController } from './book-file-upload.controller';
+import { GeneratedBookFileRepository } from './generated-book-file.repository';
+import { GeneratedBookFileService } from './generated-book-file.service';
 import { UploadController } from './upload.controller';
 import { UploadProcessorService } from './upload-processor.service';
 import { UploadService } from './upload.service';
@@ -26,6 +29,7 @@ import { UploadSessionService } from './upload-session.service';
   imports: [
     ImportReviewModule,
     SelfWriteRegistryModule,
+    AppAttestModule,
     AppSettingsModule,
     BookCoverStoreModule,
     LibraryModule,
@@ -39,12 +43,14 @@ import { UploadSessionService } from './upload-session.service';
   providers: [
     ImportFileCommitService,
     UploadService,
+    GeneratedBookFileService,
+    GeneratedBookFileRepository,
     UploadValidatorService,
     UploadStorageService,
     UploadProcessorService,
     UploadSessionRepository,
     UploadSessionService,
   ],
-  exports: [ImportFileCommitService, UploadValidatorService, UploadStorageService, UploadProcessorService, UploadService],
+  exports: [ImportFileCommitService, UploadValidatorService, UploadStorageService, UploadProcessorService, UploadService, GeneratedBookFileService],
 })
 export class UploadModule {}

@@ -1,6 +1,6 @@
 import type { BookCommunityRating, MetadataFetchDiagnostics, MetadataProviderKey, MetadataSeriesMembership } from "./metadata-fetch";
 import type { BookMetadataLockField } from "./metadata-lock";
-import type { AudiobookChapter, NarratorRef } from "./audiobook";
+import type { AudiobookChapter, AudiobookChapterSource, NarratorRef } from "./audiobook";
 import type { ComicMetadataFields } from "./metadata-fetch";
 import type { BookFileWriteField, WriteResult } from "./file-write";
 import type { CustomMetadataBookValue } from "./custom-metadata";
@@ -8,11 +8,16 @@ import type { CoverAspectRatio } from "./library";
 import { DEFAULT_FORMAT_PRIORITY } from "./library";
 import type { SeriesIndex } from "./series-index";
 import type { EpubMediaOverlayCapability } from "./epub";
+import { READ_ALONG_FORMAT_PRIORITY } from "./format-priority";
 
 // Derived rather than duplicated: these two lists describe the same set of formats,
 // and maintaining them separately let BOOK_FORMATS fall behind on azw and kepub.
 export const BOOK_FORMATS = DEFAULT_FORMAT_PRIORITY;
 export type BookFormat = (typeof BOOK_FORMATS)[number];
+
+/** Values accepted by the format filter. Read-along is an edition key, not a physical file format. */
+export const BOOK_FILTER_FORMATS = [...BOOK_FORMATS, READ_ALONG_FORMAT_PRIORITY] as const;
+export type BookFilterFormat = (typeof BOOK_FILTER_FORMATS)[number];
 
 /** Exported as an ordered list too, so a form offering these cannot drift from what matches them. */
 export const AUDIO_FORMAT_LIST = ["m4b", "mp3", "m4a", "opus", "ogg", "flac"] as const;
@@ -72,6 +77,8 @@ export type ReadingAttempt = {
   origin: ReadingAttemptOrigin;
   externalProvider: string | null;
   externalId: string | null;
+  /** This read's own stars; null when unrated. */
+  rating: number | null;
   totalSessions: number;
   totalSeconds: number;
   createdAt: string;
@@ -222,6 +229,8 @@ export type BookCard = {
   tags: string[];
   customMetadata: CustomMetadataBookValue[];
   collapsedSeries?: import("./series-collapse").CollapsedSeriesInfo;
+  /** Present when the book is linked with others the viewer can see. Sent only by servers with `book-links`. */
+  linked?: import("./book-link").BookCardLinkInfo;
 };
 
 export type BookDetailFile = {
@@ -245,6 +254,9 @@ export type AudioMetadata = {
   durationSeconds: number | null;
   abridged: boolean;
   chapters: AudiobookChapter[] | null;
+  chaptersSource?: AudiobookChapterSource | null;
+  /** When the stored chapter list last changed; null for a derived or legacy list. */
+  chaptersUpdatedAt?: string | null;
 };
 
 export type ReadAloudProgressSyncMode = "auto" | "disabled";
@@ -325,6 +337,12 @@ export type BookDetail = {
   coverVersion: string;
   hardcoverEditionId: string | null;
   providerIds: ProviderIds;
+  /**
+   * Record links for external providers' ids, keyed like `providerIds`: the page the id was applied
+   * from, or the provider's own URL template. Built-in links stay with the client's templates.
+   * Absent on older servers.
+   */
+  providerLinks?: Partial<Record<string, string>>;
   authors: { id: number; name: string; sortName: string | null }[];
   genres: string[];
   tags: string[];
@@ -340,6 +358,12 @@ export type BookDetail = {
   lockedFields: BookMetadataLockField[];
   collections: { id: number; name: string }[];
   fileWriteStatus?: BookFileWriteStatus;
+  /** Other books shown as this one, only those the viewer can see. Sent only by servers with `book-links`. */
+  linkedBooks?: import("./book-link").LinkedBookSummary[];
+  /** The link group this book belongs to, when it has one. */
+  linkGroupId?: number | null;
+  /** This book is its link group's main book. False when it is not linked. Absent from older servers. */
+  linkIsLead?: boolean;
 };
 
 export type BookCoverSlot = {
@@ -388,6 +412,8 @@ export type BookMetadataRefreshPreviewFields = {
   ranobedbId?: string | null;
   lubimyczytacId?: string | null;
   aladinId?: string | null;
+  /** Ids from external providers, keyed by provider. Absent on older servers. */
+  externalProviderIds?: Partial<Record<string, string | null>>;
   audioMetadata?: {
     narrators?: string[];
     durationSeconds?: number | null;
@@ -434,13 +460,16 @@ export type BookKoboState = {
 
 export type BooksPage = {
   items: BookCard[];
+  /** Cards: what paging counts. With a collapse flag, one card can stand for several books. */
   total: number;
   page: number;
   size: number;
+  /** Books behind the cards, set when a collapse flag folded any together. Equals `total` otherwise. */
+  bookTotal?: number;
 };
 
 export type BookFormatFacet = {
-  format: BookFormat;
+  format: BookFilterFormat;
   count: number;
 };
 

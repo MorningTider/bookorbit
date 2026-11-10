@@ -172,7 +172,6 @@ describe('useLibraryCreator', () => {
 
     creator.initEdit({
       id: 1,
-      type: 'books',
       name: 'Main Library',
       icon: 'BookOpen',
       displayOrder: 0,
@@ -206,7 +205,7 @@ describe('useLibraryCreator', () => {
       fileWriteReadAlongEnabled: false,
       fileWriteReadAlongMaxFileSizeMb: 1000,
       fileRenameEnabled: true,
-      folders: [{ id: 1, path: '/books', role: 'downloads' as const, createdAt: '2026-01-01T00:00:00.000Z' }],
+      folders: [{ id: 1, path: '/books', createdAt: '2026-01-01T00:00:00.000Z' }],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     })
@@ -279,34 +278,10 @@ describe('useLibraryCreator', () => {
       fileWriteAudioEnabled: true,
       fileWriteAudioMaxFileSizeMb: 750,
     })
+    expect(payload).not.toHaveProperty('type')
     expect(payload).not.toHaveProperty('localFolders')
     expect(payload).not.toHaveProperty('watchLocalFolders')
     expect(creator.loading.value).toBe(false)
-  })
-
-  it('sends the podcast local-folder watcher setting without book automation fields', async () => {
-    const { useLibraryCreator } = await import('../useLibraryCreator')
-    const creator = useLibraryCreator()
-    const saved = makeLibrary({ id: 13, type: 'podcasts', name: 'Podcasts', watchLocalFolders: false })
-    apiMock.mockResolvedValue(jsonResponse(saved, 201))
-
-    creator.form.type = 'podcasts'
-    creator.form.name = 'Podcasts'
-    creator.form.icon = 'Podcast'
-    creator.form.folders = ['/podcasts/downloads']
-    creator.form.localFolders = ['/podcasts/local']
-    creator.form.watchLocalFolders = false
-
-    await expect(creator.save()).resolves.toEqual(saved)
-
-    const payload = JSON.parse(apiMock.mock.calls[0]?.[1]?.body as string)
-    expect(payload).toMatchObject({
-      type: 'podcasts',
-      localFolders: ['/podcasts/local'],
-      watchLocalFolders: false,
-    })
-    expect(payload).not.toHaveProperty('watch')
-    expect(payload).not.toHaveProperty('autoScanCronExpression')
   })
 
   it('trims user-entered values and surfaces save connection failures', async () => {
@@ -343,6 +318,83 @@ describe('useLibraryCreator', () => {
     expect(creator.loading.value).toBe(false)
   })
 
+  describe('overlapping folders', () => {
+    function prescan(paths: PrescanResult['paths']) {
+      apiMock.mockResolvedValueOnce(jsonResponse({ paths, totalFiles: 0 } satisfies PrescanResult))
+    }
+
+    it('will not save a new folder another library reads', async () => {
+      const { useLibraryCreator } = await import('../useLibraryCreator')
+      const creator = useLibraryCreator()
+      creator.form.name = 'Comics'
+      creator.form.icon = 'BookOpen'
+      creator.form.folders = ['/books/comics']
+      prescan([{ path: '/books/comics', accessible: true, fileCount: 3, overlapLibrary: 'Books' }])
+      await creator.checkFolders()
+
+      await expect(creator.save()).resolves.toBeNull()
+
+      expect(creator.validationErrors.value.folders).toBe('/books/comics overlaps a folder of Books. A folder can belong to only one library.')
+      expect(apiMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('will not save two new folders of one library where one holds the other', async () => {
+      const { useLibraryCreator } = await import('../useLibraryCreator')
+      const creator = useLibraryCreator()
+      creator.form.folders = ['/srv/comics', '/srv/comics/manga']
+
+      expect(creator.validationErrors.value.folders).toBe(
+        '/srv/comics overlaps /srv/comics/manga. A library cannot read the same folder twice, so keep only one of them.',
+      )
+    })
+
+    it('still saves a library whose folders overlapped before, as long as no new folder does', async () => {
+      const { useLibraryCreator } = await import('../useLibraryCreator')
+      const creator = useLibraryCreator()
+      creator.initEdit(
+        makeLibrary({
+          id: 12,
+          folders: [
+            { id: 1, path: '/media/audio', createdAt: '2026-01-01T00:00:00.000Z' },
+            { id: 2, path: '/media/audio/podcasts', createdAt: '2026-01-01T00:00:00.000Z' },
+          ],
+        }),
+      )
+      prescan([
+        { path: '/media/audio', accessible: true, fileCount: 3, overlapLibrary: 'Books' },
+        { path: '/media/audio/podcasts', accessible: true, fileCount: 1 },
+      ])
+      await creator.checkFolders()
+
+      expect(creator.validationErrors.value.folders).toBeUndefined()
+
+      creator.form.folders = [...creator.form.folders, '/media/audio/books']
+      expect(creator.validationErrors.value.folders).toBe(
+        '/media/audio/books overlaps /media/audio. A library cannot read the same folder twice, so keep only one of them.',
+      )
+    })
+
+    it('explains a refusal the server makes from its own check', async () => {
+      const { useLibraryCreator } = await import('../useLibraryCreator')
+      const creator = useLibraryCreator()
+      creator.initEdit(makeLibrary({ id: 12 }))
+      apiMock.mockResolvedValue(
+        jsonResponse(
+          {
+            message: 'Library folders cannot sit inside one another or be shared between libraries.',
+            errorCode: 'LIBRARY_FOLDER_OVERLAP',
+            errorMeta: { path: '/books', overlapPath: '/books/comics', overlapLibrary: 'Comics' },
+          },
+          409,
+        ),
+      )
+
+      await expect(creator.save()).resolves.toBeNull()
+
+      expect(creator.error.value).toBe('/books overlaps a folder of Comics. A folder can belong to only one library.')
+    })
+  })
+
   it('shows the read-along entry above EPUB and saves it only once it is moved', async () => {
     const { useLibraryCreator } = await import('../useLibraryCreator')
     const creator = useLibraryCreator()
@@ -376,7 +428,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 function makeLibrary(overrides: Partial<Library> = {}): Library {
   return {
     id: 1,
-    type: 'books',
     name: 'Main Library',
     icon: 'BookOpen',
     displayOrder: 0,
@@ -410,7 +461,7 @@ function makeLibrary(overrides: Partial<Library> = {}): Library {
     fileWriteReadAlongEnabled: false,
     fileWriteReadAlongMaxFileSizeMb: 1000,
     fileRenameEnabled: true,
-    folders: [{ id: 1, path: '/books', role: 'downloads' as const, createdAt: '2026-01-01T00:00:00.000Z' }],
+    folders: [{ id: 1, path: '/books', createdAt: '2026-01-01T00:00:00.000Z' }],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,

@@ -97,9 +97,9 @@ export function useBulkEditMetadata(
       if (totalUpdated === 0 && totalSkipped > 0) {
         toast.warning(i18n.global.t('customUi.runtimeMessages.allSelectedBooksHadLockedFieldsNoChangesApplied'))
       } else if (totalSkipped > 0) {
-        toast.success(`Updated ${totalUpdated} book${totalUpdated === 1 ? '' : 's'} (some fields skipped due to locks)`)
+        toast.success(i18n.global.t('customUi.bulkActions.metadataSkipped', { count: totalUpdated }))
       } else {
-        toast.success(`Updated metadata for ${totalUpdated} book${totalUpdated === 1 ? '' : 's'}`)
+        toast.success(i18n.global.t('customUi.bulkActions.metadataUpdated', { count: totalUpdated }))
       }
 
       const needsReload = hasAddOrRemoveMode(fields) || !!querySelection?.value

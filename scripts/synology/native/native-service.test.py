@@ -59,6 +59,16 @@ class ServicePolicyTests(unittest.TestCase):
         second=m.environment(root,self.state,m.configuration(self.state))['PYTHONPYCACHEPREFIX']
         self.assertNotEqual(first,second)
         self.assertTrue(first.startswith(str(self.state/'home/.cache/python')))
+    def test_packaged_application_version_follows_the_installed_release(self):
+        root=self.state/'package';root.mkdir()
+        (root/'acceptance-build.json').write_text(json.dumps({'packageVersion':'3.7.0-10042'}))
+        env=m.environment(root,self.state,m.configuration(self.state))
+        self.assertEqual(env['APP_VERSION'],'v3.7.0')
+    def test_invalid_packaged_application_version_is_rejected(self):
+        root=self.state/'package';root.mkdir()
+        (root/'acceptance-build.json').write_text(json.dumps({'packageVersion':'../../3.7'}))
+        with self.assertRaisesRegex(ValueError,'Invalid package'):
+            m.environment(root,self.state,m.configuration(self.state))
     def production_root(self):
         root=self.state/'package';root.mkdir()
         (root/'acceptance-build.json').write_text(json.dumps({'productionEnabled':True}))

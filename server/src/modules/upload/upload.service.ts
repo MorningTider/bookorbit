@@ -27,6 +27,7 @@ import { DB } from '../../db';
 import { realignAudioTrackOrder } from '../../db/audio-track-order';
 import * as schema from '../../db/schema';
 import { books, bookFiles, libraries, libraryFolders } from '../../db/schema';
+import { FileLockService, bookOperationLockKey } from '../../common/services/file-lock.service';
 import type { RequestUser } from '../../common/types/request-user';
 import { AppSettingsService } from '../app-settings/app-settings.service';
 import { LibraryService } from '../library/library.service';
@@ -77,6 +78,7 @@ export class UploadService {
     private readonly selfWriteRegistry: SelfWriteRegistry,
     private readonly importReview: ImportReviewService,
     private readonly importCommit: ImportFileCommitService,
+    private readonly fileLocks: FileLockService,
     @Optional() private readonly coverStore?: BookCoverStore,
   ) {}
 
@@ -366,41 +368,47 @@ export class UploadService {
       await this.pathPolicy.assertWithinRoot(absolutePath, folder.path);
       destinationPath = absolutePath;
 
-      if (await this.destinationExists(absolutePath)) {
-        const destinationBookId = await this.importReview.destinationOwner(libraryId, absolutePath, user);
-        const [destinationMatches = []] = await this.importReview.matches(
-          libraryId,
-          [identity],
-          user,
-          { path: tempPath, size: sizeBytes },
-          destinationBookId,
-        );
-        await this.importReview.stage(
-          tempPath,
-          { libraryId, folderId: folder.id, filename, format, sizeBytes, identity, destinationBookId },
-          destinationMatches,
-          user,
-        );
-      }
+      // The file may land in a book that is already there, so it lands under that book's lock, the
+      // one write-back, rename and merge take. Spelled as on disk, which is how the book row has it.
+      const lockFolder = (await resolveExistingPathSpelling(bookFolderPath, folder.path)) ?? bookFolderPath;
+      const { bookId, created, persistedAbsolutePath } = await this.processor.withFolderBookLock(libraryId, lockFolder, async () => {
+        if (await this.destinationExists(absolutePath)) {
+          const destinationBookId = await this.importReview.destinationOwner(libraryId, absolutePath, user);
+          const [destinationMatches = []] = await this.importReview.matches(
+            libraryId,
+            [identity],
+            user,
+            { path: tempPath, size: sizeBytes },
+            destinationBookId,
+          );
+          await this.importReview.stage(
+            tempPath,
+            { libraryId, folderId: folder.id, filename, format, sizeBytes, identity, destinationBookId },
+            destinationMatches,
+            user,
+          );
+        }
 
-      selfWritePath = absolutePath;
-      this.selfWriteRegistry.begin([selfWritePath]);
-      await this.storage.moveToPath(tempPath, absolutePath);
+        selfWritePath = absolutePath;
+        this.selfWriteRegistry.begin([selfWritePath]);
+        await this.storage.moveToPath(tempPath, absolutePath);
 
-      const persistedAbsolutePath = (await resolveExistingPathSpelling(absolutePath, folder.path)) ?? absolutePath;
-      const persistedBookFolderPath = bookFolderPath === absolutePath ? persistedAbsolutePath : dirname(persistedAbsolutePath);
-      const persistedRelPath = relative(folder.path, persistedAbsolutePath);
-      destinationPath = persistedAbsolutePath;
+        const persistedPath = (await resolveExistingPathSpelling(absolutePath, folder.path)) ?? absolutePath;
+        const persistedBookFolderPath = bookFolderPath === absolutePath ? persistedPath : dirname(persistedPath);
+        const persistedRelPath = relative(folder.path, persistedPath);
+        destinationPath = persistedPath;
 
-      const createArgs = [libraryId, folder.id, persistedBookFolderPath, persistedAbsolutePath, persistedRelPath, format, sizeBytes] as const;
-      const recordOptions = {
-        ...(uploadSessionId ? { uploadSessionId } : {}),
-        ...(importOptions?.reviewId ? { importReviewId: importOptions.reviewId } : {}),
-      };
-      const { bookId, created } = Object.keys(recordOptions).length
-        ? await this.processor.createBookRecord(...createArgs, recordOptions)
-        : await this.processor.createBookRecord(...createArgs);
-      await this.importReview.recordOrigin(bookId, identity);
+        const createArgs = [libraryId, folder.id, persistedBookFolderPath, persistedPath, persistedRelPath, format, sizeBytes] as const;
+        const recordOptions = {
+          ...(uploadSessionId ? { uploadSessionId } : {}),
+          ...(importOptions?.reviewId ? { importReviewId: importOptions.reviewId } : {}),
+        };
+        const record = Object.keys(recordOptions).length
+          ? await this.processor.createBookRecord(...createArgs, recordOptions)
+          : await this.processor.createBookRecord(...createArgs);
+        await this.importReview.recordOrigin(record.bookId, identity);
+        return { ...record, persistedAbsolutePath: persistedPath };
+      });
 
       this.logger.log(
         `[${event}] [end] libraryId=${libraryId} userId=${user.id} folderId=${folder.id} bookId=${bookId} format=${format} sizeBytes=${sizeBytes} durationMs=${Date.now() - startedAt} - upload completed`,
@@ -492,8 +500,6 @@ export class UploadService {
 
     await this.libraryService.verifyUserAccess(user.id, bookRow.libraryId, user.isSuperuser);
 
-    const destinationFolder = bookRow.organizationMode === 'book_per_file' ? dirname(bookRow.folderPath) : bookRow.folderPath;
-
     const filename = this.validator.sanitizeFilename(rawFilename);
     const format = this.validator.validateFormat(filename, bookRow.allowedFormats);
 
@@ -511,155 +517,82 @@ export class UploadService {
     try {
       await this.validator.validateContent(tempPath, format);
       const fileHash = await computeFileHash(tempPath);
-      const durationSeconds = options?.preserveMetadata && isAudioFormat(format) ? await parseAudioDuration(tempPath) : undefined;
-      if (durationSeconds === null) throw new BadRequestException('Unable to measure the incoming audio file duration');
 
-      const samePartialHash = await this.db
-        .select({ id: bookFiles.id, absolutePath: bookFiles.absolutePath })
-        .from(bookFiles)
-        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.fileHash, fileHash)))
-        .limit(21);
-      if (samePartialHash.length > 20) throw new ConflictException('Too many matching files; review the book before attaching another file');
-      if (samePartialHash.length) {
-        const incomingHash = await fullFileSha256(tempPath);
-        for (const candidate of samePartialHash) {
-          const candidatePath = candidate.absolutePath;
-          await this.pathPolicy.assertWithinRoot(candidatePath, bookRow.libraryFolderPath);
-          if ((await fullFileSha256(candidatePath)) === incomingHash) throw uploadError.duplicate('This file is already attached to this book');
-        }
-      }
-
-      destination = join(destinationFolder, filename);
-      await this.pathPolicy.assertWithinRoot(destination, destinationFolder);
-
-      if (await this.destinationExists(destination)) {
-        if (!options?.preserveMetadata) throw uploadError.destinationConflict(`A file named "${filename}" already exists in this book's folder`);
-        destination = join(destinationFolder, `${basename(filename, extname(filename))} (${randomUUID()})${extname(filename)}`);
-        await this.pathPolicy.assertWithinRoot(destination, destinationFolder);
-      }
-
-      this.selfWriteRegistry.begin([destination]);
-      selfWritePath = destination;
-      shouldCleanupDestination = true;
-      await this.storage.moveToPath(tempPath, destination);
-      // File is on disk. Do not delete it on any subsequent failure; the scanner
-      // will reconcile any orphan. This also prevents the catch block from deleting
-      // a file that a concurrent upload may have written to the same path.
-      shouldCleanupDestination = false;
-
-      const fileStat = await stat(destination, { bigint: true });
-      const ino = fileStat.ino;
-      const relPath = relative(bookRow.libraryFolderPath, destination);
-      const mediaOverlayFields = await this.inspectMediaOverlayFields(destination, format);
-      // The transaction callback cannot see the narrowing of the outer `let`.
-      const absolutePath = destination;
-
-      const { inserted, isPrimary, finalStatus } = await this.db.transaction(async (tx) => {
-        const [lockedBook] = await tx
+      // The upload streamed without the lock; the write into the folder takes it, and re-reads the
+      // folder, because a merge or rename may have moved the book while the bytes arrived.
+      const result = await this.fileLocks.withLock(bookOperationLockKey(bookId), async () => {
+        const [current] = await this.db
           .select({
-            primaryFileId: books.primaryFileId,
-            status: books.status,
-            formatPriority: libraries.formatPriority,
+            folderPath: books.folderPath,
+            libraryFolderId: books.libraryFolderId,
+            libraryFolderPath: libraryFolders.path,
+            libraryId: books.libraryId,
+            organizationMode: libraries.organizationMode,
           })
           .from(books)
+          .innerJoin(libraryFolders, eq(books.libraryFolderId, libraryFolders.id))
           .innerJoin(libraries, eq(books.libraryId, libraries.id))
           .where(eq(books.id, bookId))
-          .for('update', { of: books })
           .limit(1);
+        if (!current) throw new NotFoundException(`Book ${bookId} not found`);
 
-        if (!lockedBook) throw new NotFoundException(`Book ${bookId} not found`);
+        await this.libraryService.verifyUserAccess(user.id, current.libraryId, user.isSuperuser);
+        const durationSeconds = options?.preserveMetadata && isAudioFormat(format) ? await parseAudioDuration(tempPath) : undefined;
+        if (durationSeconds === null) throw new BadRequestException('Unable to measure the incoming audio file duration');
 
-        const [inserted] = await tx
-          .insert(bookFiles)
-          .values({
-            bookId,
-            libraryFolderId: bookRow.libraryFolderId,
-            absolutePath,
-            relPath,
-            ino,
-            sizeBytes,
-            mtime: fileStat.mtime,
-            fileHash,
-            ...(durationSeconds !== undefined ? { durationSeconds } : {}),
-            format,
-            role: 'content',
-            ...mediaOverlayFields,
-          })
-          .returning({
-            id: bookFiles.id,
-            format: bookFiles.format,
-            role: bookFiles.role,
-            sizeBytes: bookFiles.sizeBytes,
-            absolutePath: bookFiles.absolutePath,
-            createdAt: bookFiles.createdAt,
-            durationSeconds: bookFiles.durationSeconds,
-          });
-
-        if (!inserted) throw new Error('Failed to insert book file record');
-        // A track added by hand has no number yet, which would play it after every other track.
-        if (isAudioFormat(format)) await realignAudioTrackOrder(tx, bookId);
-
-        const contentFiles = await tx
-          .select({
-            id: bookFiles.id,
-            format: bookFiles.format,
-            sizeBytes: bookFiles.sizeBytes,
-            mediaOverlayAvailable: bookFiles.mediaOverlayAvailable,
-          })
+        const samePartialHash = await this.db
+          .select({ id: bookFiles.id, absolutePath: bookFiles.absolutePath })
           .from(bookFiles)
-          .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.role, 'content')))
-          .orderBy(asc(bookFiles.id));
-
-        const winner = selectPrimaryFileKeepingCurrent(contentFiles, lockedBook.primaryFileId, lockedBook.formatPriority);
-        const nextPrimaryFileId = winner?.id ?? null;
-        const needsPrimaryUpdate = nextPrimaryFileId !== lockedBook.primaryFileId;
-        const needsStatusUpdate = lockedBook.status === 'missing';
-
-        if (needsPrimaryUpdate || needsStatusUpdate) {
-          await tx
-            .update(books)
-            .set({
-              ...(needsPrimaryUpdate ? { primaryFileId: nextPrimaryFileId } : {}),
-              ...(needsStatusUpdate ? { status: 'present' } : {}),
-              updatedAt: new Date(),
-            })
-            .where(eq(books.id, bookId));
+          .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.fileHash, fileHash)))
+          .limit(21);
+        if (samePartialHash.length > 20) throw new ConflictException('Too many matching files; review the book before attaching another file');
+        if (samePartialHash.length) {
+          const incomingHash = await fullFileSha256(tempPath);
+          for (const candidate of samePartialHash) {
+            await this.pathPolicy.assertWithinRoot(candidate.absolutePath, current.libraryFolderPath);
+            if ((await fullFileSha256(candidate.absolutePath)) === incomingHash)
+              throw uploadError.duplicate('This file is already attached to this book');
+          }
         }
 
-        if (options?.importReviewId)
-          await tx
-            .update(schema.bookImportReviews)
-            .set({ status: 'completed', resultBookId: bookId, updatedAt: new Date() })
-            .where(and(eq(schema.bookImportReviews.id, options.importReviewId), eq(schema.bookImportReviews.userId, user.id)));
-        return {
-          inserted,
-          isPrimary: inserted.id === nextPrimaryFileId,
-          finalStatus: needsStatusUpdate ? 'present' : lockedBook.status,
-        };
+        const destinationFolder = current.organizationMode === 'book_per_file' ? dirname(current.folderPath) : current.folderPath;
+        destination = join(destinationFolder, filename);
+        await this.pathPolicy.assertWithinRoot(destination, current.libraryFolderPath);
+
+        if (await this.destinationExists(destination)) {
+          if (!options?.preserveMetadata) throw uploadError.destinationConflict(`A file named "${filename}" already exists in this book's folder`);
+          destination = join(destinationFolder, `${basename(filename, extname(filename))} (${randomUUID()})${extname(filename)}`);
+          await this.pathPolicy.assertWithinRoot(destination, current.libraryFolderPath);
+        }
+
+        this.selfWriteRegistry.begin([destination]);
+        selfWritePath = destination;
+        shouldCleanupDestination = true;
+        await this.storage.moveToPath(tempPath, destination);
+        // File is on disk. Do not delete it on any subsequent failure; the scanner
+        // will reconcile any orphan. This also prevents the catch block from deleting
+        // a file that a concurrent upload may have written to the same path.
+        shouldCleanupDestination = false;
+
+        return this.registerBookFile({
+          bookId,
+          libraryFolderId: current.libraryFolderId,
+          libraryFolderPath: current.libraryFolderPath,
+          destination,
+          sizeBytes,
+          fileHash,
+          format,
+          durationSeconds,
+          preserveMetadata: options?.preserveMetadata,
+          importReview: options?.importReviewId ? { id: options.importReviewId, userId: user.id } : undefined,
+        });
       });
 
-      if (!options?.preserveMetadata) {
-        this.processor.extractAudioDurationAsync(bookId, destination, format);
-        this.processor.extractAddedAudioChaptersAsync(bookId, format);
-        this.processor.reconcileCoversAsync([bookId]);
-      }
-
       this.logger.log(
-        `[${event}] [end] bookId=${bookId} userId=${user.id} fileId=${inserted.id} format=${format} sizeBytes=${sizeBytes} durationMs=${Date.now() - startedAt} - add file to book completed`,
+        `[${event}] [end] bookId=${bookId} userId=${user.id} fileId=${result.id} format=${format} sizeBytes=${sizeBytes} durationMs=${Date.now() - startedAt} - add file to book completed`,
       );
 
-      return {
-        id: inserted.id,
-        format: inserted.format,
-        role: isPrimary ? 'primary' : inserted.role,
-        sizeBytes: inserted.sizeBytes,
-        absolutePath: inserted.absolutePath,
-        createdAt: inserted.createdAt.toISOString(),
-        filename: basename(destination),
-        durationSeconds: inserted.durationSeconds,
-        mediaOverlay: mediaOverlayCapabilityFromFields({ format: inserted.format, ...mediaOverlayFields }),
-        bookStatus: finalStatus,
-      };
+      return result;
     } catch (caught) {
       let err = caught;
       if (err instanceof UploadDestinationExistsError) {
@@ -678,6 +611,134 @@ export class UploadService {
     } finally {
       if (selfWritePath) this.selfWriteRegistry.end([selfWritePath]);
     }
+  }
+
+  /**
+   * Records a file that is already in place inside the book folder: inserts the row, re-picks the
+   * primary file and queues the same follow-ups an upload gets. Shared by uploads and by files the
+   * server generates itself, which must not go through the upload size limit.
+   */
+  async registerBookFile(params: {
+    bookId: number;
+    libraryFolderId: number;
+    libraryFolderPath: string;
+    destination: string;
+    sizeBytes: number;
+    fileHash: string;
+    format: string;
+    durationSeconds?: number;
+    preserveMetadata?: boolean;
+    importReview?: { id: string; userId: number };
+  }): Promise<AddBookFileResult> {
+    const { bookId, libraryFolderId, libraryFolderPath, destination, sizeBytes, fileHash, format } = params;
+    const fileStat = await stat(destination, { bigint: true });
+    const ino = fileStat.ino;
+    const relPath = relative(libraryFolderPath, destination);
+    const mediaOverlayFields = await this.inspectMediaOverlayFields(destination, format);
+
+    const { inserted, isPrimary, finalStatus } = await this.db.transaction(async (tx) => {
+      const [lockedBook] = await tx
+        .select({
+          primaryFileId: books.primaryFileId,
+          status: books.status,
+          formatPriority: libraries.formatPriority,
+        })
+        .from(books)
+        .innerJoin(libraries, eq(books.libraryId, libraries.id))
+        .where(eq(books.id, bookId))
+        .for('update', { of: books })
+        .limit(1);
+
+      if (!lockedBook) throw new NotFoundException(`Book ${bookId} not found`);
+
+      const [inserted] = await tx
+        .insert(bookFiles)
+        .values({
+          bookId,
+          libraryFolderId,
+          absolutePath: destination,
+          relPath,
+          ino,
+          sizeBytes,
+          mtime: fileStat.mtime,
+          fileHash,
+          ...(params.durationSeconds !== undefined ? { durationSeconds: params.durationSeconds } : {}),
+          format,
+          role: 'content',
+          ...mediaOverlayFields,
+        })
+        .returning({
+          id: bookFiles.id,
+          format: bookFiles.format,
+          role: bookFiles.role,
+          sizeBytes: bookFiles.sizeBytes,
+          absolutePath: bookFiles.absolutePath,
+          createdAt: bookFiles.createdAt,
+          durationSeconds: bookFiles.durationSeconds,
+        });
+
+      if (!inserted) throw new Error('Failed to insert book file record');
+      // A track added by hand has no number yet, which would play it after every other track.
+      if (isAudioFormat(format)) await realignAudioTrackOrder(tx, bookId);
+
+      const contentFiles = await tx
+        .select({
+          id: bookFiles.id,
+          format: bookFiles.format,
+          sizeBytes: bookFiles.sizeBytes,
+          mediaOverlayAvailable: bookFiles.mediaOverlayAvailable,
+        })
+        .from(bookFiles)
+        .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.role, 'content')))
+        .orderBy(asc(bookFiles.id));
+
+      const winner = selectPrimaryFileKeepingCurrent(contentFiles, lockedBook.primaryFileId, lockedBook.formatPriority);
+      const nextPrimaryFileId = winner?.id ?? null;
+      const needsPrimaryUpdate = nextPrimaryFileId !== lockedBook.primaryFileId;
+      const needsStatusUpdate = lockedBook.status === 'missing';
+
+      if (needsPrimaryUpdate || needsStatusUpdate) {
+        await tx
+          .update(books)
+          .set({
+            ...(needsPrimaryUpdate ? { primaryFileId: nextPrimaryFileId } : {}),
+            ...(needsStatusUpdate ? { status: 'present' } : {}),
+            updatedAt: new Date(),
+          })
+          .where(eq(books.id, bookId));
+      }
+
+      if (params.importReview)
+        await tx
+          .update(schema.bookImportReviews)
+          .set({ status: 'completed', resultBookId: bookId, updatedAt: new Date() })
+          .where(and(eq(schema.bookImportReviews.id, params.importReview.id), eq(schema.bookImportReviews.userId, params.importReview.userId)));
+
+      return {
+        inserted,
+        isPrimary: inserted.id === nextPrimaryFileId,
+        finalStatus: needsStatusUpdate ? 'present' : lockedBook.status,
+      };
+    });
+
+    if (!params.preserveMetadata) {
+      this.processor.extractAudioDurationAsync(bookId, destination, format);
+      this.processor.extractAddedAudioChaptersAsync(bookId, format);
+      this.processor.reconcileCoversAsync([bookId]);
+    }
+
+    return {
+      id: inserted.id,
+      format: inserted.format,
+      role: isPrimary ? 'primary' : inserted.role,
+      sizeBytes: inserted.sizeBytes,
+      absolutePath: inserted.absolutePath,
+      createdAt: inserted.createdAt.toISOString(),
+      filename: basename(destination),
+      durationSeconds: inserted.durationSeconds,
+      mediaOverlay: mediaOverlayCapabilityFromFields({ format: inserted.format, ...mediaOverlayFields }),
+      bookStatus: finalStatus,
+    };
   }
 
   async renameBookFiles(bookId: number, user: RequestUser): Promise<void> {

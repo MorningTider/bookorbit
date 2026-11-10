@@ -2,7 +2,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TxtConversionDialog from '../TxtConversionDialog.vue'
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), hasPermission: vi.fn() }))
+const mocks = vi.hoisted(() => ({ api: vi.fn<typeof import('@/lib/api').api>(), hasPermission: vi.fn<(permission: string) => boolean>() }))
 vi.mock('@/features/auth/composables/usePermissions', () => ({ usePermissions: () => ({ hasPermission: mocks.hasPermission }) }))
 vi.mock('@/lib/api', () => ({ api: mocks.api }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))

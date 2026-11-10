@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '@/lib/api'
 import { useBookComments } from './useBookComments'
 
-vi.mock('@/lib/api', () => ({ api: vi.fn() }))
+vi.mock('@/lib/api', () => ({ api: vi.fn<typeof import('@/lib/api').api>() }))
 const apiMock = vi.mocked(api)
 const response = (items: unknown[] = [], nextCursor: number | null = null) => new Response(JSON.stringify({ items, nextCursor }))
 const comment = { id: 1, authorName: 'Another reader', body: 'A review', scope: 'review' } as never

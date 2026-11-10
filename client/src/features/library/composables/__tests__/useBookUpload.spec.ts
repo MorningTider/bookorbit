@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { useBookUpload, SUPPORTED_FORMATS_ACCEPT } from '../useBookUpload'
 
-vi.mock('@/lib/api', () => ({ getValidToken: vi.fn<() => Promise<string>>().mockResolvedValue('test-token'), api: vi.fn() }))
+vi.mock('@/lib/api', () => ({
+  getValidToken: vi.fn<() => Promise<string>>().mockResolvedValue('test-token'),
+  api: vi.fn<typeof import('@/lib/api').api>(),
+}))
 vi.mock('@/features/settings/composables/useAppInfo', () => ({ useAppInfo: () => ({ maxUploadSizeMb: ref(500) }) }))
 
 describe('library DjVu upload', () => {

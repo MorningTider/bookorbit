@@ -12,10 +12,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { readdir, realpath, rm, stat } from 'fs/promises';
-import { dirname, isAbsolute, join, relative } from 'path';
+import { readdir, rm, stat } from 'fs/promises';
+import { join } from 'path';
 
-import { APP_FEATURES, DEFAULT_FORMAT_PRIORITY } from '@bookorbit/types';
+import { DEFAULT_FORMAT_PRIORITY, resolveRegexMetadataConfig } from '@bookorbit/types';
 import type {
   AccessLevel,
   LibraryFileSyncProgressEvent,
@@ -24,8 +24,7 @@ import type {
   RegexMetadataConfig,
   WriteResult,
 } from '@bookorbit/types';
-import { podcastArtworkDirPath } from '../../common/podcast-artwork-storage';
-import { podcastFeedSnapshotPath } from '../../common/podcast-feed-snapshot-storage';
+import { LibraryOperationGate } from '../../common/services/library-operation-gate.service';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 import { normalizeIconValue } from '../../common/utils/icon-value.utils';
 import type { RequestUser } from '../../common/types/request-user';
@@ -48,7 +47,6 @@ import {
   EDITOR_ACCESS_LEVELS,
   LIBRARY_METADATA_PRECEDENCE_DEFAULT,
 } from './library.constants';
-import { resolveLibraryFolderRoles, type LibraryFolderInput } from './library-folder-roles.utils';
 import { LibraryRepository } from './library.repository';
 import { LibraryScanSchedulerService } from './library-scan-scheduler.service';
 
@@ -64,40 +62,6 @@ interface LibraryMetadataWriteSummary {
   skipped: number;
   cancelled: boolean;
 }
-
-const BOOK_ONLY_LIBRARY_FIELDS = [
-  'watch',
-  'autoScanCronExpression',
-  'metadataPrecedence',
-  'regexMetadata',
-  'formatPriority',
-  'allowedFormats',
-  'organizationMode',
-  'excludePatterns',
-  'readingThreshold',
-  'markAsFinishedPercentComplete',
-  'fileNamingPattern',
-  'fileWriteEnabled',
-  'fileWriteWriteCover',
-  'fileWriteEpubEnabled',
-  'fileWriteEpubMaxFileSizeMb',
-  'fileWriteFb2Enabled',
-  'fileWriteFb2MaxFileSizeMb',
-  'fileWritePdfEnabled',
-  'fileWritePdfMaxFileSizeMb',
-  'fileWriteCbxEnabled',
-  'fileWriteCbxMaxFileSizeMb',
-  'fileWriteKindleEnabled',
-  'fileWriteKindleMaxFileSizeMb',
-  'fileWriteAudioEnabled',
-  'fileWriteAudioMaxFileSizeMb',
-  'fileWriteAllFiles',
-  'fileWriteReadAlongEnabled',
-  'fileWriteReadAlongMaxFileSizeMb',
-  'fileRenameEnabled',
-] as const;
-
-const PODCAST_ONLY_LIBRARY_FIELDS = ['localFolders', 'watchLocalFolders'] as const;
 
 @Injectable()
 export class LibraryService {
@@ -115,6 +79,7 @@ export class LibraryService {
     private readonly scanScheduler: LibraryScanSchedulerService,
     private readonly regexMetadata: RegexMetadataService,
     private readonly readingAttemptEvents: ReadingAttemptEventsService,
+    private readonly libraryGate: LibraryOperationGate,
   ) {
     this.appDataPath = this.config.get<string>('storage.appDataPath')!;
   }
@@ -151,7 +116,7 @@ export class LibraryService {
 
     return librariesForUser.map((library) => ({
       ...normalizeLibraryOrganizationMode(library),
-      folders: (foldersByLibraryId.get(library.id) ?? []).map(({ id, path, role, createdAt }) => ({ id, path, role, createdAt })),
+      folders: (foldersByLibraryId.get(library.id) ?? []).map(({ id, path, createdAt }) => ({ id, path, createdAt })),
     }));
   }
 
@@ -187,8 +152,7 @@ export class LibraryService {
 
   private async assertRegexMetadataLibrary(libraryId: number | undefined) {
     if (libraryId === undefined) return;
-    const library = await this.findOne(libraryId);
-    if (library.type !== 'books') throw new BadRequestException('Regex metadata is only available for book libraries');
+    await this.findOne(libraryId);
   }
 
   async validateRegexMetadata(dto: RegexMetadataValidationDto) {
@@ -202,68 +166,57 @@ export class LibraryService {
   }
 
   async create(dto: CreateLibraryDto) {
-    const libraryType = dto.type ?? 'books';
-    if (libraryType === 'podcasts' && !APP_FEATURES.podcasts) {
-      throw new BadRequestException('Podcast libraries are not available');
-    }
-    if (libraryType === 'podcasts') this.assertNoBookOnlyFields(dto);
-    else this.assertNoPodcastOnlyFields(dto);
-    await this.regexMetadata.validate(dto.regexMetadata);
+    const regexMetadata = resolveRegexMetadataConfig(dto.regexMetadata);
+    await this.regexMetadata.validate(regexMetadata);
     await this.assertNameAvailable(dto.name);
-    const folderInputs = resolveLibraryFolderRoles(
-      libraryType,
-      await this.assertFolderPathsWithinBrowseRoot(dto.folders),
-      await this.assertFolderPathsWithinBrowseRoot(dto.localFolders ?? []),
-    );
+    const folderPaths = await this.assertFolderPathsWithinBrowseRoot(dto.folders);
+    await this.assertFoldersDoNotOverlap(folderPaths);
     const icon = normalizeIconValue(dto.icon);
     if (!icon) {
       throw new BadRequestException('Icon is required');
     }
 
     const [library] = await this.libraryRepo.insert({
-      type: libraryType,
       name: dto.name,
       icon,
       displayOrder: dto.displayOrder ?? 0,
-      watch: libraryType === 'books' ? (dto.watch ?? false) : false,
-      watchLocalFolders: libraryType === 'podcasts' ? (dto.watchLocalFolders ?? true) : false,
-      autoScanCronExpression: libraryType === 'books' ? (dto.autoScanCronExpression ?? null) : null,
-      regexMetadata: dto.regexMetadata ?? null,
-      metadataPrecedence: libraryType === 'books' ? (dto.metadataPrecedence ?? [...LIBRARY_METADATA_PRECEDENCE_DEFAULT]) : [],
-      formatPriority: libraryType === 'books' ? (dto.formatPriority ?? [...DEFAULT_FORMAT_PRIORITY]) : [],
-      allowedFormats: libraryType === 'books' ? (dto.allowedFormats ?? []) : [],
-      organizationMode: libraryType === 'books' ? (dto.organizationMode ?? DEFAULT_LIBRARY_ORGANIZATION_MODE) : DEFAULT_LIBRARY_ORGANIZATION_MODE,
+      watch: dto.watch ?? false,
+      autoScanCronExpression: dto.autoScanCronExpression ?? null,
+      regexMetadata,
+      metadataPrecedence: dto.metadataPrecedence ?? [...LIBRARY_METADATA_PRECEDENCE_DEFAULT],
+      formatPriority: dto.formatPriority ?? [...DEFAULT_FORMAT_PRIORITY],
+      allowedFormats: dto.allowedFormats ?? [],
+      organizationMode: dto.organizationMode ?? DEFAULT_LIBRARY_ORGANIZATION_MODE,
       addedAtSource: dto.addedAtSource ?? DEFAULT_LIBRARY_ADDED_AT_SOURCE,
-      excludePatterns: libraryType === 'books' ? (dto.excludePatterns ?? []) : [],
-      coverAspectRatio: dto.coverAspectRatio ?? (libraryType === 'podcasts' ? '1/1' : DEFAULT_LIBRARY_COVER_ASPECT_RATIO),
-      readingThreshold: libraryType === 'books' ? (dto.readingThreshold ?? 0.25) : 0.25,
-      markAsFinishedPercentComplete: libraryType === 'books' ? (dto.markAsFinishedPercentComplete ?? 98) : 98,
-      fileNamingPattern: libraryType === 'books' ? (dto.fileNamingPattern ?? null) : null,
-      fileWriteEnabled: libraryType === 'books' ? (dto.fileWriteEnabled ?? false) : false,
-      fileWriteWriteCover: libraryType === 'books' ? (dto.fileWriteWriteCover ?? true) : false,
-      fileWriteEpubEnabled: libraryType === 'books' ? (dto.fileWriteEpubEnabled ?? true) : false,
-      fileWriteEpubMaxFileSizeMb: libraryType === 'books' ? (dto.fileWriteEpubMaxFileSizeMb ?? 100) : 100,
-      fileWriteFb2Enabled: libraryType === 'books' ? (dto.fileWriteFb2Enabled ?? false) : false,
-      fileWriteFb2MaxFileSizeMb: libraryType === 'books' ? (dto.fileWriteFb2MaxFileSizeMb ?? 100) : 100,
-      fileWritePdfEnabled: libraryType === 'books' ? (dto.fileWritePdfEnabled ?? true) : false,
-      fileWritePdfMaxFileSizeMb: libraryType === 'books' ? (dto.fileWritePdfMaxFileSizeMb ?? 100) : 100,
-      fileWriteCbxEnabled: libraryType === 'books' ? (dto.fileWriteCbxEnabled ?? false) : false,
-      fileWriteCbxMaxFileSizeMb: libraryType === 'books' ? (dto.fileWriteCbxMaxFileSizeMb ?? 500) : 500,
-      fileWriteKindleEnabled: libraryType === 'books' ? (dto.fileWriteKindleEnabled ?? false) : false,
-      fileWriteKindleMaxFileSizeMb: libraryType === 'books' ? (dto.fileWriteKindleMaxFileSizeMb ?? 100) : 100,
-      fileWriteAudioEnabled: libraryType === 'books' ? (dto.fileWriteAudioEnabled ?? true) : false,
-      fileWriteAudioMaxFileSizeMb: libraryType === 'books' ? (dto.fileWriteAudioMaxFileSizeMb ?? 500) : 500,
-      fileWriteAllFiles: libraryType === 'books' ? (dto.fileWriteAllFiles ?? false) : false,
-      fileWriteReadAlongEnabled: libraryType === 'books' ? (dto.fileWriteReadAlongEnabled ?? false) : false,
-      fileWriteReadAlongMaxFileSizeMb: libraryType === 'books' ? (dto.fileWriteReadAlongMaxFileSizeMb ?? 1000) : 1000,
-      fileRenameEnabled: libraryType === 'books' ? (dto.fileRenameEnabled ?? false) : false,
+      excludePatterns: dto.excludePatterns ?? [],
+      coverAspectRatio: dto.coverAspectRatio ?? DEFAULT_LIBRARY_COVER_ASPECT_RATIO,
+      readingThreshold: dto.readingThreshold ?? 0.25,
+      markAsFinishedPercentComplete: dto.markAsFinishedPercentComplete ?? 98,
+      fileNamingPattern: dto.fileNamingPattern ?? null,
+      fileWriteEnabled: dto.fileWriteEnabled ?? false,
+      fileWriteWriteCover: dto.fileWriteWriteCover ?? true,
+      fileWriteEpubEnabled: dto.fileWriteEpubEnabled ?? true,
+      fileWriteEpubMaxFileSizeMb: dto.fileWriteEpubMaxFileSizeMb ?? 100,
+      fileWriteFb2Enabled: dto.fileWriteFb2Enabled ?? false,
+      fileWriteFb2MaxFileSizeMb: dto.fileWriteFb2MaxFileSizeMb ?? 100,
+      fileWritePdfEnabled: dto.fileWritePdfEnabled ?? true,
+      fileWritePdfMaxFileSizeMb: dto.fileWritePdfMaxFileSizeMb ?? 100,
+      fileWriteCbxEnabled: dto.fileWriteCbxEnabled ?? false,
+      fileWriteCbxMaxFileSizeMb: dto.fileWriteCbxMaxFileSizeMb ?? 500,
+      fileWriteKindleEnabled: dto.fileWriteKindleEnabled ?? false,
+      fileWriteKindleMaxFileSizeMb: dto.fileWriteKindleMaxFileSizeMb ?? 100,
+      fileWriteAudioEnabled: dto.fileWriteAudioEnabled ?? true,
+      fileWriteAudioMaxFileSizeMb: dto.fileWriteAudioMaxFileSizeMb ?? 500,
+      fileWriteAllFiles: dto.fileWriteAllFiles ?? false,
+      fileWriteReadAlongEnabled: dto.fileWriteReadAlongEnabled ?? false,
+      fileWriteReadAlongMaxFileSizeMb: dto.fileWriteReadAlongMaxFileSizeMb ?? 1000,
+      fileRenameEnabled: dto.fileRenameEnabled ?? false,
     });
 
-    const folders = await this.libraryRepo.insertFolders(folderInputs.map(({ path, role }) => ({ libraryId: library.id, path, role })));
+    const folders = await this.libraryRepo.insertFolders(folderPaths.map((path) => ({ libraryId: library.id, path })));
+    this.scannerService.forgetLibraryRoots();
 
-    if (library.type === 'podcasts') await this.libraryRepo.insertPodcastSettings(library.id);
-
-    if (library.watch && library.type === 'books') {
+    if (library.watch) {
       await this.fileWatcherService.startWatcher(
         library.id,
         folders.map((folder) => folder.path),
@@ -271,7 +224,7 @@ export class LibraryService {
     }
 
     this.scanScheduler.syncSchedule(library.id, dto.autoScanCronExpression ?? null);
-    if (library.type === 'books') this.scannerService.startScanAsync(library.id);
+    this.scannerService.startScanAsync(library.id);
 
     return { ...normalizeLibraryOrganizationMode(library), folders };
   }
@@ -279,13 +232,16 @@ export class LibraryService {
   async update(id: number, dto: UpdateLibraryDto) {
     const [existing] = await this.libraryRepo.findById(id);
     if (!existing) throw new NotFoundException('Library not found');
-    if (existing.type === 'podcasts') this.assertNoBookOnlyFields(dto);
-    else this.assertNoPodcastOnlyFields(dto);
 
-    const regexRules = (config: RegexMetadataConfig | null | undefined) => config?.rules.map(({ pattern, flags }) => [pattern, flags]) ?? null;
+    // Compared as the rules that would run: a preset runs its current rules whatever copy is stored,
+    // so re-sending a preset is no change even after the preset itself was updated.
+    const regexRules = (config: RegexMetadataConfig | null | undefined) =>
+      config ? [config.preset ?? null, config.rules.map(({ pattern, flags }) => [pattern, flags])] : null;
+    const incomingRegexMetadata = dto.regexMetadata === undefined ? undefined : resolveRegexMetadataConfig(dto.regexMetadata);
     const regexMetadataChanged =
-      dto.regexMetadata !== undefined && !isDeepStrictEqual(regexRules(dto.regexMetadata), regexRules(existing.regexMetadata));
-    if (regexMetadataChanged) await this.regexMetadata.validate(dto.regexMetadata);
+      incomingRegexMetadata !== undefined &&
+      !isDeepStrictEqual(regexRules(incomingRegexMetadata), regexRules(resolveRegexMetadataConfig(existing.regexMetadata)));
+    if (regexMetadataChanged) await this.regexMetadata.validate(incomingRegexMetadata);
 
     const existingOrganizationMode = normalizeOrganizationMode(existing.organizationMode);
     if (dto.organizationMode !== undefined && dto.organizationMode !== existingOrganizationMode) {
@@ -298,39 +254,11 @@ export class LibraryService {
       await this.assertNameAvailable(dto.name, id);
     }
 
-    const { folders: rawFolderPaths, localFolders: rawLocalFolderPaths, ...fields } = dto;
+    const { folders: rawFolderPaths, ...fields } = dto;
     if (!regexMetadataChanged) delete fields.regexMetadata;
-    let existingFolders: Awaited<ReturnType<LibraryRepository['findFoldersByLibrary']>> | undefined;
-    let folderInputs: LibraryFolderInput[] | undefined;
-    if (rawFolderPaths !== undefined || rawLocalFolderPaths !== undefined) {
-      existingFolders = await this.libraryRepo.findFoldersByLibrary(id);
-      const downloads =
-        rawFolderPaths === undefined
-          ? existingFolders.filter((folder) => folder.role !== 'local').map((folder) => folder.path)
-          : await this.assertFolderPathsWithinBrowseRoot(rawFolderPaths);
-      const local =
-        rawLocalFolderPaths === undefined
-          ? existingFolders.filter((folder) => folder.role === 'local').map((folder) => folder.path)
-          : await this.assertFolderPathsWithinBrowseRoot(rawLocalFolderPaths);
-      folderInputs = resolveLibraryFolderRoles(existing.type, downloads, local);
-
-      // Only the downloads root is BookOrbit's to move: it holds the files retention and playback
-      // resolve by path. Local roots can come and go freely, since nothing was ever written there.
-      if (existing.type === 'podcasts') {
-        const currentDownloads = existingFolders.filter((folder) => folder.role !== 'local').map((folder) => folder.path);
-        const nextDownloads = folderInputs.filter((folder) => folder.role === 'downloads').map((folder) => folder.path);
-        const storageFolderChanged =
-          currentDownloads.length !== nextDownloads.length || currentDownloads.some((path) => !nextDownloads.includes(path));
-        if (storageFolderChanged) {
-          if (await this.libraryRepo.hasPodcastMediaFiles(id)) {
-            throw new ConflictException('Remove downloaded podcast files before changing the podcast storage folder.');
-          }
-          if (await this.libraryRepo.hasBlockingPodcastStorageJobs(id)) {
-            throw new ConflictException('Podcast storage work is in progress. Retry the storage folder change shortly.');
-          }
-        }
-      }
-    }
+    else fields.regexMetadata = incomingRegexMetadata;
+    const folderPaths = rawFolderPaths === undefined ? undefined : await this.assertFolderPathsWithinBrowseRoot(rawFolderPaths);
+    if (folderPaths !== undefined) await this.assertFoldersDoNotOverlap(folderPaths, id);
     const icon = fields.icon !== undefined ? normalizeIconValue(fields.icon) : normalizeIconValue(existing.icon);
     if (!icon) {
       throw new BadRequestException('Icon is required');
@@ -342,25 +270,25 @@ export class LibraryService {
     const [updated] = await this.libraryRepo.update(id, fields);
     if (dto.autoScanCronExpression !== undefined) this.scanScheduler.syncSchedule(id, dto.autoScanCronExpression);
 
-    if (folderInputs !== undefined) {
-      existingFolders ??= await this.libraryRepo.findFoldersByLibrary(id);
-      const keyOf = (folder: { path: string; role: string }) => `${folder.role}:${folder.path}`;
-      const nextKeys = new Set(folderInputs.map(keyOf));
-      const existingKeys = new Set(existingFolders.map(keyOf));
+    if (folderPaths !== undefined) {
+      const existingFolders = await this.libraryRepo.findFoldersByLibrary(id);
+      const existingPaths = new Set(existingFolders.map((f) => f.path));
+      const nextPaths = new Set(folderPaths);
 
-      const toRemove = existingFolders.filter((f) => !nextKeys.has(keyOf(f)));
+      const toRemove = existingFolders.filter((f) => !nextPaths.has(f.path));
       await Promise.all(toRemove.map((f) => this.libraryRepo.deleteFolder(f.id)));
 
-      const toAdd = folderInputs.filter((f) => !existingKeys.has(keyOf(f)));
+      const toAdd = folderPaths.filter((path) => !existingPaths.has(path));
       if (toAdd.length > 0) {
-        await this.libraryRepo.insertFolders(toAdd.map(({ path, role }) => ({ libraryId: id, path, role })));
+        await this.libraryRepo.insertFolders(toAdd.map((path) => ({ libraryId: id, path })));
       }
+      if (toRemove.length > 0 || toAdd.length > 0) this.scannerService.forgetLibraryRoots();
     }
 
     const folders = await this.libraryRepo.findFoldersByLibrary(id);
 
-    const watchChanged = existing.type === 'books' && dto.watch !== undefined && dto.watch !== existing.watch;
-    const nextWatch = existing.type === 'books' && (dto.watch ?? existing.watch);
+    const watchChanged = dto.watch !== undefined && dto.watch !== existing.watch;
+    const nextWatch = dto.watch ?? existing.watch;
     if (watchChanged) {
       if (nextWatch) {
         await this.fileWatcherService.startWatcher(
@@ -370,7 +298,7 @@ export class LibraryService {
       } else {
         await this.fileWatcherService.stopWatcher(id);
       }
-    } else if (nextWatch && folderInputs !== undefined) {
+    } else if (nextWatch && folderPaths !== undefined) {
       await this.fileWatcherService.startWatcher(
         id,
         folders.map((f) => f.path),
@@ -378,8 +306,8 @@ export class LibraryService {
     }
 
     const shouldRescan =
-      dto.formatPriority !== undefined || dto.allowedFormats !== undefined || dto.excludePatterns !== undefined || folderInputs !== undefined;
-    if (shouldRescan && existing.type === 'books') this.scannerService.startScanAsync(id);
+      dto.formatPriority !== undefined || dto.allowedFormats !== undefined || dto.excludePatterns !== undefined || folderPaths !== undefined;
+    if (shouldRescan) this.scannerService.startScanAsync(id);
 
     return { ...normalizeLibraryOrganizationMode(updated), folders };
   }
@@ -387,31 +315,35 @@ export class LibraryService {
   async remove(id: number) {
     const [existing] = await this.libraryRepo.findById(id);
     if (!existing) throw new NotFoundException('Library not found');
+    // Held for the whole delete, so a scan, move, rename or merge cannot start on rows and files
+    // that are going away, and one already running is not cut off halfway through its writes.
+    const releaseGate = this.libraryGate.tryAcquire(id, 'library_delete');
+    if (!releaseGate) {
+      throw new ConflictException({
+        message: 'Another operation is running in this library. Try again when it finishes.',
+        errorCode: 'LIBRARY_BUSY',
+      });
+    }
     const event = 'library.delete';
     const startedAt = Date.now();
-    this.logger.log(`[${event}] [start] libraryId=${id} type=${existing.type} - library deletion started`);
+    this.logger.log(`[${event}] [start] libraryId=${id} - library deletion started`);
     try {
-      if (existing.type === 'podcasts') {
-        const activeJobs = await this.libraryRepo.cancelPodcastJobs(id);
-        if (activeJobs > 0) throw new ConflictException('Podcast jobs are still stopping. Retry library deletion shortly.');
-      }
       await this.fileWatcherService.stopWatcher(id);
       const bookRows = await this.libraryRepo.findBookIdsByLibrary(id);
-      const removedPodcastFiles = existing.type === 'podcasts' ? await this.removePodcastFiles(id) : 0;
-      if (existing.type === 'podcasts') await this.removePodcastAppDataFiles(id);
       await this.libraryRepo.delete(id);
+      this.scannerService.forgetLibraryRoots();
       this.readingAttemptEvents.notifyChanged(null);
       this.scanScheduler.removeSchedule(id);
       await this.cleanupCoverDirectories(bookRows.map(({ id: bookId }) => bookId));
-      this.logger.log(
-        `[${event}] [end] libraryId=${id} durationMs=${Date.now() - startedAt} books=${bookRows.length} podcastFiles=${removedPodcastFiles} - library deletion completed`,
-      );
+      this.logger.log(`[${event}] [end] libraryId=${id} durationMs=${Date.now() - startedAt} books=${bookRows.length} - library deletion completed`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(
         `[${event}] [fail] libraryId=${id} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(message)}" - library deletion failed`,
       );
       throw error;
+    } finally {
+      releaseGate();
     }
   }
 
@@ -604,110 +536,36 @@ export class LibraryService {
   }
 
   private async assertFolderPathsWithinBrowseRoot(paths: string[]): Promise<string[]> {
-    return Promise.all(paths.map((path) => this.pathPolicy.assertWithinBrowseRoot(path)));
+    const resolved = await Promise.all(paths.map((path) => this.pathPolicy.assertWithinBrowseRoot(path)));
+    return [...new Set(resolved)];
   }
 
-  private assertNoBookOnlyFields(dto: object): void {
-    const field = BOOK_ONLY_LIBRARY_FIELDS.find((key) => (dto as Record<string, unknown>)[key] !== undefined);
-    if (field) throw new BadRequestException(`${field} is only supported for book libraries`);
-  }
+  /**
+   * A file can belong to one book in one library, so a folder this request adds may not sit inside
+   * another library folder, contain one, or repeat one, in this library or any other. Folders the
+   * library already has are not re-checked: a library saved before this rule keeps saving until an
+   * admin moves its folders apart, and the scanner settles who owns what in the meantime.
+   */
+  private async assertFoldersDoNotOverlap(paths: string[], libraryId?: number): Promise<void> {
+    const existing = await this.libraryRepo.findAllFolderPaths();
+    const current = new Set(existing.filter((folder) => folder.libraryId === libraryId).map((folder) => folder.path));
+    const otherLibraries = existing.filter((folder) => folder.libraryId !== libraryId);
 
-  private assertNoPodcastOnlyFields(dto: object): void {
-    const field = PODCAST_ONLY_LIBRARY_FIELDS.find((key) => (dto as Record<string, unknown>)[key] !== undefined);
-    if (field) throw new BadRequestException(`${field} is only supported for podcast libraries`);
-  }
-
-  private async removePodcastFiles(libraryId: number): Promise<number> {
-    const folders = await this.libraryRepo.findFoldersByLibrary(libraryId);
-    // Only the downloads root is swept. Local roots hold the user's own files, which BookOrbit
-    // adopted where they lay and must leave behind when the library goes.
-    const folder = folders.find((candidate) => candidate.role !== 'local');
-    // A downloads root that is gone from disk, an unmounted drive or a renamed folder, resolves the
-    // same way as a library that never had one: there is nothing inside it left to sweep. Letting
-    // `realpath` throw here instead made the library undeletable behind a 500, because the raw ENOENT
-    // escaped as something other than an HTTP failure. A null root still refuses further down if
-    // media rows do exist, which is a 409 naming the missing folder rather than a crash.
-    const root = folder ? await resolveExistingRoot(folder.path) : null;
-    let removed = 0;
-    let afterEpisodeId = 0;
-    const removedPaths = new Set<string>();
-    for (;;) {
-      const files = await this.libraryRepo.findPodcastMediaFiles(libraryId, afterEpisodeId, 200);
-      if (files.length === 0) break;
-      for (const file of files) {
-        afterEpisodeId = file.episodeId;
-        if (!file.localPath) continue;
-        removed += await this.removePodcastFileWithinRoot(root, file.localPath, removedPaths);
-      }
-      if (files.length < 200) break;
+    for (const path of paths) {
+      if (current.has(path)) continue;
+      const inAnotherLibrary = otherLibraries.find((folder) => pathsOverlap(path, folder.path));
+      const inThisLibrary = paths.find((other) => other !== path && pathsOverlap(path, other));
+      if (!inAnotherLibrary && inThisLibrary === undefined) continue;
+      throw new ConflictException({
+        message: 'Library folders cannot sit inside one another or be shared between libraries.',
+        errorCode: 'LIBRARY_FOLDER_OVERLAP',
+        errorMeta: {
+          path,
+          overlapPath: inAnotherLibrary?.path ?? inThisLibrary,
+          ...(inAnotherLibrary ? { overlapLibrary: inAnotherLibrary.libraryName } : {}),
+        },
+      });
     }
-
-    let afterJobId = 0;
-    for (;;) {
-      const jobs = await this.libraryRepo.findPodcastCleanupJobs(libraryId, afterJobId, 200);
-      if (jobs.length === 0) break;
-      for (const job of jobs) {
-        afterJobId = job.id;
-        const path = job.payload.path;
-        if (typeof path !== 'string' || !path) continue;
-        removed += await this.removePodcastFileWithinRoot(root, path, removedPaths);
-      }
-      if (jobs.length < 200) break;
-    }
-    return removed;
-  }
-
-  /** Custom show artwork and stored feed copies live in app data rather than the library folder, so the media sweep never reaches them. */
-  private async removePodcastAppDataFiles(libraryId: number): Promise<number> {
-    const event = 'library.remove_podcast_app_data';
-    const startedAt = Date.now();
-    let removed = 0;
-    let afterPodcastId = 0;
-    for (;;) {
-      const rows = await this.libraryRepo.findPodcastIds(libraryId, afterPodcastId, 200);
-      if (rows.length === 0) break;
-      for (const row of rows) {
-        afterPodcastId = row.id;
-        try {
-          await rm(podcastArtworkDirPath(this.appDataPath, row.id), { recursive: true, force: true });
-          await rm(podcastFeedSnapshotPath(this.appDataPath, row.id), { force: true });
-          removed++;
-        } catch (error) {
-          this.logger.warn(
-            `[${event}] [fail] libraryId=${libraryId} podcastId=${row.id} durationMs=${Date.now() - startedAt} errorClass=${error instanceof Error ? error.name : 'Error'} error="${sanitizeLogValue(getErrorMessage(error))}" - podcast app data cleanup failed`,
-          );
-        }
-      }
-      if (rows.length < 200) break;
-    }
-    return removed;
-  }
-
-  private async removePodcastFileWithinRoot(root: string | null, path: string, removedPaths: Set<string>): Promise<number> {
-    if (!root) throw new ConflictException('Podcast library storage folder is missing');
-    let target: string;
-    try {
-      target = await realpath(path);
-    } catch (error) {
-      if (getErrorCode(error) === 'ENOENT') return 0;
-      throw error;
-    }
-    const relativePath = relative(root, target);
-    if (
-      !relativePath ||
-      relativePath === '..' ||
-      relativePath.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) ||
-      isAbsolute(relativePath)
-    ) {
-      throw new BadRequestException('Podcast media path is outside its library storage folder');
-    }
-    if (removedPaths.has(target)) return 0;
-    const info = await stat(target);
-    if (!info.isFile()) throw new BadRequestException('Podcast media path is not a regular file');
-    await rm(target, { force: true });
-    await rm(dirname(target), { recursive: false }).catch(() => undefined);
-    removedPaths.add(target);
-    return 1;
   }
 
   private async cleanupCoverDirectories(bookIds: number[]): Promise<void> {
@@ -771,16 +629,6 @@ function getErrorCode(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null || !('code' in error)) return undefined;
   const code = (error as { code?: unknown }).code;
   return typeof code === 'string' ? code : undefined;
-}
-
-/** The resolved root, or null when it is not on disk at all. Anything else still raises. */
-async function resolveExistingRoot(path: string): Promise<string | null> {
-  try {
-    return await realpath(path);
-  } catch (error) {
-    if (getErrorCode(error) === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 function getErrorMessage(error: unknown): string {

@@ -41,6 +41,7 @@ import {
   CUSTOM_FIELD_TYPE_OPERATORS,
   EMPTY_CONTENT_FILTER_RULES,
   FIELD_OPERATORS,
+  READ_ALONG_FORMAT_PRIORITY,
   SORT_FIELDS,
   customRuleField,
   type CustomMetadataFieldType,
@@ -49,7 +50,7 @@ import {
 } from '@bookorbit/types';
 
 import { accentInsensitiveIlike } from '../../common/utils/accent-insensitive-search.utils';
-import { bookCustomMetadataValues, bookMetadata, books } from '../../db/schema';
+import { bookCustomMetadataValues, bookMetadata, books, collections } from '../../db/schema';
 import { BookQueryBuilder } from './book-query-builder.service';
 import { BookSortBuilder } from './book-sort-builder.service';
 
@@ -60,7 +61,7 @@ function makeBuilder() {
   const db = {
     select: vi.fn().mockReturnValue({ from: sqFrom }),
   };
-  return { builder: new BookQueryBuilder(db as never, new BookSortBuilder()), db };
+  return { builder: new BookQueryBuilder(db as never, new BookSortBuilder()), db, sqInnerJoin };
 }
 
 function wrapRule(rule: Record<string, unknown>) {
@@ -187,6 +188,7 @@ function buildValueFor(operator: RuleOperator, field: RuleField): { value?: unkn
     case 'after':
       return { value: '2023-01-01' };
     case 'withinLast':
+    case 'moreThanAgo':
       return { value: 7 };
     case 'includesAny':
     case 'includesAll':
@@ -206,7 +208,7 @@ function buildValueForCustomType(operator: RuleOperator, type: CustomMetadataFie
       return operator === 'between' ? { value: 10, valueTo: 20 } : { value: 10 };
     case 'date':
       if (operator === 'between') return { value: '2024-01-01', valueTo: '2024-12-31' };
-      return operator === 'withinLast' ? { value: 7 } : { value: '2024-01-01' };
+      return operator === 'withinLast' || operator === 'moreThanAgo' ? { value: 7 } : { value: '2024-01-01' };
     case 'boolean':
       return {};
     case 'text':
@@ -366,6 +368,17 @@ describe('BookQueryBuilder', () => {
         userId: 10,
       }),
     ).toThrow("Operator 'withinLast' requires a non-negative value");
+  });
+
+  it('rejects negative moreThanAgo values', () => {
+    const { builder } = makeBuilder();
+
+    expect(() =>
+      builder.buildWhere(wrapRule({ type: 'rule', field: 'addedAt', operator: 'moreThanAgo', value: -3 }) as never, {
+        accessibleLibraryIds: [1],
+        userId: 10,
+      }),
+    ).toThrow("Operator 'moreThanAgo' requires a non-negative value");
   });
 
   it('requires authenticated user for readProgress filters', () => {
@@ -1147,13 +1160,28 @@ describe('tagRuleToSql', () => {
 });
 
 describe('collectionRuleToSql', () => {
-  it('includesAny produces user-scoped EXISTS subquery', () => {
-    const { builder } = makeBuilder();
+  it('includesAny matches collections owned by the user or shared publicly', () => {
+    const { builder, sqInnerJoin } = makeBuilder();
     const where = builder.buildWhere(
       wrapRule({ type: 'rule', field: 'collection', operator: 'includesAny', value: ['Reading'] }) as never,
       USER_CTX,
     ) as any;
     expect(getRuleSql(where)).toMatchObject({ type: 'sql' });
+    expect(sqInnerJoin).toHaveBeenCalledWith(
+      collections,
+      expect.objectContaining({
+        type: 'and',
+        clauses: expect.arrayContaining([
+          expect.objectContaining({
+            type: 'or',
+            clauses: [
+              expect.objectContaining({ type: 'eq', left: collections.userId, right: USER_CTX.userId }),
+              expect.objectContaining({ type: 'eq', left: collections.isPublic, right: true }),
+            ],
+          }),
+        ]),
+      }),
+    );
   });
 
   it('excludesAll with values produces not(EXISTS)', () => {
@@ -1254,6 +1282,72 @@ describe('formatRuleToSql', () => {
     const where = builder.buildWhere(wrapRule({ type: 'rule', field: 'format', operator: 'excludesAll', value: [] }) as never, USER_CTX) as any;
     expect(getRuleSql(where)).toMatchObject({ type: 'sql', text: '1 = 1' });
   });
+
+  it('matches the read-along edition key only on EPUBs with media overlays', () => {
+    const { builder } = makeBuilder();
+    const where = builder.buildWhere(
+      wrapRule({ type: 'rule', field: 'format', operator: 'includesAny', value: [READ_ALONG_FORMAT_PRIORITY] }) as never,
+      USER_CTX,
+    ) as any;
+
+    expect(getRuleSql(where)).toMatchObject({
+      type: 'sql',
+      values: [
+        {
+          whereClause: {
+            clauses: [
+              expect.anything(),
+              {
+                type: 'or',
+                clauses: [
+                  {
+                    type: 'and',
+                    clauses: [
+                      { type: 'eq', right: 'epub' },
+                      { type: 'eq', right: true },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it('ORs physical formats with the read-along edition key', () => {
+    const { builder } = makeBuilder();
+    const where = builder.buildWhere(
+      wrapRule({ type: 'rule', field: 'format', operator: 'includesAny', value: ['pdf', READ_ALONG_FORMAT_PRIORITY] }) as never,
+      USER_CTX,
+    ) as any;
+    const predicate = (getRuleSql(where) as any).values[0].whereClause.clauses[1];
+
+    expect(predicate).toMatchObject({
+      type: 'or',
+      clauses: [
+        { type: 'inArray', right: ['pdf'] },
+        {
+          type: 'and',
+          clauses: [
+            { type: 'eq', right: 'epub' },
+            { type: 'eq', right: true },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('excludes books holding any read-along EPUB', () => {
+    const { builder } = makeBuilder();
+    const where = builder.buildWhere(
+      wrapRule({ type: 'rule', field: 'format', operator: 'excludesAll', value: [READ_ALONG_FORMAT_PRIORITY] }) as never,
+      USER_CTX,
+    ) as any;
+
+    expect(getRuleSql(where)).toMatchObject({ type: 'not', value: { type: 'sql' } });
+  });
 });
 
 describe('dateRuleToSql (addedAt)', () => {
@@ -1287,6 +1381,16 @@ describe('dateRuleToSql (addedAt)', () => {
     const { builder } = makeBuilder();
     const where = builder.buildWhere(wrapRule({ type: 'rule', field: 'addedAt', operator: 'withinLast', value: 30 }) as never, BASE_CTX) as any;
     expect(getRuleSql(where)).toMatchObject({ type: 'sql' });
+  });
+
+  it('moreThanAgo produces the inverse added-date interval expression', () => {
+    const { builder } = makeBuilder();
+    const where = builder.buildWhere(wrapRule({ type: 'rule', field: 'addedAt', operator: 'moreThanAgo', value: 30 }) as never, BASE_CTX) as any;
+    const rule = getRuleSql(where);
+
+    expect(rule).toMatchObject({ type: 'sql' });
+    expect(rule.text).toContain('< NOW() - (');
+    expect(rule.values).toContain(30);
   });
 
   it('withinLast with zero days is valid (produces sql expression)', () => {
@@ -1372,6 +1476,7 @@ describe('customFieldRuleToSql', () => {
     ['before', '2024-01-01', 'value_date'],
     ['after', '2024-01-01', 'value_date'],
     ['withinLast', 30, 'value_date'],
+    ['moreThanAgo', 30, 'value_date'],
   ] as const)('reads %s with a %s value from %s', (operator, value, column) => {
     const clause = buildCustomRule({ operator, value });
 
@@ -1444,6 +1549,13 @@ describe('customFieldRuleToSql', () => {
 
   it('keeps date arithmetic Postgres-safe for withinLast', () => {
     const clause = buildCustomRule({ operator: 'withinLast', value: 30 });
+
+    expectPostgresSafeDateArithmetic(clause);
+    expect(collectSqlText(clause).join(' ')).toContain('timezone(');
+  });
+
+  it('keeps date arithmetic Postgres-safe for moreThanAgo', () => {
+    const clause = buildCustomRule({ operator: 'moreThanAgo', value: 30 });
 
     expectPostgresSafeDateArithmetic(clause);
     expect(collectSqlText(clause).join(' ')).toContain('timezone(');
@@ -1556,6 +1668,22 @@ describe('read status date filters (startedAt / finishedAt)', () => {
 
     const rule = getRuleSql(where);
     expect(rule).toMatchObject({ type: 'sql' });
+    expect(rule.text.toLowerCase()).toContain('::date - ::int');
+    expect(rule.values[1]).toBe('America/Chicago');
+    expect(rule.values[2]).toBe(29);
+    expectPostgresSafeDateArithmetic(rule);
+  });
+
+  it.each(['startedAt', 'finishedAt'] as const)('uses the complementary calendar-day boundary for moreThanAgo on %s', (field) => {
+    const { builder } = makeBuilder();
+    const where = builder.buildWhere(wrapRule({ type: 'rule', field, operator: 'moreThanAgo', value: 30 }) as never, {
+      ...USER_CTX,
+      timeZone: 'America/Chicago',
+    }) as any;
+
+    const rule = getRuleSql(where);
+    expect(rule).toMatchObject({ type: 'sql' });
+    expect(rule.text.toLowerCase()).toContain('< (timezone(');
     expect(rule.text.toLowerCase()).toContain('::date - ::int');
     expect(rule.values[1]).toBe('America/Chicago');
     expect(rule.values[2]).toBe(29);

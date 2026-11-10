@@ -3,11 +3,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { DEFAULT_IMPORT_DUPLICATE_POLICY } from '@bookorbit/types'
 import { i18n } from '@/i18n'
 import ImportPolicySettings from './ImportPolicySettings.vue'
-const { apiMock } = vi.hoisted(() => ({ apiMock: vi.fn() }))
-vi.mock('@/lib/api', () => ({ api: (...args: unknown[]) => apiMock(...args) }))
+const { apiMock } = vi.hoisted(() => ({ apiMock: vi.fn<typeof import('@/lib/api').api>() }))
+vi.mock('@/lib/api', () => ({ api: (...args: Parameters<typeof import('@/lib/api').api>) => apiMock(...args) }))
 vi.mock('@/features/auth/composables/usePermissions', () => ({ usePermissions: () => ({ hasPermission: () => true }) }))
 function response(body: unknown) {
-  return { ok: true, json: async () => body }
+  return Response.json(body)
 }
 beforeEach(() => {
   apiMock.mockReset()

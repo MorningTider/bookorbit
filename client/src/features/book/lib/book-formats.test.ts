@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { EBOOK_FORMAT_LIST, READ_ALONG_FORMAT_PRIORITY, READER_OPENABLE_FORMATS, isBookFormat, type BookFileRef } from '@bookorbit/types'
 
 import { i18n } from '@/i18n'
-import { bookFormatEntries, formatKeyCode, formatKeyName, rankedContentFiles } from './book-formats'
+import { bookFormatCodes, bookFormatEntries, formatKeyCode, formatKeyName, rankedContentFiles } from './book-formats'
 
 function file(id: number, format: string | null, role = 'content', extra: Partial<BookFileRef> = {}): BookFileRef {
   return { id, format, role, sizeBytes: 100, ...extra }
@@ -66,7 +66,7 @@ describe('format labels', () => {
 
   it('names formats from the translated catalog', () => {
     expect(formatKeyName('epub')).toBe('EPUB e-book')
-    expect(formatKeyName(READ_ALONG_FORMAT_PRIORITY)).toBe('Read-along EPUB')
+    expect(formatKeyName(READ_ALONG_FORMAT_PRIORITY)).toBe('Read-aloud EPUB')
     expect(formatKeyName('djvu')).toBe('DjVu document')
     expect(formatKeyName('txt')).toBe('TXT plain text')
   })
@@ -75,5 +75,19 @@ describe('format labels', () => {
     expect(EBOOK_FORMAT_LIST).toContain('txt')
     expect(isBookFormat('txt')).toBe(true)
     expect(READER_OPENABLE_FORMATS.has('txt')).toBe(true)
+  })
+})
+
+describe('bookFormatCodes', () => {
+  it('names each edition once and leaves out covers and sidecars', () => {
+    const codes = bookFormatCodes([
+      file(1, 'epub', 'primary'),
+      file(2, 'jpg', 'cover'),
+      file(3, 'epub', 'content', readAlong),
+      file(4, 'mp3'),
+      file(5, 'mp3'),
+      file(6, 'opf', 'metadata'),
+    ])
+    expect(codes).toEqual(['EPUB', 'MP3'])
   })
 })

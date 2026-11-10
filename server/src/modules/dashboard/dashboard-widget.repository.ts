@@ -1,5 +1,6 @@
+import { finishedReadScope } from '../user-book-status/finished-read-scope';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, notInArray, sql, type SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import type {
@@ -63,6 +64,11 @@ export interface YearProjectionWindow {
 const CURRENTLY_READING_LIMIT = 10;
 const DEFAULT_VIRTUAL_PAGE_COUNT = 300;
 
+// Highlights in PDFs that deny text extraction are stored without text; there is nothing to quote.
+function hasHighlightText(): SQL {
+  return sql`${annotations.text} <> ''`;
+}
+
 @Injectable()
 export class DashboardWidgetRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
@@ -93,7 +99,7 @@ export class DashboardWidgetRepository {
     const [row] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(readingAttempts)
-      .innerJoin(books, eq(books.id, readingAttempts.bookId))
+      .leftJoin(books, eq(books.id, readingAttempts.bookId))
       .where(
         and(
           eq(readingAttempts.userId, userId),
@@ -102,8 +108,7 @@ export class DashboardWidgetRepository {
           isNotNull(readingAttempts.endedOn),
           gte(readingAttempts.endedOn, fromDay),
           lt(readingAttempts.endedOn, untilDay),
-          inArray(books.libraryId, accessibleLibraryIds),
-          ...cfClauses,
+          finishedReadScope(accessibleLibraryIds, cfClauses),
         ),
       );
     return row?.count ?? 0;
@@ -153,7 +158,7 @@ export class DashboardWidgetRepository {
       .groupBy(readingAttempts.bookId)
       .orderBy(desc(sql`max(${readingAttempts.endedOn})`), desc(sql`max(${readingAttempts.id})`))
       .limit(limit);
-    return rows.map((row) => ({ bookId: row.bookId, finishedOn: String(row.finishedOn) }));
+    return rows.flatMap((row) => (row.bookId === null ? [] : [{ bookId: row.bookId, finishedOn: String(row.finishedOn) }]));
   }
 
   async getCurrentlyReadingBooks(
@@ -399,7 +404,15 @@ export class DashboardWidgetRepository {
       .from(annotations)
       .innerJoin(books, eq(books.id, annotations.bookId))
       .innerJoin(bookMetadata, eq(bookMetadata.bookId, books.id))
-      .where(and(eq(annotations.userId, userId), isNull(annotations.deletedAt), inArray(books.libraryId, accessibleLibraryIds), ...cfClauses));
+      .where(
+        and(
+          eq(annotations.userId, userId),
+          isNull(annotations.deletedAt),
+          hasHighlightText(),
+          inArray(books.libraryId, accessibleLibraryIds),
+          ...cfClauses,
+        ),
+      );
 
     return row?.count ?? 0;
   }
@@ -426,7 +439,15 @@ export class DashboardWidgetRepository {
       .from(annotations)
       .innerJoin(books, eq(books.id, annotations.bookId))
       .innerJoin(bookMetadata, eq(bookMetadata.bookId, books.id))
-      .where(and(eq(annotations.userId, userId), isNull(annotations.deletedAt), inArray(books.libraryId, accessibleLibraryIds), ...cfClauses))
+      .where(
+        and(
+          eq(annotations.userId, userId),
+          isNull(annotations.deletedAt),
+          hasHighlightText(),
+          inArray(books.libraryId, accessibleLibraryIds),
+          ...cfClauses,
+        ),
+      )
       .orderBy(annotations.id)
       .limit(1)
       .offset(offset);
@@ -472,6 +493,7 @@ export class DashboardWidgetRepository {
         and(
           eq(annotations.userId, userId),
           isNull(annotations.deletedAt),
+          hasHighlightText(),
           inArray(books.libraryId, accessibleLibraryIds),
           notInArray(annotations.bookId, [excludedBookId]),
           ...cfClauses,

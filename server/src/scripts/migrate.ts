@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 
 import { createPostgresClientConfig } from '../db/postgres-connection-config';
 import { dropUnreleasedMigrationRows, reconcileMigrationLedgerTimestamps } from './migration-ledger-compatibility';
+import { assertRemovedPodcastDataEmpty } from './removed-podcast-migration-guard';
 import { installPostgresExtensions } from './postgres-extensions';
 import { prepareLegacySeriesIndexColumns } from './series-index-migration-compatibility';
 
@@ -46,6 +47,7 @@ async function runMigrations() {
     await dropUnreleasedMigrationRows(pool, migrationFiles);
     await reconcileMigrationLedgerTimestamps(pool, migrationFiles);
     await prepareLegacySeriesIndexColumns(pool);
+    await assertRemovedPodcastDataEmpty(pool, migrationFiles);
 
     await migrate(drizzle(pool), { migrationsFolder });
 

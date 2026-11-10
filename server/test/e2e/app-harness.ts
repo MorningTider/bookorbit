@@ -11,7 +11,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ValidationPipe } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { DEFAULT_FORMAT_PRIORITY, type LibraryType } from '@bookorbit/types';
+import { DEFAULT_FORMAT_PRIORITY } from '@bookorbit/types';
 
 import { AppModule } from '../../src/app.module';
 import { GlobalExceptionFilter } from '../../src/common/filters/http-exception.filter';
@@ -19,6 +19,7 @@ import { DB } from '../../src/db';
 import * as schema from '../../src/db/schema';
 import { books, bookFiles, libraries, libraryFolders, scanJobs } from '../../src/db/schema';
 import { MetadataService } from '../../src/modules/metadata/metadata.service';
+import { allowAppAttest } from './allow-app-attest';
 
 export type Db = NodePgDatabase<typeof schema>;
 type OrganizationMode = 'book_per_file' | 'book_per_folder';
@@ -117,18 +118,20 @@ export interface E2EContext {
  * data folder. Suites that scan and do not set their own path pass `isolateAppData`. Suites that
  * upload files pass `multipart`, which `main.ts` registers for the real server.
  */
-export async function createE2EContext(options: { isolateAppData?: boolean; multipart?: boolean } = {}): Promise<E2EContext> {
+export async function createE2EContext(
+  options: { isolateAppData?: boolean; multipart?: boolean; realAppAttest?: boolean } = {},
+): Promise<E2EContext> {
   let isolatedAppData: E2EContext['isolatedAppData'] = null;
   if (options.isolateAppData) {
     isolatedAppData = { path: await mkdtemp(join(tmpdir(), 'bookorbit-e2e-data-')), previous: process.env.APP_DATA_PATH };
     process.env.APP_DATA_PATH = isolatedAppData.path;
   }
-  const moduleFixture = await Test.createTestingModule({
+  const builder = Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideProvider(MetadataService)
-    .useValue(makeMetadataNoopMock())
-    .compile();
+    .useValue(makeMetadataNoopMock());
+  const moduleFixture = await (options.realAppAttest ? builder : allowAppAttest(builder)).compile();
 
   const app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   app.setGlobalPrefix('api/v1');
@@ -161,7 +164,6 @@ export async function closeE2EContext(ctx: E2EContext): Promise<void> {
 export interface SeedLibraryInput {
   rootPath: string;
   mode: OrganizationMode;
-  type?: LibraryType;
   allowedFormats?: string[];
   excludePatterns?: string[];
   watch?: boolean;
@@ -172,7 +174,6 @@ export async function seedLibrary(db: Db, input: SeedLibraryInput): Promise<{ li
   const [library] = await db
     .insert(libraries)
     .values({
-      type: input.type ?? 'books',
       name: input.name ?? `e2e-${input.mode}-${randomUUID()}`,
       watch: input.watch ?? false,
       organizationMode: input.mode,

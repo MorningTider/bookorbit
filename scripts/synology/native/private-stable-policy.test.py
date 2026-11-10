@@ -38,6 +38,13 @@ class PrivateStablePolicyTests(unittest.TestCase):
     def test_same_or_older_revision_is_rejected(self):
         self.value['installed']['packageVersion']='3.5.0-10008'
         with self.assertRaisesRegex(ValueError,'newer'):self.validate()
+    def test_accepts_matching_3_7_evidence(self):
+        self.installed['packageVersion']='3.7.0-10042'
+        self.value['api']['packageVersion']='3.7.0-10042'
+        self.path.write_text(json.dumps(self.value))
+        self.assertEqual(m.validate(self.path,'a'*40,'b'*64,'c'*64,'d'*64,10043,'3.7.0'),m.digest(self.path))
+        with self.assertRaisesRegex(ValueError,'newer'):
+            m.validate(self.path,'a'*40,'b'*64,'c'*64,'d'*64,10043,'3.5.0')
     def test_stable_labels_do_not_approve_public_redistribution(self):
         metadata={'pending':['acceptance']};fields={'beta':'yes','version':'3.5.0-10008'}
         m.apply_metadata(metadata,'e'*64);m.apply_info(fields)

@@ -38,7 +38,7 @@ describe('LibraryCreatorFolders', () => {
 
     const rows = wrapper.findAll('li')
     expect(rows[0]!.text()).toContain('1,250 files')
-    expect(rows[1]!.text()).toContain('Also in Comics')
+    expect(rows[1]!.text()).toContain('Overlaps Comics')
     expect(rows[2]!.text()).toContain('Not accessible')
     expect(rows[3]!.text()).toContain('Checking')
     expect(wrapper.text()).toContain('1,261 matching files')
@@ -66,33 +66,11 @@ describe('LibraryCreatorFolders', () => {
     expect(wrapper.text()).toContain('455 books')
     expect(wrapper.text()).toContain('EPUB')
   })
-
-  it('offers existing podcast folders only for podcast libraries', () => {
-    expect(mountFolders({ libraryType: 'books' }).text()).not.toContain('Existing podcast folders')
-    expect(mountFolders({ libraryType: 'podcasts' }).text()).toContain('Existing podcast folders')
-  })
-
-  it('stops offering to add once a podcast library has its storage folder', () => {
-    expect(
-      mountFolders({ libraryType: 'podcasts', folders: ['/podcasts'] })
-        .find('#manual-folder-path')
-        .exists(),
-    ).toBe(false)
-  })
-
-  it('reports the podcast local folders it was given as removable rows', () => {
-    const wrapper = mountFolders({ libraryType: 'podcasts', folders: ['/podcasts'], localFolders: ['/archive/shows'] })
-
-    expect(wrapper.text()).toContain('/archive/shows')
-    expect(wrapper.find('button[aria-label="Remove /archive/shows"]').exists()).toBe(true)
-  })
 })
 
 function mountFolders(
   props: {
     folders?: string[]
-    localFolders?: string[]
-    libraryType?: 'books' | 'podcasts'
     checks?: Record<string, FolderCheck>
     stats?: LibraryStats | null
   } = {},
@@ -100,8 +78,6 @@ function mountFolders(
   return mount(LibraryCreatorFolders, {
     props: {
       folders: props.folders ?? [],
-      localFolders: props.localFolders ?? [],
-      libraryType: props.libraryType ?? 'books',
       checks: props.checks ?? {},
       stats: props.stats ?? null,
     },

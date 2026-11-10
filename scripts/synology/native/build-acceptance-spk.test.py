@@ -47,6 +47,10 @@ class PackagingTests(unittest.TestCase):
             data=(directory/name).read_bytes()
             self.assertEqual(data[:8],b'\x89PNG\r\n\x1a\n')
             self.assertEqual(struct.unpack('>II',data[16:24]),(size,size))
+    def test_invalid_application_version_is_rejected(self):
+        for version in ['3.7','3.7.0-beta','03.7.0','../3.7.0']:
+            with self.assertRaisesRegex(ValueError,'major.minor.patch'):
+                m.build(self.root,'unused',self.root/'new',application_version=version)
     def test_output_overwrite_rejected(self):
         with self.assertRaisesRegex(ValueError,'must be new'):m.build(self.root,'unused',self.root)
 

@@ -107,6 +107,7 @@ describe('AppInfoService', () => {
           'book-journal',
           'bookmark-edit',
           'author-metadata-match',
+          'read-along-filter',
         ]),
       );
     });

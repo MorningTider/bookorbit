@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { AnyColumn, SQL, and, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, not, or, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-import { parseCustomRuleFieldId, parseCustomSortFieldId, parseSeriesIndex } from '@bookorbit/types';
+import { READ_ALONG_FORMAT_PRIORITY, parseCustomRuleFieldId, parseCustomSortFieldId, parseSeriesIndex } from '@bookorbit/types';
 import type {
   CommunityRatingProvider,
   ContentFilterRules,
@@ -391,6 +391,7 @@ export class BookQueryBuilder {
       case 'before':
       case 'after':
       case 'withinLast':
+      case 'moreThanAgo':
         return this.dateExprRuleToSql(sql`${bookCustomMetadataValues.valueDate}`, operator, value as string, valueTo, timeZone, 'custom metadata');
       case 'isTrue':
         return eq(bookCustomMetadataValues.valueBoolean, true);
@@ -660,13 +661,23 @@ export class BookQueryBuilder {
       return sql`exists (${sq})`;
     };
 
+    const matchesFormats = (): SQL | undefined => {
+      if (!values?.length) return undefined;
+      const physicalFormats = values.filter((value) => value !== READ_ALONG_FORMAT_PRIORITY);
+      const clauses: SQL[] = [];
+      if (physicalFormats.length > 0) clauses.push(inArray(bookFiles.format, physicalFormats));
+      if (values.includes(READ_ALONG_FORMAT_PRIORITY)) {
+        clauses.push(and(eq(bookFiles.format, 'epub'), eq(bookFiles.mediaOverlayAvailable, true))!);
+      }
+      return or(...clauses);
+    };
+    const match = matchesFormats();
+
     switch (operator) {
       case 'includesAny':
-        if (!values?.length) return sql`1 = 0`;
-        return existsFormat(inArray(bookFiles.format, values));
+        return match ? existsFormat(match) : sql`1 = 0`;
       case 'excludesAll':
-        if (!values?.length) return sql`1 = 1`;
-        return not(existsFormat(inArray(bookFiles.format, values)));
+        return match ? not(existsFormat(match)) : sql`1 = 1`;
       default:
         throw new BadRequestException(`Invalid operator '${operator}' for format field`);
     }
@@ -685,6 +696,12 @@ export class BookQueryBuilder {
         this.assertNumber(days, operator, 'value');
         if (days! < 0) throw new BadRequestException(`Operator '${operator}' requires a non-negative value`);
         return sql`${books.addedAt} >= NOW() - (${days} * INTERVAL '1 day')`;
+      }
+      case 'moreThanAgo': {
+        const days = typeof value === 'string' ? Number(value) : value;
+        this.assertNumber(days, operator, 'value');
+        if (days! < 0) throw new BadRequestException(`Operator '${operator}' requires a non-negative value`);
+        return sql`${books.addedAt} < NOW() - (${days} * INTERVAL '1 day')`;
       }
       default:
         throw new BadRequestException(`Invalid operator '${operator}' for date field`);
@@ -720,6 +737,14 @@ export class BookQueryBuilder {
         const wholeDays = Math.floor(days!);
         const shiftDays = wholeDays > 0 ? wholeDays - 1 : 0;
         return sql`${dateExpr} >= (timezone(${timeZone}, now())::date - ${shiftDays}::int)`;
+      }
+      case 'moreThanAgo': {
+        const days = typeof value === 'string' ? Number(value) : value;
+        this.assertNumber(days, operator, 'value');
+        if (days! < 0) throw new BadRequestException(`Operator '${operator}' requires a non-negative value`);
+        const wholeDays = Math.floor(days!);
+        const shiftDays = wholeDays > 0 ? wholeDays - 1 : 0;
+        return sql`${dateExpr} < (timezone(${timeZone}, now())::date - ${shiftDays}::int)`;
       }
       case 'isEmpty':
         return sql`${dateExpr} is null`;
@@ -765,6 +790,14 @@ export class BookQueryBuilder {
         const wholeDays = Math.floor(days!);
         const shiftDays = wholeDays > 0 ? wholeDays - 1 : 0;
         return sql`${dateExpr} >= (timezone(${timeZone}, now())::date - ${shiftDays}::int)`;
+      }
+      case 'moreThanAgo': {
+        const days = typeof value === 'string' ? Number(value) : value;
+        this.assertNumber(days, operator, 'value');
+        if (days! < 0) throw new BadRequestException(`Operator '${operator}' requires a non-negative value`);
+        const wholeDays = Math.floor(days!);
+        const shiftDays = wholeDays > 0 ? wholeDays - 1 : 0;
+        return sql`${dateExpr} < (timezone(${timeZone}, now())::date - ${shiftDays}::int)`;
       }
       default:
         throw new BadRequestException(`Invalid operator '${operator}' for ${fieldLabel} field`);
@@ -1045,8 +1078,7 @@ export class BookQueryBuilder {
         .from(collectionBooks)
         .innerJoin(
           collections,
-          // Book collections only: a podcast collection sharing a name must never widen a book filter.
-          and(eq(collectionBooks.collectionId, collections.id), eq(collections.userId, userId), eq(collections.mediaType, 'books')),
+          and(eq(collectionBooks.collectionId, collections.id), or(eq(collections.userId, userId), eq(collections.isPublic, true))),
         )
         .where(and(...predicates)!);
       return sql`exists (${sq})`;

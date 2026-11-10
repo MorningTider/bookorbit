@@ -10,5 +10,5 @@ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--stage',required=True);p.add_argument('--lifecycle-report',required=True)
     p.add_argument('--private-stable-readiness',required=True);p.add_argument('--revision',type=int,required=True);p.add_argument('--output',required=True)
-    p.add_argument('--schema-upgrade-report')
-    a=p.parse_args();module.build(a.stage,a.lifecycle_report,a.output,a.revision,private_stable_report=a.private_stable_readiness,schema_upgrade_report=a.schema_upgrade_report)
+    p.add_argument('--schema-upgrade-report');p.add_argument('--application-version',default='3.5.0')
+    a=p.parse_args();module.build(a.stage,a.lifecycle_report,a.output,a.revision,private_stable_report=a.private_stable_readiness,schema_upgrade_report=a.schema_upgrade_report,application_version=a.application_version)

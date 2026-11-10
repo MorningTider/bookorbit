@@ -5,7 +5,6 @@ import { Controller, Delete, Get, Param, ParseIntPipe, Post, Body, Query, HttpCo
 import { Permission } from '@bookorbit/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
-import { RequireLibraryType } from '../../common/decorators/require-library-type.decorator';
 import type { RequestUser } from '../../common/types/request-user';
 import { BookSourceService } from './book-source.service';
 import { BookSourceJobService } from './book-source-job.service';
@@ -27,7 +26,6 @@ export class BookSourceController {
 
   @Post('libraries/:id/sources/fanqie')
   @HttpCode(202)
-  @RequireLibraryType('books')
   acquire(@Param('id', ParseIntPipe) id: number, @Body() dto: AcquireTomatoDto, @CurrentUser() user: RequestUser) {
     return dto.importResolution
       ? this.jobs.enqueue(id, dto.folderId, dto.bookId, user, dto.importResolution)
@@ -36,7 +34,6 @@ export class BookSourceController {
 
   @Post('libraries/:id/sources/qidian')
   @HttpCode(202)
-  @RequireLibraryType('books')
   acquireQidian(@Param('id', ParseIntPipe) id: number, @Body() dto: AcquireQidianDto, @CurrentUser() user: RequestUser) {
     return dto.importResolution
       ? this.jobs.enqueueQidian(id, dto.folderId, dto.bookId, user, dto.importResolution)
@@ -50,7 +47,6 @@ export class BookSourceController {
 
   @Post('libraries/:id/sources/chapters')
   @HttpCode(202)
-  @RequireLibraryType('books')
   acquireRule(@Param('id', ParseIntPipe) id: number, @Body() dto: AcquireRuleChaptersDto, @CurrentUser() user: RequestUser) {
     return this.jobs.enqueueRule(id, dto.folderId, dto.source, dto.bookId, user);
   }

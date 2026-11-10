@@ -77,7 +77,7 @@ function cancelDelete() {
         {{ t('bookComments.send') }}
       </button>
     </form>
-    <div v-if="deleting" role="alertdialog" aria-modal="true" class="fixed inset-0 z-50 grid place-items-center bg-background/90 p-6">
+    <div v-if="deleting" role="alertdialog" aria-modal="true" class="fixed inset-0 z-50 grid place-items-center bg-scrim p-6">
       <div class="max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-lg">
         <h3 class="font-semibold">{{ t('bookComments.deleteTitle') }}</h3>
         <p>{{ t('bookComments.deleteBody') }}</p>

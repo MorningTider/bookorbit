@@ -14,7 +14,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
-import { jsonBody } from '@/lib/api-json'
+import { apiError, jsonBody } from '@/lib/api-json'
 import { usePermissions } from '@/features/auth/composables/usePermissions'
 import LibraryCreatorModal from '@/features/library/components/LibraryCreatorModal.vue'
 import type { LibraryCreatorSectionId } from '@/features/library/composables/useLibraryCreator'
@@ -87,9 +87,7 @@ const hasLibraries = computed(() => libraries.value.length > 0)
 const showSkeleton = computed(() => !overview.loaded.value && !overview.error.value && hasLibraries.value)
 
 function subscribeAll() {
-  for (const library of libraries.value) {
-    if (library.type !== 'podcasts') subscribeLibrary(library.id)
-  }
+  for (const library of libraries.value) subscribeLibrary(library.id)
 }
 
 /** This page announces finished scans with their outcome, so the generic "books added" toast stands down. */
@@ -434,7 +432,7 @@ async function confirmDelete() {
         else router.replace('/')
       }
     } else {
-      toast.error(t('settings.admin.libraries.deleteFailed'))
+      toast.error((await apiError(res, 'settings.admin.libraries.deleteFailed')).message)
     }
   } catch {
     toast.error(t('settings.admin.libraries.deleteFailed'))

@@ -43,18 +43,7 @@ export enum AuditAction {
   LibraryWriteMetadataToFiles = "library.write_metadata_to_files",
   LibraryBulkRename = "library.bulk_rename",
   LibraryRecomputeAddedAt = "library.recompute_added_at",
-
-  PodcastCreate = "podcast.create",
-  PodcastUpdate = "podcast.update",
-  PodcastArchive = "podcast.archive",
-  PodcastRestore = "podcast.restore",
-  PodcastPurge = "podcast.purge",
-  PodcastMerge = "podcast.merge",
-  PodcastDownload = "podcast.download",
-  PodcastDownloadRemove = "podcast.download.remove",
-  PodcastRetentionUpdate = "podcast.retention.update",
-  PodcastOpmlImport = "podcast.opml.import",
-  PodcastOpmlExport = "podcast.opml.export",
+  LibraryReapplyRegexMetadata = "library.reapply_regex_metadata",
 
   BookUpload = "book.upload",
   BookMetadataUpdate = "book.metadata.update",
@@ -70,6 +59,10 @@ export enum AuditAction {
   BookBulkSetMetadataLock = "book.bulk.set_metadata_lock",
   BookBulkEditMetadata = "book.bulk.edit_metadata",
   BookBulkMoveLibrary = "book.bulk.move_library",
+  BookMerge = "book.merge",
+  BookLink = "book.link",
+  BookUnlink = "book.unlink",
+  BookDuplicatesResolve = "book.duplicates.resolve",
   BookReadingStateReset = "book.reading_state.reset",
 
   BookWriteAndRename = "book.write_and_rename",
@@ -106,6 +99,10 @@ export enum AuditAction {
   RequestIndexerPluginInspect = "request_indexer.plugin.inspect",
   RequestIndexerPluginInstall = "request_indexer.plugin.install",
   RequestIndexerPluginRemove = "request_indexer.plugin.remove",
+
+  MetadataHttpProviderCreate = "metadata_http_provider.create",
+  MetadataHttpProviderUpdate = "metadata_http_provider.update",
+  MetadataHttpProviderDelete = "metadata_http_provider.delete",
 
   AuthorUpdate = "author.update",
   AuthorDelete = "author.delete",
@@ -159,14 +156,13 @@ export enum AuditResource {
   User = "user",
   Library = "library",
   Book = "book",
-  Podcast = "podcast",
-  PodcastEpisode = "podcast_episode",
   Collection = "collection",
   SmartScope = "smart_scope",
   BookDockFile = "book_dock_file",
   BookRequest = "book_request",
   DownloadClient = "download_client",
   RequestIndexer = "request_indexer",
+  MetadataHttpProvider = "metadata_http_provider",
   Author = "author",
   AppSettings = "app_settings",
   Genre = "genre",
@@ -238,12 +234,12 @@ export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 export const AUDIT_CATEGORY_PREFIXES: Record<Exclude<AuditCategory, "other">, readonly string[]> = {
   access: ["auth.", "magic_link."],
   users: ["user.", "reading_insights."],
-  libraries: ["library.", "podcast."],
+  libraries: ["library."],
   books: ["book.", "book_dock."],
   requests: ["book_request.", "download_client.", "request_indexer."],
   collections: ["collection.", "smart_scope."],
   devices: ["kobo.", "email."],
-  settings: ["app_settings.", "entity_manager.", "author.", "maintenance."],
+  settings: ["app_settings.", "entity_manager.", "author.", "maintenance.", "metadata_http_provider."],
 };
 
 export function getAuditCategory(action: string): AuditCategory {
@@ -273,7 +269,12 @@ export const AUDIT_SECURITY_GROUPS = {
     AuditAction.UserUnlock,
     AuditAction.OidcUserProvisioned,
   ],
-  passwords: [AuditAction.AuthPasswordChange, AuditAction.AuthPasswordResetRequest, AuditAction.AuthPasswordReset, AuditAction.AuthPasswordAdminReset],
+  passwords: [
+    AuditAction.AuthPasswordChange,
+    AuditAction.AuthPasswordResetRequest,
+    AuditAction.AuthPasswordReset,
+    AuditAction.AuthPasswordAdminReset,
+  ],
   permissions: [AuditAction.UserPermissionSet, AuditAction.UserSuperuserEnable, AuditAction.UserSuperuserDisable],
   access: [
     AuditAction.UserContentFiltersSet,

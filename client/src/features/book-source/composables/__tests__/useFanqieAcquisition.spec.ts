@@ -5,10 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BookSourceJob, MetadataCandidate } from '@bookorbit/types'
 
 vi.mock('@/features/book-requests/composables/useRequestDestinationDefault', () => ({
-  useRequestDestinationDefault: () => ({ load: vi.fn(), defaultFor: () => ({ libraryId: null }) }),
+  useRequestDestinationDefault: () => ({ load: vi.fn<() => Promise<void>>(), defaultFor: () => ({ libraryId: null }) }),
 }))
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), hasPermission: vi.fn(), extraEditor: false, search: vi.fn(), cancel: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  api: vi.fn<typeof import('@/lib/api').api>(),
+  hasPermission: vi.fn<(permission: string) => boolean>(),
+  extraEditor: false,
+  search: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  cancel: vi.fn<() => void>(),
+}))
 vi.mock('@/lib/api', () => ({ api: mocks.api }))
 vi.mock('@/features/auth/composables/usePermissions', () => ({ usePermissions: () => ({ hasPermission: mocks.hasPermission }) }))
 vi.mock('@/features/auth/composables/useAuth', async () => {
@@ -24,7 +30,7 @@ vi.mock('@/features/library/composables/useLibraries', async () => {
         { id: 4, type: 'books', name: '只读', allowedFormats: [], accessLevel: 'viewer' },
         ...(mocks.extraEditor ? [{ id: 9, type: 'books', name: '另一个可写书库', allowedFormats: [], accessLevel: 'editor' }] : []),
       ]),
-      fetchLibraries: vi.fn(),
+      fetchLibraries: vi.fn<() => Promise<void>>(),
     }),
   }
 })
@@ -36,7 +42,7 @@ vi.mock('@/features/book/composables/useMetadataSearch', async () => {
       results: ref([]),
       isStreaming: ref(false),
       interruptedProviders: ref([]),
-      loadProviders: vi.fn(),
+      loadProviders: vi.fn<() => Promise<void>>(),
       search: mocks.search,
       cancel: mocks.cancel,
       hasSearched: ref(false),
@@ -77,13 +83,13 @@ describe('Fanqie background acquisition', () => {
     vi.resetAllMocks()
     mocks.extraEditor = false
     mocks.hasPermission.mockReturnValue(true)
-    mocks.api.mockImplementation((url: string) =>
+    mocks.api.mockImplementation((url) =>
       Promise.resolve(
         new Response(
           JSON.stringify(
-            url.endsWith('/status')
+            String(url).endsWith('/status')
               ? { fanqie: { configured: true, format: 'epub' }, qidian: { configured: true, format: 'epub', scope: 'public-free-volumes' } }
-              : url.includes('/jobs') && !url.endsWith('/cancel') && !url.endsWith('/retry')
+              : String(url).includes('/jobs') && !String(url).endsWith('/cancel') && !String(url).endsWith('/retry')
                 ? { items: [job], nextCursor: null }
                 : job,
           ),
@@ -97,21 +103,21 @@ describe('Fanqie background acquisition', () => {
     expect(model.editableLibraries.value.map((l) => l.id)).toEqual([3])
     expect(model.jobs.value[0]?.status).toBe('queued')
     await model.acquire(candidate)
-    const [url, request] = mocks.api.mock.calls.find(([url]) => url.includes('/sources/fanqie'))!
+    const [url, request] = mocks.api.mock.calls.find(([url]) => String(url).includes('/sources/fanqie'))!
     expect(url).toBe('/api/v1/libraries/3/sources/fanqie')
-    expect(request.method).toBe('POST')
-    expect(JSON.parse(request.body)).toEqual({ bookId: candidate.providerId })
-    expect(request.signal).toBeUndefined()
+    expect(request?.method).toBe('POST')
+    expect(JSON.parse(String(request?.body))).toEqual({ bookId: candidate.providerId })
+    expect(request?.signal).toBeUndefined()
     expect(model.pendingId.value).toBeNull()
     wrapper.unmount()
-    expect(mocks.api.mock.calls.some(([url]) => url.endsWith('/cancel'))).toBe(false)
+    expect(mocks.api.mock.calls.some(([url]) => String(url).endsWith('/cancel'))).toBe(false)
   })
   it('searches only enabled download sources and refuses results from a disabled source', async () => {
-    mocks.api.mockImplementation((url: string) =>
+    mocks.api.mockImplementation((url) =>
       Promise.resolve(
         new Response(
           JSON.stringify(
-            url.endsWith('/status')
+            String(url).endsWith('/status')
               ? { fanqie: { configured: true, enabled: false }, qidian: { configured: true, enabled: true } }
               : { items: [], nextCursor: null },
           ),
@@ -233,8 +239,8 @@ describe('Fanqie background acquisition', () => {
     expect(model.canRetry({ ...job, source: 'sample' })).toBe(true)
     expect(model.canRetry({ ...job, source: 'qidian' })).toBe(true)
     const api = mocks.api.getMockImplementation()!
-    mocks.api.mockImplementation((url: string) =>
-      url.endsWith('/status')
+    mocks.api.mockImplementation((url) =>
+      String(url).endsWith('/status')
         ? Promise.resolve(new Response(JSON.stringify({ fanqie: { configured: false }, qidian: { configured: false } })))
         : api(url),
     )
@@ -247,8 +253,8 @@ describe('Fanqie background acquisition', () => {
     mocks.extraEditor = true
     const original = mocks.api.getMockImplementation()!
     let finishStatus!: (response: Response) => void
-    mocks.api.mockImplementation((url: string) =>
-      url.endsWith('/status')
+    mocks.api.mockImplementation((url) =>
+      String(url).endsWith('/status')
         ? new Promise<Response>((resolve) => {
             finishStatus = resolve
           })
@@ -291,11 +297,11 @@ describe('novel source keyword browsing', () => {
   it('requests multiple partial-title results instead of single-book matching', async () => {
     const { model, wrapper } = harness()
     mocks.hasPermission.mockReturnValue(true)
-    mocks.api.mockImplementation((url: string) =>
+    mocks.api.mockImplementation((url) =>
       Promise.resolve(
         new Response(
           JSON.stringify(
-            url.endsWith('/status')
+            String(url).endsWith('/status')
               ? { fanqie: { configured: true, enabled: true }, qidian: { configured: true, enabled: true } }
               : { items: [], nextCursor: null },
           ),
@@ -315,7 +321,7 @@ describe('task record deletion', () => {
     mocks.hasPermission.mockReturnValue(true)
     const { model, wrapper } = harness()
     const completed = { ...job, status: 'completed' as const, resultBookId: 31 }
-    mocks.api.mockImplementation((_url: string, options?: { method: string }) =>
+    mocks.api.mockImplementation((_url, options) =>
       Promise.resolve(new Response(JSON.stringify(options?.method === 'DELETE' ? completed : { items: [], nextCursor: null }))),
     )
     model.requestRemoval(completed)
@@ -324,7 +330,7 @@ describe('task record deletion', () => {
     expect(mocks.api).toHaveBeenCalledWith('/api/v1/book-sources/jobs/11', { method: 'DELETE' })
     expect(model.removingJob.value).toBeNull()
     expect(completed.resultBookId).toBe(31)
-    expect(mocks.api.mock.calls.some(([url]) => url.includes('/books/'))).toBe(false)
+    expect(mocks.api.mock.calls.some(([url]) => String(url).includes('/books/'))).toBe(false)
     wrapper.unmount()
   })
   it('rejects running tasks, supports cancellation of the dialog and retains failed deletion for retry', async () => {

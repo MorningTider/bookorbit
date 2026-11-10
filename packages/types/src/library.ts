@@ -2,9 +2,9 @@ import type { RegexMetadataConfig } from "./regex-metadata";
 import type { LibraryLastScan } from "./scanner";
 
 export type OrganizationMode = "book_per_file" | "book_per_folder";
-export type CoverAspectRatio = "2/3" | "1/1";
+export const COVER_ASPECT_RATIOS = ["2/3", "1/1"] as const;
+export type CoverAspectRatio = (typeof COVER_ASPECT_RATIOS)[number];
 export type AddedAtSource = "imported" | "file_modified" | "file_created";
-export type LibraryType = "books" | "podcasts";
 
 export function normalizeCoverAspectRatio(value: unknown): CoverAspectRatio {
   return value === "1/1" ? "1/1" : "2/3";
@@ -33,32 +33,20 @@ export const DEFAULT_FORMAT_PRIORITY = [
 
 export type AccessLevel = "viewer" | "editor" | "owner";
 
-/**
- * Who owns the files under a library root. `downloads` roots belong to BookOrbit, which names,
- * evicts, and re-fetches files there. `local` roots belong to the user: files are adopted in place,
- * never renamed and never evicted. Book libraries only use `downloads`.
- */
-export type LibraryFolderRole = "downloads" | "local";
-
-export const LIBRARY_FOLDER_ROLES: readonly LibraryFolderRole[] = ["downloads", "local"] as const;
-
 export interface LibraryFolder {
   id: number;
   path: string;
-  role: LibraryFolderRole;
   createdAt: string;
 }
 
 export interface Library {
   id: number;
-  type: LibraryType;
   accessLevel?: AccessLevel | null;
   name: string;
   icon?: string | null;
   displayOrder: number;
   coverAspectRatio: CoverAspectRatio;
   watch: boolean;
-  watchLocalFolders?: boolean;
   autoScanCronExpression?: string | null;
   metadataPrecedence: string[];
   regexMetadata?: RegexMetadataConfig | null;
@@ -92,8 +80,6 @@ export interface Library {
   fileRenameEnabled: boolean;
   folders: LibraryFolder[];
   bookCount?: number;
-  /** Non-archived shows in a podcast library. Null for book libraries, which hold no shows. */
-  podcastCount?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -146,6 +132,11 @@ export interface LibraryAccessEntry {
   userId: number;
   username: string;
   name: string;
+  accessLevel: AccessLevel;
+}
+
+export interface UserLibraryGrant {
+  libraryId: number;
   accessLevel: AccessLevel;
 }
 

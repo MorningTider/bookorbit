@@ -1,7 +1,7 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed } from 'vue'
-import type { BookDetail } from '@bookorbit/types'
+import type { BookDetail, LinkedBookSummary } from '@bookorbit/types'
 
 const state = vi.hoisted(() => ({
   api: vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(),
@@ -20,7 +20,7 @@ vi.mock('../composables/useBookRequestVisibility', () => ({
 
 import BookMissingFormatRequest from '../components/BookMissingFormatRequest.vue'
 
-function book(formats: string[]): BookDetail {
+function book(formats: string[], readAlong = false): BookDetail {
   return {
     id: 42,
     title: 'Dune',
@@ -30,8 +30,18 @@ function book(formats: string[]): BookDetail {
     seriesName: null,
     publishedYear: 1965,
     language: 'en',
-    files: formats.map((format, index) => ({ id: index + 1, format, role: 'content', filename: `dune.${format}` })),
+    files: formats.map((format, index) => ({
+      id: index + 1,
+      format,
+      role: 'content',
+      filename: `dune.${format}`,
+      ...(readAlong && format === 'epub' ? { mediaOverlay: { available: true, durationSeconds: 3600 } } : {}),
+    })),
   } as unknown as BookDetail
+}
+
+function linked(bookId: number, formats: string[], status: string): LinkedBookSummary {
+  return { bookId, libraryId: 2, libraryName: 'Audiobooks', title: 'Dune', formats, mediaKind: 'audiobook', status, isLead: false }
 }
 
 function json(body: unknown, ok = true): Response {
@@ -40,8 +50,8 @@ function json(body: unknown, ok = true): Response {
 
 const NOTHING = { ownedBookId: null, existingRequestId: null, existingRequestStatus: null, alreadySubscribed: false }
 
-async function render(formats: string[]) {
-  const wrapper = mount(BookMissingFormatRequest, { props: { book: book(formats) }, global: { stubs: { RouterLink: RouterLinkStub } } })
+async function render(formats: string[], readAlong = false) {
+  const wrapper = mount(BookMissingFormatRequest, { props: { book: book(formats, readAlong) }, global: { stubs: { RouterLink: RouterLinkStub } } })
   await flushPromises()
   return wrapper
 }
@@ -61,6 +71,19 @@ describe('BookMissingFormatRequest', () => {
     const [path, init] = state.api.mock.calls[0]!
     expect(path).toBe('/api/v1/book-requests/availability')
     expect(JSON.parse(init!.body as string).items[0]).toMatchObject({ title: 'Dune', mediaKind: 'audiobook', isbn13: '9780441013593' })
+  })
+
+  it('does not ask for an audiobook when the EPUB already carries its narration', async () => {
+    const wrapper = await render(['epub'], true)
+
+    expect(wrapper.find('[role="group"]').exists()).toBe(false)
+    expect(state.api).not.toHaveBeenCalled()
+  })
+
+  it('still asks for an audiobook beside a plain EPUB', async () => {
+    const wrapper = await render(['epub', 'pdf'], false)
+
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Request audiobook')
   })
 
   it('offers the ebook an audiobook is missing', async () => {
@@ -108,6 +131,31 @@ describe('BookMissingFormatRequest', () => {
 
     expect(wrapper.text()).toContain('Requested by someone else')
     expect(wrapper.get('button').text()).toBe('Add me too')
+  })
+
+  it('points at a linked edition that holds the missing format instead of offering a request', async () => {
+    const wrapper = mount(BookMissingFormatRequest, {
+      props: { book: { ...book(['epub']), linkedBooks: [linked(7, ['m4b'], 'present')] } },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('In your library as a separate book')
+    expect(wrapper.getComponent(RouterLinkStub).props('to')).toEqual({ name: 'book-detail', params: { bookId: 7 } })
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(state.api).not.toHaveBeenCalled()
+  })
+
+  it('still offers the request when the linked edition is missing or holds another format', async () => {
+    const wrapper = mount(BookMissingFormatRequest, {
+      props: { book: { ...book(['epub']), linkedBooks: [linked(7, ['m4b'], 'missing'), linked(8, ['pdf'], 'present')] } },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('No audiobook yet')
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Request audiobook')
+    expect(state.api).toHaveBeenCalledTimes(1)
   })
 
   it.each([

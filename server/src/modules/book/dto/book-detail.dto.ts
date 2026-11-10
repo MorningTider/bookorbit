@@ -1,10 +1,12 @@
 import type {
   AudiobookChapter,
+  AudiobookChapterSource,
   BookFileWriteStatus,
   BookSeriesMembership,
   BookMetadataLockField,
   BookCommunityRating,
   CustomMetadataBookValue,
+  LinkedBookSummary,
   ComicMetadataFields,
   BookCoverSlot,
   CoverAspectRatio,
@@ -35,6 +37,8 @@ export class AudioMetadataDto {
   durationSeconds: number | null;
   abridged: boolean;
   chapters: AudiobookChapter[] | null;
+  chaptersSource: AudiobookChapterSource | null;
+  chaptersUpdatedAt: string | null;
 }
 
 export class BookDetailDto {
@@ -71,6 +75,8 @@ export class BookDetailDto {
   coverVersion: string;
   hardcoverEditionId: string | null;
   providerIds: ProviderIds;
+  /** Record links for external providers' ids. See `BookDetail.providerLinks`. */
+  providerLinks?: Partial<Record<string, string>>;
   authors: { id: number; name: string; sortName: string | null }[];
   genres: string[];
   tags: string[];
@@ -86,4 +92,7 @@ export class BookDetailDto {
   lockedFields: BookMetadataLockField[];
   collections: { id: number; name: string }[];
   fileWriteStatus: BookFileWriteStatus;
+  linkedBooks: LinkedBookSummary[];
+  linkGroupId: number | null;
+  linkIsLead: boolean;
 }

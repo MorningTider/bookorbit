@@ -1,3 +1,4 @@
+import { FileLockService, bookOperationLockKey } from '../../common/services/file-lock.service';
 import { recordBookFileHashHistory } from '../../db/book-file-hash-history';
 import { isAudioFormat } from '@bookorbit/types';
 import { parseAudioDuration } from '../metadata/extractors/audio.extractor';
@@ -20,6 +21,8 @@ import { MetadataExtractionService } from '../metadata/metadata-extraction.servi
 import { inspectEpubMediaOverlayFields } from '../reader/epub/epub-media-overlay-capability';
 import { atomicFileReplacement } from './atomic-file-replacement';
 
+type FileReplacement = { bookId: number; fileId: number; expectedSha256: string; incoming: string; format: string; reviewId?: string };
+
 @Injectable()
 export class ImportFileCommitService {
   private readonly logger = new Logger(ImportFileCommitService.name);
@@ -30,12 +33,14 @@ export class ImportFileCommitService {
     private readonly reviews: ImportReviewService,
     private readonly selfWrites: SelfWriteRegistry,
     private readonly extraction: MetadataExtractionService,
+    private readonly fileLocks: FileLockService,
   ) {}
 
-  async replace(
-    input: { bookId: number; fileId: number; expectedSha256: string; incoming: string; format: string; reviewId?: string },
-    user: RequestUser,
-  ) {
+  async replace(input: FileReplacement, user: RequestUser) {
+    return this.fileLocks.withLock(bookOperationLockKey(input.bookId), () => this.replaceLocked(input, user));
+  }
+
+  private async replaceLocked(input: FileReplacement, user: RequestUser) {
     const startedAt = Date.now();
     const version = await this.reviews.fileVersion(input.fileId, user);
     if (version.bookId !== input.bookId || version.sha256 !== input.expectedSha256)

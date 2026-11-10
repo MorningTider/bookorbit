@@ -60,9 +60,9 @@
     "image": "node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567",
     "platform": "linux/amd64",
     "pnpm": {
-      "version": "11.22.0",
-      "url": "https://registry.npmjs.org/pnpm/-/pnpm-11.22.0.tgz",
-      "integrity": "sha512-H/hwxMYTPf2I+yr8Rt0T1H8JyXlLQ4xv20fKmMrzvBY4HuC+k6CRuOOCTPAfiJ9G19niCRD7C+GrD7W6qA3WIQ=="
+      "version": "11.28.9",
+      "url": "https://registry.npmjs.org/pnpm/-/pnpm-11.28.9.tgz",
+      "integrity": "sha512-NUIc6icg7KP1rXIrZ+jvGPTTzUdF7S/P6w3CiNTpQ3+tOHDZHuboPyaPD29+D2JyMxexlhe7Re5DMxcu9RFZ+A=="
     },
     "preloadPackages": ["echarts@6.1.0", "@embedpdf/fonts-sc@1.0.0"]
   },

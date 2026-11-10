@@ -1,3 +1,4 @@
+import { UploadValidatorService } from '../upload/upload-validator.service';
 import { ImportReviewService } from '../import-review/import-review.service';
 import { BookSourceProgress } from './book-source-progress.service';
 import { DownloadSourcePolicy } from './download-source-policy.service';
@@ -11,7 +12,7 @@ import { BookSourceJobRepository } from './book-source-job.repository';
 import { BookSourceJobService } from './book-source-job.service';
 import type { RequestUser } from '../../common/types/request-user';
 const repository = { remove: vi.fn(), enqueue: vi.fn(), owned: vi.fn(), retry: vi.fn() };
-const libraries = { verifyUserAccessLevel: vi.fn() };
+const libraries = { verifyUserAccessLevel: vi.fn(), findOne: vi.fn() };
 const user = { id: 7, active: true, isSuperuser: false } as RequestUser;
 const row = {
   id: 1,
@@ -35,9 +36,10 @@ async function service(assertEnabled = () => Promise.resolve(undefined)) {
       { provide: DownloadSourcePolicy, useValue: { enabled: () => Promise.resolve(true), assertEnabled } },
       { provide: ChapterRuleRegistry, useValue: { all: vi.fn().mockResolvedValue([]), get: vi.fn().mockResolvedValue({ key: 'sample' }) } },
       BookSourceJobService,
+      UploadValidatorService,
       { provide: BookSourceJobRepository, useValue: repository },
       { provide: LibraryService, useValue: libraries },
-      { provide: bookSourceConfig.KEY, useValue: { tomatoBinaryPath: '' } },
+      { provide: bookSourceConfig.KEY, useValue: { tomatoBinaryPath: '/tools/tomato' } },
     ],
   }).compile();
   return module.get(BookSourceJobService);
@@ -45,6 +47,7 @@ async function service(assertEnabled = () => Promise.resolve(undefined)) {
 describe('chapter acquisition job identity and permissions', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    libraries.findOne.mockResolvedValue({ allowedFormats: [] });
     repository.enqueue.mockResolvedValue(row);
     repository.owned.mockResolvedValue({ ...row, status: 'failed' });
     repository.retry.mockResolvedValue(row);
@@ -58,6 +61,26 @@ describe('chapter acquisition job identity and permissions', () => {
     await expect((await service()).enqueueQidian(3, undefined, '101', user)).rejects.toThrow(ForbiddenException);
     expect(repository.enqueue).not.toHaveBeenCalled();
   });
+  it.each([['fanqie'], ['qidian'], ['rule'], ['retry']])('rejects %s jobs before queue mutation when EPUB is excluded', async (entry) => {
+    libraries.findOne.mockResolvedValue({ allowedFormats: ['m4a', 'txt'] });
+    const jobs = await service();
+    const operation =
+      entry === 'fanqie'
+        ? jobs.enqueue(3, undefined, '7290175791344651298', user)
+        : entry === 'qidian'
+          ? jobs.enqueueQidian(3, undefined, '101', user)
+          : entry === 'rule'
+            ? jobs.enqueueRule(3, undefined, 'sample', '101', user)
+            : jobs.retry(1, user);
+    await expect(operation).rejects.toThrow('does not allow .epub');
+    expect(repository.enqueue).not.toHaveBeenCalled();
+    expect(repository.retry).not.toHaveBeenCalled();
+  });
+  it('accepts an editable library that explicitly allows EPUB', async () => {
+    libraries.findOne.mockResolvedValue({ allowedFormats: ['epub', 'txt'] });
+    await expect((await service()).enqueueQidian(3, undefined, '101', user)).resolves.toMatchObject({ status: 'queued' });
+  });
+
   it('does not require the unrelated Tomato binary to retry a Qidian job', async () => {
     await expect((await service()).retry(1, user)).resolves.toMatchObject({ source: 'qidian' });
     expect(repository.owned).toHaveBeenCalledWith(1, 7);

@@ -8,6 +8,7 @@ export const staticAssetCacheOptions = {
   cacheControl: false,
   setHeaders(response: FastifyReply, filePath: string) {
     const fingerprinted = filePath.includes(`${sep}assets${sep}`) && /-[A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$/.test(basename(filePath));
-    response.header('Cache-Control', fingerprinted ? 'public, max-age=31536000, immutable' : 'no-store');
+    const versionedIcon = /[/\\]assets[/\\]lucide[/\\]\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?[/\\]/.test(filePath);
+    response.header('Cache-Control', fingerprinted || versionedIcon ? 'public, max-age=31536000, immutable' : 'no-store');
   },
 };

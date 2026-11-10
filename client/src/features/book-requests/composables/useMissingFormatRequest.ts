@@ -2,6 +2,7 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { BOOK_REQUEST_FORMATS_BY_MEDIA_KIND } from '@bookorbit/types'
 import type { BookDetail, BookRequestAvailability, BookRequestMediaKind, BookRequestSubmitResult, CreateBookRequestPayload } from '@bookorbit/types'
 import { api } from '@/lib/api'
+import { hasReadAlong } from '@/features/book/lib/file-capabilities'
 import { pairHalfState, type PairHalfState } from '../requestPair'
 import { submitFailure, type SubmitFailure } from './useRequestSubmission'
 
@@ -23,19 +24,36 @@ export function useMissingFormatRequest(book: Ref<BookDetail | null>, enabled: R
 
   const missing = computed<BookRequestMediaKind | null>(() => {
     if (!book.value) return null
-    const formats = book.value.files
-      .filter((file) => file.role === 'content' || file.role === 'primary')
-      .map((file) => file.format?.toLowerCase() ?? '')
+    const files = book.value.files.filter((file) => file.role === 'content' || file.role === 'primary')
+    const formats = files.map((file) => file.format?.toLowerCase() ?? '')
     const hasReadable = formats.some((format) => BOOK_REQUEST_FORMATS_BY_MEDIA_KIND.ebook.includes(format))
-    const hasAudio = formats.some((format) => BOOK_REQUEST_FORMATS_BY_MEDIA_KIND.audiobook.includes(format))
+    // A read-along EPUB carries its narration, so the book already has the audio half.
+    const hasAudio = formats.some((format) => BOOK_REQUEST_FORMATS_BY_MEDIA_KIND.audiobook.includes(format)) || files.some(hasReadAlong)
     if (hasReadable && !hasAudio) return 'audiobook'
     if (hasAudio && !hasReadable) return 'ebook'
     return null
   })
 
-  const state = computed<MissingFormatState>(() => (checking.value && !availability.value ? 'checking' : pairHalfState(availability.value)))
+  /**
+   * A linked edition already holding the missing format. The availability check matches by title and
+   * author, so it misses an edition whose title differs, say by a subtitle; the link does not.
+   */
+  const linkedHolderId = computed<number | null>(() => {
+    const mediaKind = missing.value
+    if (!mediaKind) return null
+    const formats = BOOK_REQUEST_FORMATS_BY_MEDIA_KIND[mediaKind]
+    const holder = book.value?.linkedBooks?.find(
+      (linked) => linked.status === 'present' && linked.formats.some((format) => formats.includes(format.toLowerCase())),
+    )
+    return holder?.bookId ?? null
+  })
+
+  const state = computed<MissingFormatState>(() => {
+    if (linkedHolderId.value !== null) return 'owned'
+    return checking.value && !availability.value ? 'checking' : pairHalfState(availability.value)
+  })
   const requestId = computed(() => availability.value?.existingRequestId ?? null)
-  const ownedBookId = computed(() => availability.value?.ownedBookId ?? null)
+  const ownedBookId = computed(() => linkedHolderId.value ?? availability.value?.ownedBookId ?? null)
 
   function workFor(current: BookDetail, mediaKind: BookRequestMediaKind) {
     return {
@@ -50,7 +68,7 @@ export function useMissingFormatRequest(book: Ref<BookDetail | null>, enabled: R
     const current = book.value
     const mediaKind = missing.value
     availability.value = null
-    if (!current || !mediaKind || !enabled.value) return
+    if (!current || !mediaKind || !enabled.value || linkedHolderId.value !== null) return
 
     const asked = ++generation
     const work = workFor(current, mediaKind)
@@ -121,7 +139,7 @@ export function useMissingFormatRequest(book: Ref<BookDetail | null>, enabled: R
     }
   }
 
-  watch([() => book.value?.id, missing, enabled], () => void check(), { immediate: true })
+  watch([() => book.value?.id, missing, enabled, linkedHolderId], () => void check(), { immediate: true })
 
   return { missing, state, requestId, ownedBookId, availability, submitting, check, request }
 }

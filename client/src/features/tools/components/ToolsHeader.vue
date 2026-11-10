@@ -23,9 +23,16 @@ const sections = computed<ToolSection[]>(() => {
     result.push({ label: t('tools.header.bulkRename'), routeName: 'tools-bulk-rename' })
   }
 
-  if (hasPermission('library_delete_books')) {
+  if (hasPermission('library_delete_books') || hasPermission('library_merge_books')) {
     result.push({ label: t('tools.header.duplicateBooks'), routeName: 'tools-duplicate-books' })
+  }
+
+  if (hasPermission('library_delete_books')) {
     result.push({ label: t('tools.header.missingResources'), routeName: 'tools-missing-resources' })
+  }
+
+  if (hasPermission('library_edit_metadata')) {
+    result.push({ label: t('tools.header.chapterHealth'), routeName: 'tools-chapter-health' })
   }
 
   return result

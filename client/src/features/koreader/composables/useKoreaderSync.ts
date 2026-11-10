@@ -9,6 +9,7 @@ import type {
   KoreaderManualHashLink,
   KoreaderSyncStatus,
   KoreaderUnmatchedBook,
+  KoreaderUnmatchedBookSuggestion,
   LinkKoreaderUnmatchedBookPayload,
   LinkKoreaderUnmatchedBookResult,
   UnlinkKoreaderManualHashLinkResult,
@@ -20,6 +21,7 @@ const credentials = ref<KoreaderCredentials | null>(null)
 const syncStatus = ref<KoreaderSyncStatus | null>(null)
 const unmatchedBooks = ref<KoreaderUnmatchedBook[]>([])
 const manualHashLinks = ref<KoreaderManualHashLink[]>([])
+const linkSuggestions = ref<KoreaderUnmatchedBookSuggestion[]>([])
 const loading = ref(false)
 const unmatchedLoading = ref(false)
 const manualLinksLoading = ref(false)
@@ -32,6 +34,13 @@ export class KoreaderFileNamingRequestError extends Error {
     super(code)
     this.name = 'KoreaderFileNamingRequestError'
   }
+}
+
+const SUGGESTED_LINK_CONCURRENCY = 3
+
+export interface SuggestedLinkOutcome {
+  linked: number
+  failed: string[]
 }
 
 export function useKoreaderSync() {
@@ -80,6 +89,7 @@ export function useKoreaderSync() {
     syncStatus.value = null
     unmatchedBooks.value = []
     manualHashLinks.value = []
+    linkSuggestions.value = []
   }
 
   async function testConnection(username: string, password: string): Promise<boolean> {
@@ -122,6 +132,21 @@ export function useKoreaderSync() {
     }
   }
 
+  // Suggestions are optional help: a server without the route, or a failed request, just shows none.
+  async function fetchLinkSuggestions(): Promise<void> {
+    try {
+      const res = await api('/api/v1/koreader/unmatched-books/suggestions')
+      linkSuggestions.value = res.ok ? await res.json() : []
+    } catch {
+      linkSuggestions.value = []
+    }
+  }
+
+  function forgetUnmatched(hashes: ReadonlySet<string>): void {
+    unmatchedBooks.value = unmatchedBooks.value.filter((book) => !hashes.has(book.hash))
+    linkSuggestions.value = linkSuggestions.value.filter((suggestion) => !hashes.has(suggestion.hash))
+  }
+
   async function fetchManualHashLinks(): Promise<void> {
     manualLinksLoading.value = true
     try {
@@ -147,9 +172,39 @@ export function useKoreaderSync() {
       throw new Error(body.message || 'Failed to link KOReader book')
     }
     const result: LinkKoreaderUnmatchedBookResult = await res.json()
-    unmatchedBooks.value = unmatchedBooks.value.filter((book) => book.hash !== result.hash)
+    forgetUnmatched(new Set([result.hash]))
     await Promise.all([fetchSyncStatus(true), fetchManualHashLinks()])
     return result
+  }
+
+  /**
+   * Links each confirmed suggestion through the same route as a manual link, a few at a time, and
+   * refreshes the dependent lists once at the end. Returns how many linked and which hashes failed.
+   */
+  async function linkSuggestedBooks(links: readonly { hash: string; bookId: number }[]): Promise<SuggestedLinkOutcome> {
+    const linked = new Set<string>()
+    const failed: string[] = []
+    let next = 0
+    async function worker(): Promise<void> {
+      while (next < links.length) {
+        const link = links[next++]!
+        try {
+          const res = await api(`/api/v1/koreader/unmatched-books/${link.hash}/link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookId: link.bookId }),
+          })
+          if (res.ok) linked.add(link.hash)
+          else failed.push(link.hash)
+        } catch {
+          failed.push(link.hash)
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(SUGGESTED_LINK_CONCURRENCY, links.length) }, worker))
+    forgetUnmatched(linked)
+    if (linked.size > 0) await Promise.all([fetchSyncStatus(true), fetchManualHashLinks()])
+    return { linked: linked.size, failed }
   }
 
   async function dismissUnmatchedBook(hash: string): Promise<DismissKoreaderUnmatchedBookResult> {
@@ -159,7 +214,7 @@ export function useKoreaderSync() {
       throw new Error(body.message || 'Failed to dismiss KOReader unmatched book')
     }
     const result: DismissKoreaderUnmatchedBookResult = await res.json()
-    unmatchedBooks.value = unmatchedBooks.value.filter((book) => book.hash !== result.hash)
+    forgetUnmatched(new Set([result.hash]))
     await fetchSyncStatus(true)
     return result
   }
@@ -172,6 +227,7 @@ export function useKoreaderSync() {
     }
     const result: DismissAllKoreaderUnmatchedBooksResult = await res.json()
     unmatchedBooks.value = []
+    linkSuggestions.value = []
     await fetchSyncStatus(true)
     return result
   }
@@ -199,7 +255,7 @@ export function useKoreaderSync() {
     }
     const result: UnlinkKoreaderManualHashLinkResult = await res.json()
     manualHashLinks.value = manualHashLinks.value.filter((link) => link.hash !== result.hash)
-    await Promise.all([fetchSyncStatus(true), fetchUnmatchedBooks()])
+    await Promise.all([fetchSyncStatus(true), fetchUnmatchedBooks(), fetchLinkSuggestions()])
     return result
   }
 
@@ -266,6 +322,7 @@ export function useKoreaderSync() {
     syncStatus,
     unmatchedBooks,
     manualHashLinks,
+    linkSuggestions,
     loading,
     unmatchedLoading,
     manualLinksLoading,
@@ -273,6 +330,7 @@ export function useKoreaderSync() {
     fetchSyncStatus,
     fetchUnmatchedBooks,
     fetchManualHashLinks,
+    fetchLinkSuggestions,
     createCredentials,
     updateCredentials,
     deleteCredentials,
@@ -280,6 +338,7 @@ export function useKoreaderSync() {
     getSyncUrl,
     downloadPluginPackage,
     linkUnmatchedBook,
+    linkSuggestedBooks,
     dismissUnmatchedBook,
     dismissAllUnmatchedBooks,
     relinkManualHashLink,

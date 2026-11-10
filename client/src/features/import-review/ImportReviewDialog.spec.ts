@@ -3,8 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import type { ImportReviewResponse } from '@bookorbit/types'
 import { i18n } from '@/i18n'
 import ImportReviewDialog from './ImportReviewDialog.vue'
-const { apiMock } = vi.hoisted(() => ({ apiMock: vi.fn() }))
-vi.mock('@/lib/api', () => ({ api: (...args: unknown[]) => apiMock(...args) }))
+const { apiMock } = vi.hoisted(() => ({ apiMock: vi.fn<typeof import('@/lib/api').api>() }))
+vi.mock('@/lib/api', () => ({ api: (...args: Parameters<typeof import('@/lib/api').api>) => apiMock(...args) }))
 const review: ImportReviewResponse = {
   id: 'review-1',
   libraryId: 3,
@@ -39,11 +39,11 @@ function setup(value = review) {
 }
 beforeEach(() => {
   apiMock.mockReset()
-  apiMock.mockImplementation(async (url: string) => ({
-    ok: true,
-    json: async () =>
-      url.includes('/version') ? { fileId: 30, bookId: 12, sha256: 'a'.repeat(64) } : { items: review.matches[0]!.files, nextCursor: null },
-  }))
+  apiMock.mockImplementation(async (url) =>
+    Response.json(
+      String(url).includes('/version') ? { fileId: 30, bookId: 12, sha256: 'a'.repeat(64) } : { items: review.matches[0]!.files, nextCursor: null },
+    ),
+  )
 })
 afterEach(() => {
   mounted.splice(0).forEach((wrapper) => wrapper.unmount())

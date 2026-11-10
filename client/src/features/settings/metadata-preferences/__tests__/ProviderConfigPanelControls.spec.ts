@@ -30,8 +30,6 @@ function makeConfig(overrides: Partial<ProviderConfigurations> = {}): ProviderCo
     comicvine: { enabled: false, apiKey: '' },
     ranobedb: { enabled: false },
     kobo: { enabled: false, country: 'us', language: 'en' },
-    lubimyczytac: { enabled: false },
-    aladin: { enabled: false, ttbKey: '' },
     ...overrides,
   }
 }
@@ -55,8 +53,6 @@ function makeStatuses(): ProviderStatus[] {
     configured('comicvine', false, false),
     configured('ranobedb', false),
     configured('kobo', false),
-    configured('lubimyczytac', false),
-    configured('aladin', false, false),
   ]
 }
 
@@ -120,7 +116,7 @@ describe('ProviderConfigPanel browsing', () => {
 
     await clickFilter(wrapper, 'Needs setup')
 
-    expect(providerNames(wrapper)).toEqual(['Hardcover', 'ComicVine', 'Aladin'])
+    expect(providerNames(wrapper)).toEqual(['Hardcover', 'ComicVine'])
     wrapper.unmount()
   })
 
@@ -131,8 +127,8 @@ describe('ProviderConfigPanel browsing', () => {
     await search.setValue('kobo')
     expect(providerNames(wrapper)).toEqual(['Kobo'])
 
-    await search.setValue('korean')
-    expect(providerNames(wrapper)).toEqual(['Aladin'])
+    await search.setValue('light novel')
+    expect(providerNames(wrapper)).toEqual(['RanobeDB'])
 
     await search.setValue('nothing matches this')
     expect(wrapper.findAll('button[role="switch"][aria-labelledby]')).toHaveLength(0)
@@ -140,7 +136,7 @@ describe('ProviderConfigPanel browsing', () => {
 
     const clear = wrapper.findAll('button').find((candidate) => candidate.text() === 'Clear filters')
     await clear?.trigger('click')
-    expect(wrapper.findAll('button[role="switch"][aria-labelledby]')).toHaveLength(19)
+    expect(providerNames(wrapper)).toHaveLength(17)
     wrapper.unmount()
   })
 })
@@ -229,7 +225,7 @@ describe('novel download switches', () => {
     await toggle.trigger('click')
     expect(toggle.attributes('aria-checked')).toBe('false')
     await wrapper.get('form').trigger('submit')
-    expect((wrapper.emitted('save')?.[0]?.[0] as ProviderConfigurations).fanqie).toEqual({ enabled: true, downloadEnabled: false })
+    expect((wrapper.emitted('save')![0]![0] as ProviderConfigurations).fanqie).toEqual({ enabled: true, downloadEnabled: false })
     wrapper.unmount()
   })
 })

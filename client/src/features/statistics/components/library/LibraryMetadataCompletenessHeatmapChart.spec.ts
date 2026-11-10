@@ -11,7 +11,9 @@ vi.mock('../../composables/useLibraryMetadataCompleteness', () => ({
     error: ref(null),
   }),
 }))
-vi.mock('@/composables/useChartTokens', () => ({ useChartTokens: () => ref({ key: 'test', dark: false, color: () => '#000000' }) }))
+vi.mock('@/composables/useChartTokens', () => ({
+  useChartTokens: () => ref({ key: 'test', dark: false, color: () => '#000000', palette: () => ['#000000'] }),
+}))
 vi.mock('@/lib/heatmap-palette', () => ({ buildHeatmapPalette: () => ({ scale: ['#fff', '#ddd', '#bbb', '#999', '#777'] }) }))
 vi.mock('vue-echarts', () => ({ default: { name: 'VChartStub', props: ['option'], template: '<div />' } }))
 

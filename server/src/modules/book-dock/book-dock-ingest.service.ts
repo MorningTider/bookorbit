@@ -6,13 +6,16 @@ import { Readable } from 'stream';
 
 import { isAudioFormat, MetadataProviderKey, resolveBookDockSearchTitle, type BookDockMetadata } from '@bookorbit/types';
 import type { BookDockFileRow } from '../../db/schema';
+import { resolveSearchMediaKind } from '../../common/utils/book-media.utils';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 import { canonicalIsbn13, normalizeMetadataIsbn } from '../../common/text-match/isbn-normalize';
+import { foldTextForComparison, normalizeTitleText } from '../../common/text-match/title-match';
 import { waitForDirectoryStability } from '../../common/utils/fs-stability.utils';
 import { SUPPORTED_BOOK_FORMATS, UploadValidatorService } from '../upload/upload-validator.service';
 import { UploadStorageService } from '../upload/upload-storage.service';
 import { AppSettingsService } from '../app-settings/app-settings.service';
 import { MetadataFetchPipeline } from '../metadata-fetch/metadata-fetch-pipeline';
+import { isExternalProviderIdKey } from '../metadata-fetch/provider-ids/provider-id.store';
 import { inspectEpubMediaOverlayFields } from '../reader/epub/epub-media-overlay-capability';
 import { interpretRelease } from '../scanner/lib/release-plan';
 import { buildSingleBookCandidate } from '../scanner/lib/walk';
@@ -373,6 +376,7 @@ export class BookDockIngestService implements OnApplicationBootstrap, OnModuleDe
       author: meta?.authors?.[0] ?? undefined,
       isbn: meta?.isbn13?.trim() || meta?.isbn10?.trim() || undefined,
       isAudiobook: row.format != null && isAudioFormat(row.format),
+      mediaKind: resolveSearchMediaKind([{ format: row.format, role: 'content' }], row.format != null && isAudioFormat(row.format)),
     };
     if (!params.title && !params.isbn) return;
     // The same field rules the book will be refreshed by once it is on a shelf: the library it is
@@ -413,10 +417,15 @@ export class BookDockIngestService implements OnApplicationBootstrap, OnModuleDe
       delete sources.audioCoverUrl;
       const fetched = normalizeBookDockMetadata(resolved) ?? {};
       for (const [provider, providerId] of Object.entries(providerIds)) {
+        if (!providerId) continue;
         const field = BOOK_DOCK_PROVIDER_ID_FIELDS[provider as MetadataProviderKey];
-        if (!field || !providerId) continue;
-        (fetched as Record<string, unknown>)[field] = providerId;
-        sources[field] = provider;
+        if (field) {
+          (fetched as Record<string, unknown>)[field] = providerId;
+          sources[field] = provider;
+        } else if (isExternalProviderIdKey(provider)) {
+          // No column to name: an external provider's id rides along until the book is filed.
+          fetched.externalProviderIds = { ...fetched.externalProviderIds, [provider]: providerId };
+        }
       }
       const fetchedMetadataSources = normalizeBookDockMetadataSources(sources);
       const updates =
@@ -495,18 +504,20 @@ function metadataQueuePriority(row: Pick<BookDockFileRow, 'id'> & Partial<Pick<B
 
 const STOP_WORDS = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'in', 'to', 'for', 'by', 'at', 'on', 'is', 'it']);
 
+const NO_STOP_WORDS: ReadonlySet<string> = new Set();
+
+/** Falls back to every token when filtering leaves none, so a title such as "It" or "V." can still match itself. */
+function significantTokens(tokens: string[], stopWords: ReadonlySet<string>): Set<string> {
+  const significant = tokens.filter((t) => t.length > 1 && !stopWords.has(t));
+  return new Set(significant.length > 0 ? significant : tokens);
+}
+
 function tokenize(s: string): Set<string> {
-  return new Set(
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((t) => t.length > 1 && !STOP_WORDS.has(t)),
-  );
+  return significantTokens(normalizeTitleText(s).split(' ').filter(Boolean), STOP_WORDS);
 }
 
 function jaccard(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 && b.size === 0) return 1;
+  // An empty side has nothing comparable, which is no evidence that the two values agree.
   if (a.size === 0 || b.size === 0) return 0;
   const intersection = [...a].filter((t) => b.has(t)).length;
   return intersection / (a.size + b.size - intersection);
@@ -529,22 +540,20 @@ function normalizeAuthorName(name: string): string {
   return name.toLowerCase();
 }
 
+function authorTokens(name: string): Set<string> {
+  const tokens = foldTextForComparison(normalizeAuthorName(name))
+    .replace(/[^\p{L}\p{M}\s]/gu, '')
+    .split(/\s+/)
+    .filter(Boolean);
+  return significantTokens(tokens, NO_STOP_WORDS);
+}
+
 function authorSimilarity(embAuthors: string[], fetchAuthors: string[]): number {
+  const fetchedTokens = fetchAuthors.map(authorTokens);
   let best = 0;
   for (const ea of embAuthors) {
-    const tokA = new Set(
-      normalizeAuthorName(ea)
-        .replace(/[^a-z\s]/g, '')
-        .split(/\s+/)
-        .filter((t) => t.length > 1),
-    );
-    for (const fa of fetchAuthors) {
-      const tokB = new Set(
-        normalizeAuthorName(fa)
-          .replace(/[^a-z\s]/g, '')
-          .split(/\s+/)
-          .filter((t) => t.length > 1),
-      );
+    const tokA = authorTokens(ea);
+    for (const tokB of fetchedTokens) {
       best = Math.max(best, jaccard(tokA, tokB));
     }
   }

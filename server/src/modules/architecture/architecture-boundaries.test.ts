@@ -68,6 +68,8 @@ describe('Architecture boundaries', () => {
       'src/modules/book/book-author-sort-key-backfill.service.ts',
       'src/modules/upload/upload-processor.service.ts',
       'src/modules/upload/upload.service.ts',
+      'src/modules/upload/import-file-commit.service.ts',
+      'src/modules/book-comment/book-comment.service.ts',
       'src/modules/app-settings/oidc-group-mapping-admin.service.ts',
       'src/modules/auth/oidc/oidc-cleanup.service.ts',
     ].sort();

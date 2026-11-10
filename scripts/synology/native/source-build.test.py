@@ -102,6 +102,18 @@ class SourceBuildTests(unittest.TestCase):
         source.dependency_archive(self.repo, self.git("rev-parse", "HEAD").decode().strip(), second)
         self.assertNotEqual(first.read_bytes(), second.read_bytes())
 
+    def test_dependency_archive_includes_new_worker_manifest_without_worker_sources(self):
+        worker = self.repo / "workers/read-aloud"
+        worker.mkdir(parents=True)
+        (worker / "package.json").write_text('{"name":"@bookorbit/read-aloud-worker","version":"0.0.1"}')
+        (worker / "main.ts").write_text("export {}")
+        self.commit()
+        archive = self.root / "dependency-inputs.tar"
+        source.dependency_archive(self.repo, self.git("rev-parse", "HEAD").decode().strip(), archive)
+        with tarfile.open(archive) as tar:
+            self.assertIn("workers/read-aloud/package.json", tar.getnames())
+            self.assertNotIn("workers/read-aloud/main.ts", tar.getnames())
+
     def test_plan_records_exact_commit(self):
         report, _ = source.plan(self.repo)
         self.assertEqual(report["sourceCommit"], self.git("rev-parse", "HEAD").decode().strip())

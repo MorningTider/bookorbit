@@ -1,7 +1,7 @@
 import { setI18nLocale } from '@/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { usePublicChapterRules } from '../usePublicChapterRules'
-const mocks = vi.hoisted(() => ({ api: vi.fn() }))
+const mocks = vi.hoisted(() => ({ api: vi.fn<typeof import('@/lib/api').api>() }))
 vi.mock('@/lib/api', () => ({ api: mocks.api }))
 beforeEach(() => {
   vi.resetAllMocks()

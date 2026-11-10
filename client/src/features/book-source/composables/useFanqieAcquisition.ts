@@ -84,7 +84,6 @@ export function useFanqieAcquisition() {
   const editableLibraries = computed(() =>
     libraries.value.filter(
       (library) =>
-        library.type === 'books' &&
         (!library.allowedFormats.length || library.allowedFormats.some((format) => format.toLowerCase() === 'epub')) &&
         (user.value?.isSuperuser || library.accessLevel === 'editor' || library.accessLevel === 'owner'),
     ),

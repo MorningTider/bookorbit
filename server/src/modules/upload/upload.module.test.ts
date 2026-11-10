@@ -20,6 +20,8 @@ import { UploadSessionController } from './upload-session.controller';
 import { UploadSessionRepository } from './upload-session.repository';
 import { UploadSessionService } from './upload-session.service';
 import { FileWriteModule } from '../file-write/file-write.module';
+import { GeneratedBookFileRepository } from './generated-book-file.repository';
+import { GeneratedBookFileService } from './generated-book-file.service';
 
 describe('UploadModule', () => {
   it('registers expected controller/providers/exports', () => {
@@ -32,6 +34,8 @@ describe('UploadModule', () => {
     expect(Reflect.getMetadata('providers', UploadModule)).toEqual([
       ImportFileCommitService,
       UploadService,
+      GeneratedBookFileService,
+      GeneratedBookFileRepository,
       UploadValidatorService,
       UploadStorageService,
       UploadProcessorService,
@@ -44,6 +48,7 @@ describe('UploadModule', () => {
       UploadStorageService,
       UploadProcessorService,
       UploadService,
+      GeneratedBookFileService,
     ]);
     expect(Reflect.getMetadata('imports', UploadModule)).toContain(FileWriteModule);
   });

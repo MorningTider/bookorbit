@@ -2,7 +2,6 @@ import { ImportResolutionDto } from '../../import-review/dto/import-review.dto';
 import {
   IsArray,
   IsBoolean,
-  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -22,7 +21,10 @@ import {
   ValidatorConstraint,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { MetadataProviderKey, SERIES_INDEX_MAX_LENGTH, SERIES_INDEX_PATTERN, type SeriesIndex } from '@bookorbit/types';
+import { SERIES_INDEX_MAX_LENGTH, SERIES_INDEX_PATTERN, type MetadataProviderKey, type SeriesIndex } from '@bookorbit/types';
+import { IsExternalProviderMap } from '../../../common/decorators/is-external-provider-map.decorator';
+import { IsMetadataProviderKey } from '../../../common/decorators/is-metadata-provider-key.decorator';
+import { NormalizeIdentifier } from '../../../common/decorators/normalize-identifier.decorator';
 
 @ValidatorConstraint({ name: 'hasCompleteDefaultDestination', async: false })
 class HasCompleteDefaultDestinationConstraint implements ValidatorConstraintInterface {
@@ -62,7 +64,7 @@ class BookDockSeriesMembershipDto {
 }
 
 class BookDockCommunityRatingDto {
-  @IsIn(Object.values(MetadataProviderKey)) provider!: MetadataProviderKey;
+  @IsMetadataProviderKey() provider!: MetadataProviderKey;
   @IsNumber() @Min(0) @Max(5) rating!: number;
   @IsOptional() @IsInt() @Min(0) ratingCount?: number | null;
 }
@@ -87,8 +89,8 @@ export class BookDockMetadataFieldsDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() @MaxLength(500) publisher?: string | null;
   @IsOptional() @IsString() @MaxLength(100) language?: string | null;
-  @IsOptional() @IsString() @MaxLength(10) isbn10?: string | null;
-  @IsOptional() @IsString() @MaxLength(13) isbn13?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(10) isbn10?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(13) isbn13?: string | null;
   @IsOptional() @IsString() @MaxLength(500) seriesName?: string | null;
   @IsOptional() @IsString() coverUrl?: string;
   @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) publishedDate?: string | null;
@@ -111,20 +113,21 @@ export class BookDockMetadataFieldsDto {
   @ValidateNested({ each: true })
   @Type(() => BookDockCommunityRatingDto)
   communityRatings?: BookDockCommunityRatingDto[] | null;
-  @IsOptional() @IsString() @MaxLength(50) googleBooksId?: string | null;
-  @IsOptional() @IsString() @MaxLength(50) goodreadsId?: string | null;
-  @IsOptional() @IsString() @MaxLength(20) amazonId?: string | null;
-  @IsOptional() @IsString() @MaxLength(255) hardcoverId?: string | null;
-  @IsOptional() @IsString() @MaxLength(50) hardcoverEditionId?: string | null;
-  @IsOptional() @IsString() @MaxLength(50) openLibraryId?: string | null;
-  @IsOptional() @IsString() @MaxLength(50) itunesId?: string | null;
-  @IsOptional() @IsString() @MaxLength(20) audibleId?: string | null;
-  @IsOptional() @IsString() @MaxLength(50) librofmId?: string | null;
-  @IsOptional() @IsString() @MaxLength(255) koboId?: string | null;
-  @IsOptional() @IsString() @MaxLength(50) comicvineId?: string | null;
-  @IsOptional() @IsString() @MaxLength(50) ranobedbId?: string | null;
-  @IsOptional() @IsString() @MaxLength(512) lubimyczytacId?: string | null;
-  @IsOptional() @IsString() @MaxLength(20) aladinId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) googleBooksId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) goodreadsId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(20) amazonId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(255) hardcoverId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) hardcoverEditionId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) openLibraryId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) itunesId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(20) audibleId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) librofmId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(255) koboId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) comicvineId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(50) ranobedbId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(512) lubimyczytacId?: string | null;
+  @NormalizeIdentifier() @IsOptional() @IsString() @MaxLength(20) aladinId?: string | null;
+  @IsOptional() @IsExternalProviderMap(512) externalProviderIds?: Record<string, string> | null;
   @IsOptional() @ValidateNested() @Type(() => BookDockComicMetadataDto) comicMetadata?: BookDockComicMetadataDto | null;
 }
 
@@ -143,6 +146,12 @@ export class UpdateBookDockFileDto {
   @ValidateIf((_, value) => value !== null)
   @IsInt()
   targetFolderId?: number | null;
+}
+
+class FinalizeJoinBookDto {
+  @IsInt()
+  @Min(1)
+  bookId!: number;
 }
 
 class FinalizeOverrideDto {
@@ -166,6 +175,12 @@ class FinalizeOverrideDto {
   @IsNotEmpty()
   @MaxLength(255)
   targetFileName?: string;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => FinalizeJoinBookDto)
+  joinBook?: FinalizeJoinBookDto;
 }
 
 @HasCompleteDefaultDestination()

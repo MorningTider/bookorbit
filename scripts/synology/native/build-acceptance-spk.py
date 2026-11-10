@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import pathlib
+import re
 import subprocess
 import tarfile
 import tempfile
@@ -49,11 +50,13 @@ def production_acceptance(path):
     return digest(pathlib.Path(path))
 
 
-def build(stage,report,output,revision=10000,production_report=None,private_stable_report=None,schema_upgrade_report=None):
+def build(stage,report,output,revision=10000,production_report=None,private_stable_report=None,schema_upgrade_report=None,application_version="3.5.0"):
     here=pathlib.Path(__file__).resolve().parent
     repo=here.parents[2]
     stage=pathlib.Path(stage).resolve(strict=True);output=pathlib.Path(output).absolute()
     if output.exists():raise ValueError('SPK output directory must be new')
+    if not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)',application_version):
+        raise ValueError('Application version must be major.minor.patch')
     if not 10000<=revision<=19999:raise ValueError('Unsupported acceptance revision')
     if production_report and private_stable_report:raise ValueError('Select one production acceptance mode')
     subprocess.run(['git','diff-index','--quiet','HEAD','--'],cwd=repo,check=True)
@@ -76,7 +79,7 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
     runtime_lock=json.loads((here/'runtime-source-lock.json').read_text())
     if digest(stage/'bin/node')!=runtime_lock['node']['binarySha256'] or digest(stage/'lib/libatomic.so.1')!=runtime_lock['libatomic']['binarySha256']:raise ValueError('Core runtime identity differs from lock')
     if (stage/'native-service.py').exists() or (stage/'acceptance-build.json').exists():raise ValueError('Reserved lifecycle destination already exists')
-    metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packageVersion':'3.5.0-'+str(revision),'payloadInventorySha256':digest(stage.with_name(stage.name+'.inventory.json')),'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
+    metadata={'schemaVersion':1,'status':'isolated-dsm-install-acceptance-not-release','sourceCommit':source['sourceCommit'],'packageVersion':application_version+'-'+str(revision),'payloadInventorySha256':digest(stage.with_name(stage.name+'.inventory.json')),'packagingCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'controllerSha256':digest(controller),'applicationMigrationSha256':migration_digest(stage),'productionEnabled':False,'pending':['dedicated account ACL','DSM lifecycle and upgrade','native PG full application','production backup and path cutover','complete redistribution audit']}
     metadata['schemaUpgradePolicySha256']=digest(schema_policy)
     if schema_upgrade_report:
         schema_spec=importlib.util.spec_from_file_location('schema_policy',schema_policy)
@@ -89,7 +92,7 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
     if private_stable_report:
         stable_spec=importlib.util.spec_from_file_location('private_stable_policy',here/'private-stable-policy.py')
         stable_policy=importlib.util.module_from_spec(stable_spec);stable_spec.loader.exec_module(stable_policy)
-        proof_sha=stable_policy.validate(private_stable_report,metadata['sourceCommit'],metadata['payloadInventorySha256'],metadata['controllerSha256'],metadata['applicationMigrationSha256'],revision)
+        proof_sha=stable_policy.validate(private_stable_report,metadata['sourceCommit'],metadata['payloadInventorySha256'],metadata['controllerSha256'],metadata['applicationMigrationSha256'],revision,application_version)
         stable_policy.apply_metadata(metadata,proof_sha)
     with tempfile.TemporaryDirectory(prefix='bookorbit-spk-') as directory:
         work=pathlib.Path(directory);outer=work/'outer';outer.mkdir()
@@ -104,7 +107,7 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
         import shutil
         shutil.copytree(here/'spk/conf',outer/'conf');shutil.copytree(here/'spk/scripts',outer/'scripts')
         for path in (outer/'scripts').iterdir():path.chmod(0o755)
-        version='3.5.0-'+str(revision)
+        version=application_version+'-'+str(revision)
         fields={'package':'bookorbit-native','version':version,'arch':'x86_64','os_min_ver':'7.4.1-90080','displayname':'BookOrbit 原生验收','maintainer':'MorningTider','description':'Private native installation acceptance. Isolated database only. Production mode disabled.','description_chs':'BookOrbit 原生安装验收候选，仅允许隔离数据库，尚未启用生产模式。','thirdparty':'yes','startable':'yes','precheckstartstop':'yes','install_dep_packages':'postgresql18>=18.6-10020','beta':'yes','checksum':hashlib.md5((outer/'package.tgz').read_bytes()).hexdigest()}
         if production_report:
             fields.update(displayname='BookOrbit',description='Private native production migration candidate. Requires explicit production configuration.',description_chs='BookOrbit 原生生产迁移候选，需显式生产配置。')
@@ -121,4 +124,4 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--stage',required=True);parser.add_argument('--lifecycle-report',required=True);parser.add_argument('--output',required=True);parser.add_argument('--revision',type=int,default=10000);parser.add_argument('--production-acceptance-report');parser.add_argument('--schema-upgrade-report');a=parser.parse_args();build(a.stage,a.lifecycle_report,a.output,a.revision,a.production_acceptance_report,schema_upgrade_report=a.schema_upgrade_report)
+    parser=argparse.ArgumentParser();parser.add_argument('--stage',required=True);parser.add_argument('--lifecycle-report',required=True);parser.add_argument('--output',required=True);parser.add_argument('--revision',type=int,default=10000);parser.add_argument('--production-acceptance-report');parser.add_argument('--schema-upgrade-report');parser.add_argument('--application-version',default='3.5.0');a=parser.parse_args();build(a.stage,a.lifecycle_report,a.output,a.revision,a.production_acceptance_report,schema_upgrade_report=a.schema_upgrade_report,application_version=a.application_version)

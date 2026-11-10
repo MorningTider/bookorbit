@@ -126,6 +126,12 @@ def environment(root, state, config):
            'FFMPEG_PATH': str(root / 'bin/ffmpeg'), 'FFPROBE_PATH': str(root / 'bin/ffprobe'),
            'KOBO_CLOUDSCRAPER_PYTHON': str(root / 'bin/python3'),
            'KOREADER_PLUGIN_PATH': str(root / 'app/koreader-plugin/bookorbit.koplugin')}
+    if metadata.is_file():
+        package_version=json.loads(metadata.read_text()).get('packageVersion')
+        if package_version:
+            if not isinstance(package_version,str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+-[0-9]+',package_version):
+                raise ValueError('Invalid package application version')
+            env['APP_VERSION']='v'+package_version.split('-',1)[0]
     if (root/'bin/tomato-downloader').is_file():env['TOMATO_DOWNLOADER_PATH']=str(root/'bin/tomato-downloader')
     return env
 

@@ -45,7 +45,7 @@ def dependency_archive(root, commit, output):
     paths = subprocess.check_output(["git", "ls-tree", "-r", "-z", "--name-only", commit], cwd=root).decode().split("\0")
     selected = [name for name in paths if name in {
         "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs", "pnpmfile.cjs"
-    } or name.startswith("patches/") or re.fullmatch(r"(?:client|server|packages/[^/]+)/package.json", name)]
+    } or name.startswith("patches/") or re.fullmatch(r"(?:client|server|(?:packages|workers)/[^/]+)/package.json", name)]
     with tarfile.open(output, "w") as tar:
         for name in sorted(selected):
             data = subprocess.check_output(["git", "show", commit + ":" + name], cwd=root)

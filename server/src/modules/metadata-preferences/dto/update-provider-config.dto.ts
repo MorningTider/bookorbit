@@ -47,6 +47,7 @@ export class KoboProviderConfigDto {
   @IsOptional() @IsString() language?: string;
 }
 
+/** Accepted and ignored: Aladin is no longer built in. */
 export class AladinProviderConfigDto {
   @IsOptional() @IsBoolean() enabled?: boolean;
   @IsOptional() @IsString() ttbKey?: string;
@@ -70,6 +71,8 @@ export class UpdateProviderConfigDto {
   @IsOptional() @ValidateNested() @Type(() => DownloadProviderConfigDto) fanqie?: DownloadProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) ranobedb?: SimpleProviderConfigDto;
   @IsOptional() @ValidateNested() @Type(() => KoboProviderConfigDto) kobo?: KoboProviderConfigDto;
+  /** Moved out to its own provider. Still accepted so an older client's save is not rejected; ignored. */
   @IsOptional() @ValidateNested() @Type(() => SimpleProviderConfigDto) lubimyczytac?: SimpleProviderConfigDto;
+  /** No longer built in. Still accepted so an older client's save is not rejected; ignored. */
   @IsOptional() @ValidateNested() @Type(() => AladinProviderConfigDto) aladin?: AladinProviderConfigDto;
 }

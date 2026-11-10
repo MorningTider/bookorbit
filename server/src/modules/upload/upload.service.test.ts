@@ -21,6 +21,7 @@ vi.mock('../metadata/lib/pdf-parser', () => ({ parsePdfFile: vi.fn() }));
 
 import { access as fsAccess, lstat, readdir, stat } from 'fs/promises';
 import { BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { FileLockService, bookOperationLockKey } from '../../common/services/file-lock.service';
 import { DEFAULT_UPLOAD_PATTERN_BOOK_PER_FILE } from '@bookorbit/types';
 import { extractEpubMetadata } from '../metadata/lib/epub';
 import { extractCbzMetadata } from '../metadata/lib/cbz-metadata';
@@ -109,6 +110,7 @@ describe('UploadService', () => {
     cleanup: vi.fn(),
   };
   const processor = {
+    withFolderBookLock: vi.fn(),
     createBookRecord: vi.fn(),
     processNewBookImportAsync: vi.fn(),
     extractMetadataAsync: vi.fn(),
@@ -150,6 +152,7 @@ describe('UploadService', () => {
         stage: vi.fn().mockRejectedValue(new ConflictException('Import review required')),
       } as never,
       { replace: vi.fn() } as never,
+      new FileLockService(),
     );
 
     validator.sanitizeFilename.mockReturnValue('book.epub');
@@ -160,6 +163,7 @@ describe('UploadService', () => {
     storage.moveToPath.mockResolvedValue(undefined);
     storage.cleanup.mockResolvedValue(undefined);
     processor.createBookRecord.mockResolvedValue({ bookId: 99, created: true });
+    processor.withFolderBookLock.mockImplementation((_libraryId: number, _folderPath: string, work: () => Promise<unknown>) => work());
     libraryService.verifyUserAccess.mockResolvedValue(undefined);
     libraryService.verifyUserAccessLevel.mockResolvedValue(undefined);
     appSettings.getUploadPattern.mockResolvedValue(null);
@@ -330,7 +334,9 @@ describe('UploadService', () => {
 
     await service.upload(1, 2, 'raw.epub', {} as any, user);
 
-    expect(mockReaddir.mock.calls.map((call) => call[0])).toEqual(['/library', '/library/bell hooks']);
+    // The book folder is spelled once to find the book that owns it, and the file once it has landed.
+    expect(mockReaddir.mock.calls.map((call) => call[0])).toEqual(['/library', '/library', '/library/bell hooks']);
+    expect(processor.withFolderBookLock).toHaveBeenCalledWith(1, '/library/bell hooks', expect.any(Function));
     expect(storage.moveToPath).toHaveBeenCalledWith('/tmp/upload.bin', '/library/Bell Hooks/Dune.epub');
     expect(processor.createBookRecord).toHaveBeenCalledWith(
       1,
@@ -354,6 +360,26 @@ describe('UploadService', () => {
 
     expect(processor.extractMetadataAsync).toHaveBeenCalledWith(99, '/library/book/book.epub', 'epub');
     expect(processor.processNewBookImportAsync).not.toHaveBeenCalled();
+  });
+
+  it('places the file and records it under the lock of the book that owns its folder', async () => {
+    processor.createBookRecord.mockResolvedValue({ bookId: 99, created: false });
+    db.select
+      .mockReturnValueOnce(selectChain([{ id: 1, allowedFormats: ['epub'], fileNamingPattern: null }]))
+      .mockReturnValueOnce(selectChain([{ id: 2, libraryId: 1, path: '/library' }]));
+    const insideLock: string[] = [];
+    processor.withFolderBookLock.mockImplementation(async (_libraryId: number, _folderPath: string, work: () => Promise<unknown>) => {
+      expect(storage.moveToPath).not.toHaveBeenCalled();
+      const result = await work();
+      if (storage.moveToPath.mock.calls.length > 0) insideLock.push('move');
+      if (processor.createBookRecord.mock.calls.length > 0) insideLock.push('record');
+      return result;
+    });
+
+    await service.upload(1, 2, 'raw.epub', {} as any, user);
+
+    expect(processor.withFolderBookLock).toHaveBeenCalledWith(1, '/library/book', expect.any(Function));
+    expect(insideLock).toEqual(['move', 'record']);
   });
 
   it('sanitizes generated destination path tokens when cross-platform mode is enabled', async () => {
@@ -1113,7 +1139,10 @@ describe('UploadService', () => {
     }
 
     it('marks an attachment as an in-flight self write before publishing it to the watcher', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       storage.moveToPath.mockImplementation(async () => {
         await Promise.resolve();
         expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(true);
@@ -1140,7 +1169,10 @@ describe('UploadService', () => {
     it('keeps watcher protection across a slow transaction commit beyond the debounce interval', async () => {
       vi.useFakeTimers();
       try {
-        db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+        db.select
+          .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+          .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+          .mockReturnValueOnce(noHashConflict());
         const watcher = new FileWatcherService({} as any, {} as any, {} as any, {} as any, selfWrites);
         (watcher as any).subscriptions.set(1, []);
         const processEvent = vi.spyOn(watcher as any, 'process').mockResolvedValue(undefined);
@@ -1170,15 +1202,56 @@ describe('UploadService', () => {
       }
     });
     it.each(['move', 'commit'])('releases attachment protection after a failed %s', async (phase) => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       if (phase === 'move') storage.moveToPath.mockRejectedValue(new Error('failed move'));
       else db.transaction.mockRejectedValue(new Error('failed commit'));
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toThrow('failed');
       expect(selfWrites.isSuppressed('/library/Book Title/book.epub')).toBe(false);
     });
 
+    it('waits for the book lock and writes into the folder the book has by then', async () => {
+      const locks = new FileLockService();
+      service = new UploadService(
+        db as any,
+        appSettings as any,
+        libraryService as any,
+        validator as any,
+        storage as any,
+        processor as any,
+        moduleRef as any,
+        pathPolicy as any,
+        selfWrites,
+        (service as any).importReview,
+        { replace: vi.fn() } as never,
+        locks,
+      );
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ folderPath: '/library/Merged Folder' })]))
+        .mockReturnValueOnce(noHashConflict());
+
+      let releaseHolder!: () => void;
+      const holder = locks.withLock(bookOperationLockKey(10), () => new Promise<void>((resolve) => (releaseHolder = resolve)));
+      const adding = service.addFileToBook(10, 'book.epub', {} as any, user);
+
+      await vi.waitFor(() => expect(storage.streamToTemp).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(storage.moveToPath).not.toHaveBeenCalled();
+
+      releaseHolder();
+      await holder;
+      await adding;
+      expect(storage.moveToPath).toHaveBeenCalledWith('/tmp/upload.bin', '/library/Merged Folder/book.epub');
+    });
+
     it('adds a file successfully to an existing book with a primary file', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
 
       const result = await service.addFileToBook(10, 'book.epub', {} as any, user);
 
@@ -1245,7 +1318,10 @@ describe('UploadService', () => {
       },
     ])('$name', async ({ currentFormat, uploadedFormat, formatPriority, expectedPrimaryFileId }) => {
       mockUploadedFormat(uploadedFormat);
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 99, status: 'present', formatPriority }, [
         { id: 55, format: uploadedFormat, sizeBytes: 456 },
         { id: 99, format: currentFormat, sizeBytes: 1000 },
@@ -1265,7 +1341,10 @@ describe('UploadService', () => {
 
     it('elects an existing higher-priority file when the book has no primary', async () => {
       mockUploadedFormat('m4b');
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null })])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null })]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null })]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: null, status: 'present', formatPriority: ['epub', 'm4b'] }, [
         { id: 10, format: 'epub', sizeBytes: 1000 },
         { id: 55, format: 'm4b', sizeBytes: 456 },
@@ -1278,7 +1357,10 @@ describe('UploadService', () => {
     });
 
     it('promotes an uploaded read-aloud EPUB over an automatically selected plain EPUB', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 99, status: 'present', formatPriority: ['epub'] }, [
         { id: 55, format: 'epub', sizeBytes: 456, mediaOverlayAvailable: true },
         { id: 99, format: 'epub', sizeBytes: 1000, mediaOverlayAvailable: false },
@@ -1292,7 +1374,10 @@ describe('UploadService', () => {
 
     it('repairs a stale primary reference using the highest-priority eligible file', async () => {
       mockUploadedFormat('m4b');
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: 777 })])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: 777 })]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: 777 })]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 777, status: 'present', formatPriority: ['pdf', 'm4b'] }, [
         { id: 10, format: 'pdf', sizeBytes: 1000 },
         { id: 55, format: 'm4b', sizeBytes: 456 },
@@ -1306,7 +1391,10 @@ describe('UploadService', () => {
 
     it('ignores a zero-byte higher-priority legacy file during election', async () => {
       mockUploadedFormat('pdf');
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 99, status: 'present', formatPriority: ['epub', 'pdf', 'm4b'] }, [
         { id: 10, format: 'epub', sizeBytes: 0 },
         { id: 55, format: 'pdf', sizeBytes: 456 },
@@ -1320,7 +1408,10 @@ describe('UploadService', () => {
     });
 
     it('updates status and primary file together when a higher-priority format restores a missing book', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow({ status: 'missing' })])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ status: 'missing' })]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ status: 'missing' })]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 99, status: 'missing', formatPriority: ['epub', 'm4b'] }, [
         { id: 55, format: 'epub', sizeBytes: 456 },
         { id: 99, format: 'm4b', sizeBytes: 1000 },
@@ -1336,7 +1427,10 @@ describe('UploadService', () => {
     it('kicks off per-file audio duration extraction for an added audio file', async () => {
       validator.sanitizeFilename.mockReturnValue('chapter-02.mp3');
       validator.validateFormat.mockReturnValue('mp3');
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
 
       await service.addFileToBook(10, 'chapter-02.mp3', {} as any, user);
 
@@ -1347,7 +1441,10 @@ describe('UploadService', () => {
     it('measures appended audio files while preserving book metadata and reading state', async () => {
       mockUploadedFormat('m4b');
       vi.mocked(parseAudioDuration).mockResolvedValueOnce(123);
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       await service.addFileToBook(10, 'book.m4b', {} as any, user, { preserveMetadata: true });
       expect(parseAudioDuration).toHaveBeenCalledWith('/tmp/upload.bin');
       expect(insertValues).toHaveBeenCalledWith(expect.objectContaining({ durationSeconds: 123 }));
@@ -1358,7 +1455,7 @@ describe('UploadService', () => {
     it('leaves the library untouched when incoming audio duration cannot be measured', async () => {
       mockUploadedFormat('m4b');
       vi.mocked(parseAudioDuration).mockResolvedValueOnce(null);
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()]));
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(selectJoinChain([makeBookRow()]));
       await expect(service.addFileToBook(10, 'book.m4b', {} as any, user, { preserveMetadata: true })).rejects.toThrow('duration');
       expect(storage.moveToPath).not.toHaveBeenCalled();
       expect(insertValues).not.toHaveBeenCalled();
@@ -1368,7 +1465,10 @@ describe('UploadService', () => {
     it('places an added track by its name before the transaction commits, instead of after every other track', async () => {
       validator.sanitizeFilename.mockReturnValue('chapter-02.mp3');
       validator.validateFormat.mockReturnValue('mp3');
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
 
       await service.addFileToBook(10, 'chapter-02.mp3', {} as any, user);
 
@@ -1378,7 +1478,10 @@ describe('UploadService', () => {
     });
 
     it('leaves track order alone when the added file is not audio', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
 
       await service.addFileToBook(10, 'book.epub', {} as any, user);
 
@@ -1387,7 +1490,10 @@ describe('UploadService', () => {
 
     it('schedules audio chapter extraction when an M4B is added to an EPUB-primary book', async () => {
       mockUploadedFormat('m4b');
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 99, status: 'present', formatPriority: ['epub', 'm4b'] }, [
         { id: 99, format: 'epub', sizeBytes: 1000 },
         { id: 55, format: 'm4b', sizeBytes: 456 },
@@ -1400,7 +1506,10 @@ describe('UploadService', () => {
     });
 
     it('delegates duration extraction to the processor regardless of format (processor gates on audio)', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
 
       await service.addFileToBook(10, 'book.epub', {} as any, user);
 
@@ -1408,7 +1517,10 @@ describe('UploadService', () => {
     });
 
     it('promotes new file to primary when book has no primary file', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null })])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null })]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null })]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: null, status: 'present', formatPriority: ['epub', 'm4b'] }, [{ id: 55, format: 'epub', sizeBytes: 456 }]);
 
       const result = await service.addFileToBook(10, 'book.epub', {} as any, user);
@@ -1420,7 +1532,10 @@ describe('UploadService', () => {
     });
 
     it('updates book status from missing to present and promotes primary when null', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null, status: 'missing' })])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null, status: 'missing' })]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: null, status: 'missing' })]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: null, status: 'missing', formatPriority: ['epub', 'm4b'] }, [{ id: 55, format: 'epub', sizeBytes: 456 }]);
 
       const result = await service.addFileToBook(10, 'book.epub', {} as any, user);
@@ -1432,7 +1547,10 @@ describe('UploadService', () => {
     });
 
     it('updates only status when book is missing but already has a primary file', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: 42, status: 'missing' })])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: 42, status: 'missing' })]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ primaryFileId: 42, status: 'missing' })]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 42, status: 'missing', formatPriority: ['epub', 'm4b'] }, [
         { id: 42, format: 'epub', sizeBytes: 1000 },
         { id: 55, format: 'epub', sizeBytes: 456 },
@@ -1448,7 +1566,10 @@ describe('UploadService', () => {
     });
 
     it('does not call db.update when book is present and already has a primary', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
 
       await service.addFileToBook(10, 'book.epub', {} as any, user);
 
@@ -1456,14 +1577,17 @@ describe('UploadService', () => {
     });
 
     it('throws NotFoundException when book does not exist', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([]));
+      db.select.mockReturnValueOnce(selectJoinChain([])).mockReturnValueOnce(selectJoinChain([]));
 
       await expect(service.addFileToBook(999, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(NotFoundException);
       expect(storage.streamToTemp).not.toHaveBeenCalled();
     });
 
     it('does not insert when the book is deleted while the file is being uploaded', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       tx.select.mockReset().mockReturnValueOnce(lockedBookSelectChain([], forUpdate));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(NotFoundException);
@@ -1475,7 +1599,7 @@ describe('UploadService', () => {
     });
 
     it('throws ForbiddenException when user has no library access', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()]));
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(selectJoinChain([makeBookRow()]));
       libraryService.verifyUserAccess.mockRejectedValue(new ForbiddenException('No access'));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(ForbiddenException);
@@ -1490,6 +1614,7 @@ describe('UploadService', () => {
             makeBookRow({ folderPath: '/library/Book Title.txt', organizationMode: 'book_per_file', allowedFormats: ['txt', 'epub'] }),
           ]),
         )
+        .mockReturnValueOnce(selectJoinChain([makeBookRow({ folderPath: '/library/Book Title.txt', organizationMode: 'book_per_file' })]))
         .mockReturnValueOnce(noHashConflict());
 
       const result = await service.addFileToBook(10, 'Book Title.epub', {} as any, user);
@@ -1500,7 +1625,7 @@ describe('UploadService', () => {
     });
 
     it('throws BadRequestException when format validation fails', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()]));
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(selectJoinChain([makeBookRow()]));
       validator.validateFormat.mockImplementation(() => {
         throw new BadRequestException('Unsupported format');
       });
@@ -1510,7 +1635,7 @@ describe('UploadService', () => {
     });
 
     it('throws BadRequestException for empty file and cleans up temp', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()]));
+      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(selectJoinChain([makeBookRow()]));
       storage.streamToTemp.mockResolvedValue({ tempPath: '/tmp/upload.bin', sizeBytes: 0 });
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(BadRequestException);
@@ -1520,6 +1645,7 @@ describe('UploadService', () => {
     it('throws ConflictException for duplicate content hash and cleans up temp', async () => {
       db.select
         .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
         .mockReturnValueOnce(selectChain([{ id: 77, absolutePath: '/library/book.epub' }]));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(ConflictException);
@@ -1528,7 +1654,10 @@ describe('UploadService', () => {
     });
 
     it('throws ConflictException when destination file already exists and cleans up temp', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       mockFsAccess.mockResolvedValue(undefined);
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(ConflictException);
@@ -1537,7 +1666,10 @@ describe('UploadService', () => {
     });
 
     it('cleans up only temp when DB insert fails after move (file remains for scanner)', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       insertReturning.mockRejectedValue(new Error('DB error'));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toThrow('DB error');
@@ -1546,7 +1678,10 @@ describe('UploadService', () => {
     });
 
     it('does not dispatch processing when the primary election update fails', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       mockElection({ primaryFileId: 99, status: 'present', formatPriority: ['epub', 'm4b'] }, [
         { id: 55, format: 'epub', sizeBytes: 456 },
         { id: 99, format: 'm4b', sizeBytes: 1000 },
@@ -1562,7 +1697,10 @@ describe('UploadService', () => {
     });
 
     it('cleans up only temp when move fails (destination not yet written)', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       storage.moveToPath.mockRejectedValue(new Error('disk full'));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toThrow('disk full');
@@ -1570,7 +1708,10 @@ describe('UploadService', () => {
     });
 
     it('propagates access errors other than ENOENT from destinationExists check', async () => {
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
       mockFsAccess.mockRejectedValue(Object.assign(new Error('permission denied'), { code: 'EACCES' }));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toThrow('permission denied');
@@ -1590,7 +1731,10 @@ describe('UploadService', () => {
           durationSeconds: null,
         },
       ]);
-      db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(noHashConflict());
+      db.select
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
+        .mockReturnValueOnce(noHashConflict());
 
       const result = await service.addFileToBook(10, 'book.epub', {} as any, user);
 

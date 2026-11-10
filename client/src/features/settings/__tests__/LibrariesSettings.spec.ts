@@ -43,7 +43,7 @@ vi.mock('@/lib/api', () => ({
 }))
 
 vi.mock('vue-sonner', () => ({
-  toast: { success: toastSuccess, error: vi.fn<() => void>() },
+  toast: { success: toastSuccess, error: toastError },
 }))
 
 vi.mock('@/lib/clipboard', () => ({
@@ -67,6 +67,7 @@ const accessRef = ref<LibraryAccessEntry[]>([])
 const apiMock = vi.fn<(...args: unknown[]) => Promise<{ ok: boolean; json: () => Promise<unknown> }>>()
 type ToastOptions = { action?: { label: string; onClick: () => void }; description?: string }
 const toastSuccess = vi.hoisted(() => vi.fn<(message: string, options?: ToastOptions) => void>())
+const toastError = vi.hoisted(() => vi.fn<(message: string) => void>())
 const copyMock = vi.hoisted(() => vi.fn<(text: string) => Promise<boolean>>())
 
 // --- Factory helpers ---
@@ -74,7 +75,6 @@ const copyMock = vi.hoisted(() => vi.fn<(text: string) => Promise<boolean>>())
 function makeLibrary(overrides: Partial<Library> = {}): Library {
   return {
     id: 1,
-    type: 'books',
     name: 'Test Library',
     icon: null,
     displayOrder: 0,
@@ -108,7 +108,7 @@ function makeLibrary(overrides: Partial<Library> = {}): Library {
     fileWriteReadAlongEnabled: false,
     fileWriteReadAlongMaxFileSizeMb: 1000,
     fileRenameEnabled: false,
-    folders: [{ id: 1, path: '/books', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' }],
+    folders: [{ id: 1, path: '/books', createdAt: '2024-01-01T00:00:00.000Z' }],
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,
@@ -245,7 +245,7 @@ describe('LibrariesSettings ledger', () => {
     it('cuts a long path from the start so the folder that names the library stays visible', async () => {
       librariesRef.value = [
         makeLibrary({
-          folders: [{ id: 1, path: '/mnt/user/media/bookorbit/books/Novels', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' }],
+          folders: [{ id: 1, path: '/mnt/user/media/bookorbit/books/Novels', createdAt: '2024-01-01T00:00:00.000Z' }],
         }),
       ]
       const wrapper = await mountLoaded()
@@ -264,17 +264,13 @@ describe('LibrariesSettings ledger', () => {
     })
 
     it('prints the whole folder path in the ledger rather than hiding it behind a hover', async () => {
-      librariesRef.value = [
-        makeLibrary({ folders: [{ id: 1, path: '/srv/media/books/novels', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' }] }),
-      ]
+      librariesRef.value = [makeLibrary({ folders: [{ id: 1, path: '/srv/media/books/novels', createdAt: '2024-01-01T00:00:00.000Z' }] })]
       const wrapper = await mountLoaded()
       expect(tableText(wrapper)).toContain('/srv/media/books/novels')
     })
 
     it('keeps the identifying tail of the path on the narrower mobile card', async () => {
-      librariesRef.value = [
-        makeLibrary({ folders: [{ id: 1, path: '/srv/media/books/novels', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' }] }),
-      ]
+      librariesRef.value = [makeLibrary({ folders: [{ id: 1, path: '/srv/media/books/novels', createdAt: '2024-01-01T00:00:00.000Z' }] })]
       const wrapper = await mountLoaded()
       expect(wrapper.get('[data-testid="libraries-ledger-cards"]').text()).toContain('…/books/novels')
     })
@@ -282,7 +278,7 @@ describe('LibrariesSettings ledger', () => {
 
   describe('folders badge', () => {
     it('leaves the count out for a single folder, which the path line already shows', async () => {
-      librariesRef.value = [makeLibrary({ folders: [{ id: 1, path: '/books', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' }] })]
+      librariesRef.value = [makeLibrary({ folders: [{ id: 1, path: '/books', createdAt: '2024-01-01T00:00:00.000Z' }] })]
       const wrapper = await mountLoaded()
       expect(tableText(wrapper)).not.toContain('1 folder')
     })
@@ -291,9 +287,9 @@ describe('LibrariesSettings ledger', () => {
       librariesRef.value = [
         makeLibrary({
           folders: [
-            { id: 1, path: '/books/a', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' },
-            { id: 2, path: '/books/b', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' },
-            { id: 3, path: '/books/c', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' },
+            { id: 1, path: '/books/a', createdAt: '2024-01-01T00:00:00.000Z' },
+            { id: 2, path: '/books/b', createdAt: '2024-01-01T00:00:00.000Z' },
+            { id: 3, path: '/books/c', createdAt: '2024-01-01T00:00:00.000Z' },
           ],
         }),
       ]
@@ -306,8 +302,8 @@ describe('LibrariesSettings ledger', () => {
       librariesRef.value = [
         makeLibrary({
           folders: [
-            { id: 1, path: '/books/fiction', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' },
-            { id: 2, path: '/books/nonfiction', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' },
+            { id: 1, path: '/books/fiction', createdAt: '2024-01-01T00:00:00.000Z' },
+            { id: 2, path: '/books/nonfiction', createdAt: '2024-01-01T00:00:00.000Z' },
           ],
         }),
       ]
@@ -554,8 +550,8 @@ describe('LibrariesSettings ledger', () => {
   describe('filtering and sorting', () => {
     beforeEach(() => {
       librariesRef.value = [
-        makeLibrary({ id: 1, name: 'Novels', folders: [{ id: 1, path: '/srv/novels', role: 'downloads', createdAt: '2024-01-01T00:00:00.000Z' }] }),
-        makeLibrary({ id: 2, name: 'Comics', folders: [{ id: 2, path: '/srv/comics', role: 'downloads', createdAt: '2024-01-01T00:00:00.000Z' }] }),
+        makeLibrary({ id: 1, name: 'Novels', folders: [{ id: 1, path: '/srv/novels', createdAt: '2024-01-01T00:00:00.000Z' }] }),
+        makeLibrary({ id: 2, name: 'Comics', folders: [{ id: 2, path: '/srv/comics', createdAt: '2024-01-01T00:00:00.000Z' }] }),
       ]
       overviewRef.value = [makeEntry({ libraryId: 1, totalBooks: 381 }), makeEntry({ libraryId: 2, totalBooks: 23 })]
     })
@@ -767,7 +763,7 @@ describe('LibrariesSettings ledger', () => {
       librariesRef.value = [
         makeLibrary({
           id: 4,
-          folders: [{ id: 9, path: '/mnt/user/media/bookorbit/books/Novels', role: 'downloads' as const, createdAt: '2024-01-01T00:00:00.000Z' }],
+          folders: [{ id: 9, path: '/mnt/user/media/bookorbit/books/Novels', createdAt: '2024-01-01T00:00:00.000Z' }],
         }),
       ]
       copyMock.mockResolvedValue(true)
@@ -886,6 +882,38 @@ describe('LibrariesSettings ledger', () => {
       input.dispatchEvent(new Event('input'))
       await flushPromises()
       expect(confirmButton()?.disabled).toBe(false)
+
+      wrapper.unmount()
+      headerTarget.remove()
+    })
+
+    it('says the library is busy when a scan, move, rename or merge holds it, and keeps the dialog open', async () => {
+      const headerTarget = document.createElement('div')
+      headerTarget.id = 'settings-header-actions'
+      document.body.appendChild(headerTarget)
+      librariesRef.value = [makeLibrary({ id: 5, name: 'Novels' })]
+      const fallback = apiMock.getMockImplementation()!
+      apiMock.mockImplementation(async (path: unknown, init?: unknown) => {
+        if (String(path).endsWith('/libraries/5') && (init as RequestInit | undefined)?.method === 'DELETE') {
+          return { ok: false, status: 409, json: async () => ({ statusCode: 409, message: 'Busy', errorCode: 'LIBRARY_BUSY' }) }
+        }
+        return fallback(path, init)
+      })
+      const wrapper = await mountLoaded({ realTeleport: true })
+
+      wrapper.findComponent(LibraryRowActions).vm.$emit('remove', librariesRef.value[0]!)
+      await flushPromises()
+      const dialog = document.querySelector('[role="dialog"]')!
+      const input = dialog.querySelector('input') as HTMLInputElement
+      input.value = 'Novels'
+      input.dispatchEvent(new Event('input'))
+      await flushPromises()
+      ;[...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('Delete Library'))!.click()
+      await flushPromises()
+
+      expect(toastError).toHaveBeenCalledWith('The library is busy with a scan, move, rename or merge. Try again when it finishes.')
+      expect(toastSuccess).not.toHaveBeenCalled()
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Delete "Novels"?')
 
       wrapper.unmount()
       headerTarget.remove()

@@ -46,7 +46,7 @@ describe('audio metadata round-trip', () => {
     const filePath = join(tempDir, 'fixture.mp3');
     await generateAudioFixture(filePath);
 
-    const writer = new Mp3AudioFormatWriter(new AudioMetadataEmbedder());
+    const writer = new Mp3AudioFormatWriter(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
     await writer.write(
       filePath,
       {
@@ -106,6 +106,23 @@ describe('audio metadata round-trip', () => {
     expect(extracted.authors).toEqual([{ name: 'Author One', sortName: null }]);
   });
 
+  it('preserves MP3 chapter boundaries across repeated metadata writes', async () => {
+    const filePath = join(tempDir, 'chaptered.mp3');
+    await generateChapteredMp3Fixture(filePath);
+    const chaptersBefore = await probeChapters(filePath);
+    const writer = new Mp3AudioFormatWriter(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
+
+    expect(chaptersBefore).toEqual([
+      { title: 'One', startMs: 0, endMs: 1_500 },
+      { title: 'Two', startMs: 1_500, endMs: 3_000 },
+    ]);
+
+    for (const title of ['First write', 'Second write']) {
+      await writer.write(filePath, { title }, { dryRun: false, fieldMask: new Set(['title']) });
+      expect(await probeChapters(filePath)).toEqual(chaptersBefore);
+    }
+  });
+
   it.each([
     ['m4b', M4bAudioFormatWriter],
     ['m4a', M4aAudioFormatWriter],
@@ -113,7 +130,7 @@ describe('audio metadata round-trip', () => {
     const filePath = join(tempDir, `fixture.${format}`);
     await generateAudioFixture(filePath, 'aac');
 
-    const writer = new Writer(new AudioMetadataEmbedder());
+    const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
     await writer.write(
       filePath,
       {
@@ -179,7 +196,7 @@ describe('audio metadata round-trip', () => {
     await generateAudioFixture(filePath, 'aac');
     await generateCoverFixture(coverPath);
 
-    const writer = new Writer(new AudioMetadataEmbedder());
+    const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
     await writer.write(
       filePath,
       {
@@ -237,7 +254,7 @@ describe('audio metadata round-trip', () => {
     const coverPath = join(tempDir, 'cover.jpg');
     await generateAudioFixture(filePath, 'aac');
     await generateCoverFixture(coverPath);
-    const writer = new M4bAudioFormatWriter(new AudioMetadataEmbedder());
+    const writer = new M4bAudioFormatWriter(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
     await writer.write(
       filePath,
       { title: 'Old Title', coverBytes: await readFile(coverPath) },
@@ -274,7 +291,7 @@ describe('audio metadata round-trip', () => {
     await generateAudioFixture(filePath, 'aac');
     await generateCoverFixture(coverPath);
 
-    const writer = new Writer(new AudioMetadataEmbedder());
+    const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
     await writer.write(
       filePath,
       {
@@ -334,7 +351,7 @@ describe('audio metadata round-trip', () => {
     await generateChapteredAudioFixture(filePath, coverPath);
     const artBefore = await extractArt(filePath);
 
-    const writer = new Writer(new AudioMetadataEmbedder());
+    const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
     await expect(
       writer.write(filePath, { title: 'Chaptered Title', coverBytes: null }, { dryRun: false, fieldMask: createBookWriteFieldMask() }),
     ).resolves.toEqual(expect.objectContaining({ status: 'success' }));
@@ -355,7 +372,7 @@ describe('audio metadata round-trip', () => {
       await generateCoverFixture(coverPath);
       await generateChapteredAudioFixture(filePath, coverPath, 'libmp3lame');
 
-      const writer = new Writer(new AudioMetadataEmbedder());
+      const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
       await expect(
         writer.write(
           filePath,
@@ -391,7 +408,7 @@ describe('audio metadata round-trip', () => {
       await generateChapteredAudioFixture(filePath, coverPath, 'libmp3lame');
       const artBefore = await extractArt(filePath);
 
-      const writer = new Writer(new AudioMetadataEmbedder());
+      const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
       await expect(
         writer.write(
           filePath,
@@ -412,7 +429,7 @@ describe('audio metadata round-trip', () => {
       await generateChapteredAudioFixture(filePath, coverPath, 'libmp3lame');
       vi.stubEnv('FFPROBE_PATH', join(tempDir, 'missing-ffprobe'));
 
-      const writer = new Writer(new AudioMetadataEmbedder());
+      const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
       await expect(
         writer.write(
           filePath,
@@ -445,7 +462,7 @@ describe('audio metadata round-trip', () => {
         filePath,
       ]);
 
-      const writer = new Writer(new AudioMetadataEmbedder());
+      const writer = new Writer(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
       await expect(
         writer.write(filePath, { title: 'Bare Title', subtitle: 'Bare Subtitle' }, { dryRun: false, fieldMask: createBookWriteFieldMask() }),
       ).resolves.toEqual(expect.objectContaining({ status: 'success' }));
@@ -461,7 +478,7 @@ describe('audio metadata round-trip', () => {
     await generateCoverFixture(coverPath);
     await generateChapteredAudioFixture(filePath, coverPath, 'aac');
 
-    const writer = new M4bAudioFormatWriter(new AudioMetadataEmbedder());
+    const writer = new M4bAudioFormatWriter(new AudioMetadataEmbedder({ ffmpegPath, ffprobePath }));
     await writer.write(
       filePath,
       { title: 'Branded', coverBytes: await readFile(coverPath) },
@@ -511,10 +528,46 @@ describe('audio metadata round-trip', () => {
     ]);
   }
 
+  async function generateChapteredMp3Fixture(filePath: string): Promise<void> {
+    const chaptersPath = join(tempDir, 'mp3-chapters.txt');
+    await writeFile(
+      chaptersPath,
+      ';FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=1500\ntitle=One\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=1500\nEND=3000\ntitle=Two\n',
+    );
+    await execFile(ffmpegPath, [
+      '-v',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=1000:duration=3:sample_rate=44100',
+      '-i',
+      chaptersPath,
+      '-map_metadata',
+      '1',
+      '-map_chapters',
+      '1',
+      '-c:a',
+      'libmp3lame',
+      filePath,
+    ]);
+  }
+
   async function probeChapterTitles(filePath: string): Promise<string[]> {
+    return (await probeChapters(filePath)).map((chapter) => chapter.title);
+  }
+
+  async function probeChapters(filePath: string): Promise<Array<{ title: string; startMs: number; endMs: number }>> {
     const { stdout } = await execFile(ffprobePath, ['-v', 'quiet', '-print_format', 'json', '-show_chapters', filePath]);
-    const parsed = JSON.parse(stdout) as { chapters?: Array<{ tags?: { title?: string } }> };
-    return (parsed.chapters ?? []).map((chapter) => chapter.tags?.title ?? '');
+    const parsed = JSON.parse(stdout) as {
+      chapters?: Array<{ start_time: string; end_time: string; tags?: { title?: string } }>;
+    };
+    return (parsed.chapters ?? []).map((chapter) => ({
+      title: chapter.tags?.title ?? '',
+      startMs: Math.round(Number(chapter.start_time) * 1000),
+      endMs: Math.round(Number(chapter.end_time) * 1000),
+    }));
   }
 
   async function extractArt(filePath: string): Promise<string> {

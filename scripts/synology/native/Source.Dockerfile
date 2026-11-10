@@ -8,7 +8,7 @@ WORKDIR /source
 ADD dependencies.tar /source/
 COPY preload-store.tgz /tmp/preload-store.tgz
 ARG STORE_CACHE=bookorbit-native-source-v11-none
-RUN --mount=type=cache,id=${STORE_CACHE},target=/pnpm/store,sharing=locked if [ ! -f /pnpm/store/v11/index.db ]; then tar -xzf /tmp/preload-store.tgz -C /pnpm/store; fi && pnpm install --frozen-lockfile --store-dir /pnpm/store --fetch-timeout 300000 --network-concurrency 8
+RUN --mount=type=cache,id=${STORE_CACHE},target=/pnpm/store,sharing=locked if [ ! -f /pnpm/store/v11/index.db ]; then tar -xzf /tmp/preload-store.tgz -C /pnpm/store; fi && pnpm --filter client... --filter server... install --frozen-lockfile --config.allow-unused-patches=true --store-dir /pnpm/store --fetch-timeout 300000 --network-concurrency 8
 ADD source.tar /source/
 RUN pnpm --filter client run build-only
 RUN pnpm --filter server run build

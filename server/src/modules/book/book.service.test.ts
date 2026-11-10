@@ -10,7 +10,7 @@ import { SelfWriteRegistry } from '../../common/services/self-write-registry.ser
 import { FileWatcherService, WATCHER_DEBOUNCE_MS } from '../scanner/file-watcher.service';
 import {
   AUDIO_BOOK_FILE_WRITE_FIELDS,
-  BOOK_FORMATS,
+  BOOK_FILTER_FORMATS,
   MetadataProviderKey,
   Permission,
   type BookQuery,
@@ -178,6 +178,10 @@ function makeService(
     findIdsByWhere: vi.fn(),
     findDistinctLibraryIdsByWhere: vi.fn(),
     findCardsCollapsed: vi.fn(),
+    findCardsLinkCollapsed: vi.fn(),
+    hasCollapsibleLinks: vi.fn().mockResolvedValue(false),
+    findLinkedBookIds: vi.fn().mockResolvedValue([]),
+    findCardLinks: vi.fn().mockResolvedValue(new Map()),
     findJumpBuckets: vi.fn(),
     findJumpBucketsCollapsed: vi.fn(),
     findTemporalJumpBuckets: vi.fn(),
@@ -442,6 +446,37 @@ describe('BookService', () => {
     mockParseFb2File.mockReset();
     mockParseMobiFile.mockReset();
     mockParsePdfFile.mockReset();
+  });
+
+  describe('findLinkGroupMembers', () => {
+    it('returns the members this user may see, as summaries without the group id', async () => {
+      const { service } = makeService();
+      vi.spyOn(service, 'accessibleBooksWhere').mockResolvedValue('access-where' as never);
+      const member = {
+        groupId: 9,
+        bookId: 1,
+        libraryId: 2,
+        libraryName: 'Ebooks',
+        title: 'Kindred',
+        formats: ['epub'],
+        mediaKind: 'ebook',
+        status: 'present',
+        isLead: true,
+      };
+      const findMembers = vi.fn().mockResolvedValue([member]);
+      Object.assign(service, { linkMembers: { findMembers } });
+
+      await expect(service.findLinkGroupMembers(9, makeUser())).resolves.toEqual([
+        { bookId: 1, libraryId: 2, libraryName: 'Ebooks', title: 'Kindred', formats: ['epub'], mediaKind: 'ebook', status: 'present', isLead: true },
+      ]);
+      expect(findMembers).toHaveBeenCalledWith([9], 'access-where');
+    });
+
+    it('returns nothing when links are not available', async () => {
+      const { service } = makeService();
+
+      await expect(service.findLinkGroupMembers(9, makeUser())).resolves.toEqual([]);
+    });
   });
 
   describe('download naming', () => {
@@ -1058,6 +1093,7 @@ describe('BookService', () => {
             [MetadataProviderKey.OPEN_LIBRARY]: 'ol-id',
           },
           isAudiobook: false,
+          mediaKind: 'ebook',
           maxCandidatesPerProvider: 1,
         },
         {
@@ -1120,7 +1156,7 @@ describe('BookService', () => {
         1,
         { title: 'Resolved', authors: ['A'], genres: ['G'], isbn10: '0306406152', isbn13: '9780306406157' },
         user,
-        { postSaveMode: 'schedule' },
+        { postSaveMode: 'schedule', chaptersSource: 'provider' },
       );
       expect(metadataService.downloadAndSaveCover).toHaveBeenCalledWith([{ url: 'https://img/c.jpg' }], 1, 'ebook');
       expect(getDetailSpy).toHaveBeenCalledWith(1, user);
@@ -1170,6 +1206,25 @@ describe('BookService', () => {
       expect(metadataService.downloadAndSaveCover).toHaveBeenCalledTimes(1);
       expect(metadataService.downloadAndSaveCover).toHaveBeenCalledWith(audioCoverChoices, 1, 'audio');
       expect(getDetailSpy).toHaveBeenCalledWith(1, user);
+    });
+
+    it('refreshMetadata hands the stored chapters to the pipeline so a fetch only fills a book without any', async () => {
+      const { service, bookRepo, pipeline, coverStore } = makeService();
+      const chapters = [{ title: 'Stored', startMs: 0 }];
+      bookRepo.findById.mockResolvedValue({
+        book: { books: { id: 1, libraryId: 7 }, book_metadata: { title: 'Old', chapters } },
+        authorRows: [],
+        genreRows: [],
+        narratorRows: [],
+        communityRatingRows: [],
+        fileRows: [{ format: 'm4b', role: 'content', mediaOverlayAvailable: false }],
+      });
+      pipeline.runWithSources.mockResolvedValue({ resolved: {}, sources: {}, providerIds: {} });
+      coverStore.fetchState.mockResolvedValue({ media: { hasEbook: false, hasAudio: true }, filled: { ebook: false, audio: true }, locked: [] });
+
+      await service.refreshMetadata(1, true, makeUser());
+
+      expect(pipeline.runWithSources).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ chapters }), 7, expect.any(Object));
     });
 
     it('refreshMetadata answers not found when the book disappears before its cover state is read', async () => {
@@ -1441,7 +1496,7 @@ describe('BookService', () => {
           openLibraryId: 'ol-id',
         },
         user,
-        { postSaveMode: 'schedule' },
+        { postSaveMode: 'schedule', chaptersSource: 'provider' },
       );
     });
 
@@ -1482,7 +1537,7 @@ describe('BookService', () => {
           hardcoverId: 'the-name-of-the-wind',
         },
         user,
-        { postSaveMode: 'schedule' },
+        { postSaveMode: 'schedule', chaptersSource: 'provider' },
       );
     });
 
@@ -1570,7 +1625,7 @@ describe('BookService', () => {
           communityRatings: [{ provider: MetadataProviderKey.HARDCOVER, rating: 4.25, ratingCount: 12345, updatedAt: null }],
         },
         user,
-        { postSaveMode: 'schedule' },
+        { postSaveMode: 'schedule', chaptersSource: 'provider' },
       );
     });
 
@@ -1619,7 +1674,7 @@ describe('BookService', () => {
           ],
         },
         user,
-        { postSaveMode: 'schedule' },
+        { postSaveMode: 'schedule', chaptersSource: 'provider' },
       );
     });
 
@@ -1668,7 +1723,7 @@ describe('BookService', () => {
           },
         },
         user,
-        { postSaveMode: 'schedule' },
+        { postSaveMode: 'schedule', chaptersSource: 'provider' },
       );
     });
 
@@ -1717,7 +1772,7 @@ describe('BookService', () => {
           },
         },
         user,
-        { postSaveMode: 'schedule' },
+        { postSaveMode: 'schedule', chaptersSource: 'provider' },
       );
     });
 
@@ -1755,7 +1810,7 @@ describe('BookService', () => {
 
       await service.refreshMetadata(1, false, user);
 
-      expect(updateSpy).toHaveBeenCalledWith(1, { authors: ['A'] }, user, { postSaveMode: 'schedule' });
+      expect(updateSpy).toHaveBeenCalledWith(1, { authors: ['A'] }, user, { postSaveMode: 'schedule', chaptersSource: 'provider' });
       expect(metadataService.downloadAndSaveCover).not.toHaveBeenCalled();
     });
 
@@ -1925,6 +1980,67 @@ describe('BookService', () => {
       const options = { previousSeriesIds: new Set([31]) };
       expect(seriesExpectedCount.setManual).toHaveBeenNthCalledWith(1, 'Harry Potter', 7, expect.anything(), options);
       expect(seriesExpectedCount.setManual).toHaveBeenNthCalledWith(2, 'Hogwarts Library', null, expect.anything(), options);
+    });
+
+    it('updateMetadata cleans chapters instead of rejecting them and records who changed them', async () => {
+      const { service, bookRepo } = makeService();
+      const user = makeUser();
+      const audiobookChapters = { recordCurrentRevision: vi.fn().mockResolvedValue(undefined) };
+      Object.assign(service, { audiobookChapters });
+      vi.spyOn(service, 'verifyBookAccess').mockResolvedValue(undefined);
+      vi.spyOn(service, 'getDetail').mockResolvedValue({ id: 5 } as never);
+
+      await service.updateMetadata(
+        5,
+        {
+          audioMetadata: {
+            chapters: [
+              { title: 'Two', startMs: 2_000 },
+              { title: '', startMs: 0 },
+              { title: 'Again', startMs: 2_000 },
+            ],
+          },
+        },
+        user,
+      );
+
+      expect(bookRepo.updateMetadataFields).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({
+          chapters: [
+            { title: 'Chapter 1', startMs: 0 },
+            { title: 'Two', startMs: 2_000 },
+          ],
+          chaptersSource: 'manual',
+          chaptersUpdatedBy: user.id,
+          chaptersUpdatedAt: expect.any(Date),
+        }),
+        expect.anything(),
+      );
+      expect(audiobookChapters.recordCurrentRevision).toHaveBeenCalledWith(5);
+    });
+
+    it('updateMetadata stores provider chapters without naming a person, and clears the source with the list', async () => {
+      const { service, bookRepo } = makeService();
+      const user = makeUser();
+      vi.spyOn(service, 'verifyBookAccess').mockResolvedValue(undefined);
+      vi.spyOn(service, 'getDetail').mockResolvedValue({ id: 5 } as never);
+
+      await service.updateMetadata(5, { audioMetadata: { chapters: [{ title: 'One', startMs: 0 }] } }, user, { chaptersSource: 'provider' });
+      await service.updateMetadata(5, { audioMetadata: { chapters: [] } }, user);
+
+      expect(bookRepo.updateMetadataFields).toHaveBeenNthCalledWith(
+        1,
+        5,
+        expect.objectContaining({ chaptersSource: 'provider', chaptersUpdatedBy: null }),
+        expect.anything(),
+      );
+      expect(bookRepo.updateMetadataFields).toHaveBeenNthCalledWith(
+        2,
+        5,
+        expect.objectContaining({ chapters: null, chaptersSource: null, chaptersUpdatedBy: null }),
+        expect.anything(),
+      );
     });
 
     it('updateMetadata with empty communityRatings clears all existing ratings', async () => {
@@ -2820,6 +2936,7 @@ describe('BookService', () => {
         handleUnlinkDir: vi.fn().mockResolvedValue({ type: 'noop' }),
       };
       const scanner = {
+        ownsPath: vi.fn().mockResolvedValue(true),
         bufferBookMissingEvent: vi.fn(),
         bufferBooksUnavailableNotification: vi.fn(),
       };
@@ -3833,6 +3950,25 @@ describe('BookService', () => {
         expect.objectContaining({ where: 'WHERE', sort: [{ field: 'title', dir: 'asc' }], userId: 9 }),
       );
       expect(bookRepo.findJumpBuckets).not.toHaveBeenCalled();
+    });
+
+    it('executeJumpBucketsQuery folds links the way the listing does when collapseLinked finds a group', async () => {
+      const { service, queryBuilder, bookRepo } = makeService();
+      bookRepo.hasCollapsibleLinks.mockResolvedValue(true);
+      queryBuilder.buildOrderBy.mockReturnValue(['ORDER'] as never);
+      bookRepo.findJumpBuckets.mockResolvedValue({ buckets: [], total: 0, kind: 'letter', granularity: null });
+      bookRepo.findTemporalJumpBuckets.mockResolvedValue({ buckets: [], total: 0, kind: 'temporal', granularity: null });
+      bookRepo.findJumpBucketsCollapsed.mockResolvedValue({ buckets: [], total: 0, kind: 'letter', granularity: null });
+
+      const base = { pagination: { page: 0, size: 50 }, maxBuckets: 24, collapseLinked: true };
+      await service.executeJumpBucketsQuery(9, 'WHERE' as never, { ...base, sort: [{ field: 'title', dir: 'asc' }] } as never);
+      await service.executeJumpBucketsQuery(9, 'WHERE' as never, { ...base, sort: [{ field: 'addedAt', dir: 'desc' }] } as never);
+      await service.executeJumpBucketsQuery(9, 'WHERE' as never, { ...base, sort: [{ field: 'title', dir: 'asc' }], collapseSeries: true } as never);
+
+      expect(bookRepo.hasCollapsibleLinks).toHaveBeenCalledWith('WHERE');
+      expect(bookRepo.findJumpBuckets).toHaveBeenCalledWith(expect.objectContaining({ orderBy: ['ORDER'], collapseLinked: true }));
+      expect(bookRepo.findTemporalJumpBuckets).toHaveBeenCalledWith(expect.objectContaining({ linkCollapseOrderBy: ['ORDER'] }));
+      expect(bookRepo.findJumpBucketsCollapsed).toHaveBeenCalledWith(expect.objectContaining({ collapseLinked: true }));
     });
 
     it('executeJumpBucketsQuery ignores collapseSeries when the filter targets a series', async () => {
@@ -5155,6 +5291,39 @@ describe('BookService', () => {
         { title: 'Bonus', startMs: 90_000 },
       ]);
       expect(result.files.map((file) => file.filename)).toEqual(['Bonus.mp3', 'Part 01.mp3', 'Part 02.mp3']);
+      expect(result.audioMetadata).toMatchObject({ chaptersSource: 'tracks', chaptersUpdatedAt: null });
+    });
+
+    it('serves a stored chapter list cleaned for clients, with its source', async () => {
+      const { service, bookRepo } = makeService();
+      vi.spyOn(service, 'verifyBookAccess').mockResolvedValue(undefined);
+      mockAudiobookDetail(bookRepo, [
+        { id: 1, updatedAt: new Date('2026-01-01'), absolutePath: '/audio/Book.m4b', durationSeconds: 600, sortOrder: null },
+      ]);
+      const found = await bookRepo.findById(21);
+      found.book.book_metadata = {
+        title: 'Tracks',
+        durationSeconds: 600,
+        chapters: [
+          { title: 'Later', startMs: 5_000, durationMs: 100 },
+          { title: '', startMs: 0 },
+          { title: 'Duplicate', startMs: 5_000 },
+        ],
+        chaptersSource: 'provider',
+        chaptersUpdatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      };
+      bookRepo.findById.mockResolvedValue(found);
+
+      const result = await service.getDetail(21, makeUser());
+
+      expect(result.audioMetadata).toMatchObject({
+        chapters: [
+          { title: 'Chapter 1', startMs: 0 },
+          { title: 'Later', startMs: 5_000 },
+        ],
+        chaptersSource: 'provider',
+        chaptersUpdatedAt: '2026-03-01T00:00:00.000Z',
+      });
     });
 
     it('does not synthesize chapters while any track duration is unknown', async () => {
@@ -5704,7 +5873,7 @@ describe('BookService', () => {
       expect(queryBuilder.buildWhere).toHaveBeenCalledTimes(2);
       expect(bookRepo.countWhere).toHaveBeenCalledWith({ filter, q: 'dune' });
       expect(bookRepo.countWhere).toHaveBeenCalledWith({ filter: undefined, q: undefined });
-      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter, q: 'dune' }, BOOK_FORMATS);
+      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter, q: 'dune' }, BOOK_FILTER_FORMATS);
       expect(result).toEqual({ total: 12, libraryTotal: 40, formats: [] });
     });
 
@@ -5733,7 +5902,7 @@ describe('BookService', () => {
       expect(queryBuilder.buildWhere).toHaveBeenCalledWith(filter, expect.objectContaining({ q: 'dune' }));
       expect(queryBuilder.buildWhere).toHaveBeenCalledWith(stripped, expect.objectContaining({ q: 'dune' }));
       expect(bookRepo.countWhere).toHaveBeenCalledWith({ filter, q: 'dune' });
-      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter: stripped, q: 'dune' }, BOOK_FORMATS);
+      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter: stripped, q: 'dune' }, BOOK_FILTER_FORMATS);
       expect(filter.rules).toHaveLength(4);
     });
 
@@ -5745,7 +5914,7 @@ describe('BookService', () => {
 
       expect(queryBuilder.buildWhere).toHaveBeenCalledTimes(2);
       expect(bookRepo.countWhere).toHaveBeenCalledWith({ filter, q: undefined });
-      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter, q: undefined }, BOOK_FORMATS);
+      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter, q: undefined }, BOOK_FILTER_FORMATS);
     });
 
     it('keeps a root format exclusion, which the chips do not own', async () => {
@@ -5757,7 +5926,7 @@ describe('BookService', () => {
 
       expect(bookRepo.countFormatFacets).toHaveBeenCalledWith(
         { filter: { type: 'group', join: 'AND', rules: [excludePdf] }, q: undefined },
-        BOOK_FORMATS,
+        BOOK_FILTER_FORMATS,
       );
     });
 
@@ -5771,7 +5940,7 @@ describe('BookService', () => {
 
       await service.facetsForLibrary(makeUser(), 7, facetQuery(filter));
 
-      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter, q: undefined }, BOOK_FORMATS);
+      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter, q: undefined }, BOOK_FILTER_FORMATS);
     });
 
     it('drops the filter entirely when the only root rule is a format rule, still applying q', async () => {
@@ -5782,12 +5951,13 @@ describe('BookService', () => {
 
       expect(queryBuilder.buildWhere).toHaveBeenCalledWith(undefined, expect.objectContaining({ q: 'dune' }));
       expect(bookRepo.countWhere).toHaveBeenCalledWith({ filter, q: 'dune' });
-      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter: undefined, q: 'dune' }, BOOK_FORMATS);
+      expect(bookRepo.countFormatFacets).toHaveBeenCalledWith({ filter: undefined, q: 'dune' }, BOOK_FILTER_FORMATS);
     });
 
     it('sorts formats by count then name and omits empty ones', async () => {
       const { service, bookRepo } = makeFacetService();
       bookRepo.countFormatFacets.mockResolvedValue([
+        { format: 'epub:readalong', count: 4 },
         { format: 'pdf', count: 3 },
         { format: 'epub', count: 7 },
         { format: 'cbz', count: 0 },
@@ -5799,6 +5969,7 @@ describe('BookService', () => {
 
       expect(result.formats).toEqual([
         { format: 'epub', count: 7 },
+        { format: 'epub:readalong', count: 4 },
         { format: 'mobi', count: 3 },
         { format: 'pdf', count: 3 },
         { format: 'azw3', count: 1 },
@@ -5935,7 +6106,123 @@ describe('BookService', () => {
       });
       expect(bookRepo.findCards).not.toHaveBeenCalled();
       expect(queryBuilder.buildOrderBy).not.toHaveBeenCalled();
-      expect(result).toEqual({ items: [], total: 0, page: 1, size: 25 });
+      expect(result).toEqual({ items: [], total: 0, page: 1, size: 25, bookTotal: 0 });
+    });
+
+    it('reports the series-collapsed book total beside the card total', async () => {
+      const { service, bookRepo } = makeService();
+      vi.spyOn(BookQueryBuilder, 'hasSeriesSelectionFilter').mockReturnValue(false);
+      bookRepo.findCardsCollapsed.mockResolvedValue({ ...emptyCardQueryResult, total: 3, bookTotal: 7 });
+
+      const result = await service.executeBooksQuery(12, undefined, { pagination: { page: 0, size: 50 }, sort: [], collapseSeries: true });
+
+      expect(result.total).toBe(3);
+      expect(result.bookTotal).toBe(7);
+    });
+
+    it('leaves bookTotal out and skips the link probe when no collapse flag is set', async () => {
+      const { service, bookRepo, queryBuilder } = makeService();
+      queryBuilder.buildOrderBy.mockReturnValue(['order-by']);
+      bookRepo.findCards.mockResolvedValue({ ...emptyCardQueryResult, total: 4 });
+
+      const result = await service.executeBooksQuery(12, 'where' as never, { pagination: { page: 0, size: 50 }, sort: [] });
+
+      expect(bookRepo.hasCollapsibleLinks).not.toHaveBeenCalled();
+      expect(bookRepo.findCardsLinkCollapsed).not.toHaveBeenCalled();
+      expect(result).not.toHaveProperty('bookTotal');
+    });
+
+    it('runs the plain query and reports bookTotal = total when no link group has two matching members', async () => {
+      const { service, bookRepo, queryBuilder } = makeService();
+      queryBuilder.buildOrderBy.mockReturnValue(['order-by']);
+      bookRepo.hasCollapsibleLinks.mockResolvedValue(false);
+      bookRepo.findCards.mockResolvedValue({ ...emptyCardQueryResult, total: 4 });
+
+      const result = await service.executeBooksQuery(12, 'where' as never, { pagination: { page: 0, size: 50 }, sort: [], collapseLinked: true });
+
+      expect(bookRepo.hasCollapsibleLinks).toHaveBeenCalledWith('where');
+      expect(bookRepo.findCards).toHaveBeenCalled();
+      expect(bookRepo.findCardsLinkCollapsed).not.toHaveBeenCalled();
+      expect(result.total).toBe(4);
+      expect(result.bookTotal).toBe(4);
+    });
+
+    it('folds linked books with the listing order when a link group matches twice', async () => {
+      const { service, bookRepo, queryBuilder } = makeService();
+      queryBuilder.buildOrderBy.mockReturnValue(['order-by']);
+      bookRepo.hasCollapsibleLinks.mockResolvedValue(true);
+      bookRepo.findCardsLinkCollapsed.mockResolvedValue({ ...emptyCardQueryResult, total: 5, bookTotal: 6 });
+
+      const result = await service.executeBooksQuery(12, 'where' as never, { pagination: { page: 1, size: 10 }, sort: [], collapseLinked: true });
+
+      expect(bookRepo.findCardsLinkCollapsed).toHaveBeenCalledWith({ where: 'where', orderBy: ['order-by'], limit: 10, offset: 10, userId: 12 });
+      expect(bookRepo.findCards).not.toHaveBeenCalled();
+      expect(result.total).toBe(5);
+      expect(result.bookTotal).toBe(6);
+    });
+
+    it('folds links inside the series-collapsed query when both flags are set', async () => {
+      const { service, bookRepo } = makeService();
+      vi.spyOn(BookQueryBuilder, 'hasSeriesSelectionFilter').mockReturnValue(false);
+      bookRepo.hasCollapsibleLinks.mockResolvedValue(true);
+      bookRepo.findCardsCollapsed.mockResolvedValue({ ...emptyCardQueryResult, total: 2, bookTotal: 5 });
+
+      const result = await service.executeBooksQuery(12, undefined, {
+        pagination: { page: 0, size: 50 },
+        sort: [],
+        collapseSeries: true,
+        collapseLinked: true,
+      });
+
+      expect(bookRepo.findCardsCollapsed).toHaveBeenCalledWith(expect.objectContaining({ collapseLinked: true }));
+      expect(bookRepo.findCardsLinkCollapsed).not.toHaveBeenCalled();
+      expect(result.bookTotal).toBe(5);
+    });
+
+    it('attaches link info for the viewer and skips series stacks', async () => {
+      const { service, bookRepo, queryBuilder } = makeService();
+      vi.spyOn(BookQueryBuilder, 'hasSeriesSelectionFilter').mockReturnValue(false);
+      vi.spyOn(service, 'accessibleBooksWhere').mockResolvedValue('access-where' as never);
+      queryBuilder.buildOrderBy.mockReturnValue(['order-by']);
+      const row = (id: number) => ({
+        id,
+        status: 'present',
+        primaryFileId: null,
+        folderPath: `/books/${id}`,
+        addedAt: new Date('2026-01-01T00:00:00.000Z'),
+        title: `Book ${id}`,
+        seriesName: null,
+        seriesIndex: null,
+        publishedYear: null,
+        language: null,
+        rating: null,
+      });
+      bookRepo.findCards.mockResolvedValue({ ...emptyCardQueryResult, rows: [row(1), row(2)], total: 2 });
+      bookRepo.findLinkedBookIds.mockResolvedValue([1]);
+      const info = { groupId: 9, books: [{ bookId: 3, libraryId: 4, formats: ['m4b'], mediaKind: 'audiobook' }], memberCount: 2 };
+      bookRepo.findCardLinks.mockResolvedValue(new Map([[1, info]]));
+
+      const result = await service.executeBooksQuery(
+        12,
+        undefined,
+        { pagination: { page: 0, size: 50 }, sort: [] },
+        { viewer: makeUser({ id: 12 }) },
+      );
+
+      expect(bookRepo.findLinkedBookIds).toHaveBeenCalledWith([1, 2]);
+      expect(bookRepo.findCardLinks).toHaveBeenCalledWith([1], 'access-where');
+      expect(result.items.find((card) => card.id === 1)?.linked).toEqual(info);
+      expect(result.items.find((card) => card.id === 2)).not.toHaveProperty('linked');
+    });
+
+    it('does not look up links when no viewer is given', async () => {
+      const { service, bookRepo, queryBuilder } = makeService();
+      queryBuilder.buildOrderBy.mockReturnValue(['order-by']);
+      bookRepo.findCards.mockResolvedValue(emptyCardQueryResult);
+
+      await service.executeBooksQuery(12, undefined, { pagination: { page: 0, size: 50 }, sort: [] });
+
+      expect(bookRepo.findLinkedBookIds).not.toHaveBeenCalled();
     });
 
     it('passes collection ordering context to a collapsed collectionOrder query', async () => {
@@ -6132,7 +6419,7 @@ describe('BookService', () => {
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        '[book.list_query] [end] userId=12 page=0 size=50 filterCount=0 sortFields=0 collapseSeries=false resultCount=0 durationMs=600 - slow query',
+        '[book.list_query] [end] userId=12 page=0 size=50 filterCount=0 sortFields=0 collapseSeries=false collapseLinked=false resultCount=0 durationMs=600 - slow query',
       );
     });
 
@@ -6152,7 +6439,7 @@ describe('BookService', () => {
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        '[book.list_query] [end] userId=12 page=0 size=50 filterCount=0 sortFields=0 collapseSeries=true resultCount=0 durationMs=600 - slow query',
+        '[book.list_query] [end] userId=12 page=0 size=50 filterCount=0 sortFields=0 collapseSeries=true collapseLinked=false resultCount=0 durationMs=600 - slow query',
       );
     });
 
@@ -6181,7 +6468,7 @@ describe('BookService', () => {
       });
 
       expect(warnSpy).toHaveBeenCalledWith(
-        '[book.list_query] [end] userId=77 page=2 size=25 filterCount=2 sortFields=2 collapseSeries=false resultCount=0 durationMs=900 - slow query',
+        '[book.list_query] [end] userId=77 page=2 size=25 filterCount=2 sortFields=2 collapseSeries=false collapseLinked=false resultCount=0 durationMs=900 - slow query',
       );
     });
   });

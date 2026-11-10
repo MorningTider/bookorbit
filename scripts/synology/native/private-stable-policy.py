@@ -14,12 +14,12 @@ def digest(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
-def validate(path,source,inventory_sha,controller_sha,migrations_sha,revision):
+def validate(path,source,inventory_sha,controller_sha,migrations_sha,revision,application_version="3.5.0"):
     value=json.loads(pathlib.Path(path).read_text())
     if value.get('kind')!='private-stable-readiness' or value.get('publicationScope')!='private':
         raise ValueError('Self-use stable readiness evidence required')
     installed=value.get('installed',{});api=value.get('api',{})
-    version=installed.get('packageVersion','');match=re.fullmatch(r'3\.5\.0-(1[0-9]{4})',version)
+    version=installed.get('packageVersion','');match=re.fullmatch(re.escape(application_version)+r'-(1[0-9]{4})',version)
     if not match or int(match[1])>=revision:raise ValueError('A newer package revision is required')
     expected={'sourceCommit':source,'payloadInventorySha256':inventory_sha,
               'controllerSha256':controller_sha,'applicationMigrationSha256':migrations_sha}
