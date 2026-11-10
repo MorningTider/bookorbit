@@ -594,3 +594,17 @@ a507f70f 取消单来源下拉框，聚合已启用的可下载来源。设置 �
 结论：已完成正常网页登录、目标章节访问和三个候选实现的可行性核验，但没有找到支持这两个出版版本的已验证授权会员正文下载或EPUB/TXT导出接口。继续仅增加登录表单无法解决已观测到的正文访问失败。该项仍未实现，不生成或部署宣称支持VIP下载的SPK；原下载链路、用户缓存与数据库保持不变。后续接入以平台支持的授权下载接口或可供外部阅读的正常导出文件为依据，不将解除受保护正文加密作为实现路径。
 
 审查来源：https://github.com/anlonely/fanqie-downloader-local/blob/main/server.py 、https://github.com/rainyautumn1/FanqieNovelDownloader/blob/main/downloader.py 、https://github.com/hesan1232/fanqie.koplugin#正文与段评来源 。脱敏汇总：local/synology-native/lifecycle-check/fanqie-account-adapter-source-review.json。
+
+## 2026-11-10 共享评论与Android联动，自用正式10041
+
+源码提交6f18500f，原生Linux构建使用锁定Node26.11.1、pnpm11.22.0与生产依赖。10040候选通过DSM升级，随后同一载荷构建自用正式10041并通过DSM安装启动。正式包SHA256为9e1c613fb62e710e7dd670abd59380ec822c3ade49cd8d072378276c4c88d95f，状态stable/private，INFO无beta字段。
+
+数据库先在群晖独立PostgreSQL18数据库验证130至131迁移，旧迁移文件与生产账本逐项相符，哨兵数据保留。普通套件账号原生进程经HTTP建库、导入自制TXT，双账号验证书评可见、回复与回复他人、幂等、章节/段落定位、越权删除403、非法参数400和匿名401。0.6%文件进度、详情与书架显示一致。临时数据库及角色已删除。
+
+正式升级后25本书、6484文件、25条书籍元数据、7条进度、19条阅读会话及批注、书签的数量和完整行摘要与升级前一致。没有创建数据库备份。131条迁移账本、schema-upgrade-result与认证评论读取通过。12项既有生产API验收通过，包括4路详情并发、原生普通账号、真实文件Range响应、前端入口、下载器配置和旧容器状态。
+
+Android对应0.7.1-custom.7，版本码708，提交3a099b2已推送用户fork的custom/bookorbit-android-v0.7.1分支。两个变体各286项JVM测试、33项JS、566项中文资源、14项常规屏幕、11项窄屏大字号和2项F-Droid品牌检查通过。章节显示等待常规及粗体字体，顶部标题同步到WebView；整本页码逐章真实重排，进度统一一位小数，显示前台累计阅读时间与基于实际速度的剩余时间。
+
+用户手机的实际流畅度、覆盖安装、中文字体和手机/网页接续仍待实机验收。模拟器采样仍有超过16.7ms的帧，不能写为无卡顿。截图参考对应的图片背景、章节字数等后续差距继续由Android需求矩阵跟踪。
+
+脱敏收据保存在本机local/synology-native/lifecycle-check/comments-final-10041.json。手机端详细验收与签名见Android仓库docs/VALIDATION.md。
