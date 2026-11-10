@@ -39,7 +39,7 @@ def validate_evidence(report, metadata, previous=None):
     allowed = report.get('allowedPreviousMigrationSha256', [])
     if not isinstance(allowed, list) or not allowed or any(not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value) for value in allowed):
         raise ValueError('Reviewed previous migration fingerprints are required')
-    if previous is not None and previous not in allowed:
+    if previous is not None and previous != metadata.get('applicationMigrationSha256') and previous not in allowed:
         raise ValueError('The installed schema was not reviewed for this package')
     return True
 

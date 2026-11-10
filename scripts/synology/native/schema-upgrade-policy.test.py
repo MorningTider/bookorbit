@@ -50,6 +50,18 @@ class SchemaUpgradePolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.validate_evidence(self.report, self.metadata, 'd' * 64)
 
+    def test_same_schema_upgrade_does_not_require_a_cross_schema_allowlist_entry(self):
+        current = self.metadata['applicationMigrationSha256']
+        self.report['allowedPreviousMigrationSha256'] = ['c' * 64]
+        self.write_receipt()
+        (self.state / 'upgrade-guard.json').write_text(json.dumps({'oldMigrationSha256': current}))
+        result = m.upgrade(self.root, self.state)
+        self.assertTrue(result['passed'])
+        self.assertFalse(result['schemaChanged'])
+        (self.root / 'app/migrations/001.sql').write_text('select 2;')
+        with self.assertRaises(ValueError):
+            m.upgrade(self.root, self.state)
+
     def test_refuses_missing_failed_or_incomplete_verification(self):
         for key in m.REQUIRED_CHECKS:
             changed = copy.deepcopy(self.report)
