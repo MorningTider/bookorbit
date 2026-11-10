@@ -26,7 +26,7 @@
 | BO-C05c | 下载进度和超时      | 实际章节计数、无新增超时、持续进度继续、取消与进程退出    | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/book-source-progress.service.test.ts`                             |
 | BO-C05d | 章节续传缓存        | 每本隔离、重试复用、完整性校验、活动保护和7天清理         | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/chapter-download.service.test.ts`                                 |
 | BO-C06  | 直链安全续传        | Range、ETag、Last-Modified、416、进程中断及变更拒绝       | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-request/fulfillment/direct-download.service.test.ts`                     |
-| BO-C07a | Gutenberg与漫画书源 | 插件检索、文件下载、命名、元数据封面与入库                | 已合并核对 | 待专项核对         | 待验收                    | 待验收   | —                                                                                                 |
+| BO-C07a | Gutenberg与漫画书源 | 插件检索、文件下载、命名、元数据封面与入库                | 已合并核对 | 插件14项通过       | 待验收                    | 待验收   | —                                                                                                 |
 | BO-C07b | 现有文件格式        | EPUB/PDF/MOBI/AZW3/FB2/漫画/M4A读取与下载                 | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/reader/audiobook/__tests__/AudiobookReaderView.spec.ts`                      |
 | BO-C08a | 中文与动态标签      | 设置、任务、状态、图表、提示、国际化即时切换              | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/scripts/locale-catalog-validation.spec.mjs`                                               |
 | BO-C08b | 用户权限            | 接口/DTO/返回值、书库访问、配置和私有数据隔离             | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/book-source.http.test.ts`                                         |
@@ -72,3 +72,13 @@
 Mac端通过SSH转发运行应用E2E时，群晖SSH服务拒绝端口转发，测试连接未建立。改为在群晖直接运行原生隔离载荷后验证应用，不调整SSH安全设置。
 
 原生工具22套205项测试通过。Mac空间不足时，仅清理12个已核对为旧提交、未被Git跟踪的生成stage，释放约13.1GiB，恢复约16.4GiB可用空间。源码、验收文本与当前10041基线仍可供构建对照。Linux源码构建及DSM升级验收尚未完成。
+
+### 原生载荷与网络等待
+
+本次应用源码提交为dd3dd310fa7da355c9930b70965e492f061bbefd。Linux x86_64构建完成，固定Node26.11.1、pnpm11.28.9，前端、服务端、共享模块与Sharp原生读写核验通过。完整装配包含41588项文件，原生载荷清单SHA256为fde832ebe1df077d3dc92fde38bec229060be1ac6d2326f4343cf78247758643，迁移SHA256为ec62df59ecbbcd04e4d3b8704dcb57cf78c5b84a8572029283fa0e3f5e20881b。尚未生成或安装3.7 SPK。
+
+插件专项补查14项通过。本机3.7编译运行时实际加载Gutenberg插件、搜索到4个资源，经直链下载器下载107350字节公开EPUB并验证容器结构，测试暂存文件自动清理。这只证明本机该样本的运行时兼容，群晖完整请求、人工审核和入库尚待复验。漫画本轮只有解析及来源限制测试，外网下载仍单列。
+
+Mac空间再次不足时，又清理18个已核对的旧生成stage，释放约19.69GiB。两轮共清理30个未跟踪的历史stage目录，均为应用、支持库或辅助组件生成物，具体路径见本机build-space-cleanup.json和build-space-cleanup-second.json。没有删除源码、生产数据或既有配置，没有创建数据库备份。
+
+上传372MiB原生载荷时连接中断。随后只读确认Mac的Tailscale为Stopped，100.86.77.124与192.168.50.235的SSH均超时，已请求用户恢复连接。群晖隔离HTTP、浏览器验收与DSM安装需网络恢复后继续，不能标记为通过。连接中断前实际确认生产仍为3.5.0-10041。
