@@ -153,7 +153,7 @@ class SourceBuildTests(unittest.TestCase):
             with tarfile.open(context / "source.tar") as archive:
                 self.assertNotIn(".env", archive.getnames())
                 self.assertNotIn("node_modules/host-native.node", archive.getnames())
-            result = json.loads((context / "source-build.json").read_text());result["sharpNativeCheck"] = True;result["workspacePackagesChecked"] = ["@bookorbit/types", "@bookorbit/plugin-api"]
+            result = json.loads((context / "source-build.json").read_text());result["sharpNativeCheck"] = True;result["workspacePackagesChecked"] = ["@bookorbit/types", "@bookorbit/plugin-api"];result["serverTextLocalesChecked"] = ["en", "zh"]
             artifact = context / "artifact";(artifact / "sources").mkdir(parents=True)
             shutil.copyfile(context / "source.tar", artifact / "sources/bookorbit-source.tar")
             (artifact / "source-build.json").write_text(json.dumps(result))
@@ -161,6 +161,21 @@ class SourceBuildTests(unittest.TestCase):
             report = source.build(self.repo, self.output, self.cache)
         self.assertTrue(report["sharpNativeCheck"])
         self.assertEqual(list(self.root.glob(".bookorbit-source-*")), [])
+
+    def test_missing_server_text_runtime_check_rejected(self):
+        actual_run = subprocess.run
+        def run(command, **kwargs):
+            if command[0] != "docker": return actual_run(command, **kwargs)
+            context = pathlib.Path(command[-1])
+            artifact = context / "artifact";(artifact / "sources").mkdir(parents=True)
+            shutil.copyfile(context / "source.tar", artifact / "sources/bookorbit-source.tar")
+            result = json.loads((context / "source-build.json").read_text())
+            result.update(sharpNativeCheck=True, workspacePackagesChecked=["@bookorbit/types", "@bookorbit/plugin-api"])
+            (artifact / "source-build.json").write_text(json.dumps(result))
+        with patch.object(source.subprocess, "run", side_effect=run):
+            with self.assertRaisesRegex(ValueError, "native dependency check failed"):
+                source.build(self.repo, self.output, self.cache)
+        self.assertFalse(self.output.exists())
 
     def test_failed_compilation_does_not_leave_partial_output(self):
         actual_run = subprocess.run

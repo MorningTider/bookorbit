@@ -24,6 +24,16 @@ const image = await sharp({
   .toBuffer();
 const metadata = await sharp(image).metadata();
 if (metadata.width !== 16 || metadata.height !== 12) throw new Error("Sharp native check failed");
+const serverTextLocalesChecked = ["en", "zh"];
+const localizedText = require("./dist/common/i18n/server-text.js");
+const challengeKey = "monthlyChallenge.streak-builder.title";
+for (const locale of serverTextLocalesChecked) {
+  const catalog = JSON.parse(fs.readFileSync(path.join(app, "locales", `${locale}.json`), "utf8"));
+  const expected = catalog.serverText?.monthlyChallenge?.["streak-builder"]?.title;
+  if (typeof expected !== "string" || expected.length === 0 || localizedText.serverText(locale, challengeKey, "Streak Builder") !== expected) {
+    throw new Error(`Server text locale runtime check failed: ${locale}`);
+  }
+}
 const excluded = [];
 const sample = path.join(app, ".env.example");
 if (fs.existsSync(sample) && !fs.lstatSync(sample).isSymbolicLink()) {
@@ -67,6 +77,7 @@ Object.assign(report, {
   sharpVersion: sharp.versions.sharp,
   sharpNativeCheck: true,
   workspacePackagesChecked,
+  serverTextLocalesChecked,
   excludedDevelopmentFiles: excluded.sort(),
 });
 fs.writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`);

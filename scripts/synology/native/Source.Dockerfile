@@ -13,7 +13,7 @@ ADD source.tar /source/
 RUN pnpm --filter client run build-only
 RUN pnpm --filter server run build
 RUN --mount=type=cache,id=${STORE_CACHE},target=/pnpm/store,sharing=locked pnpm --config.store-dir=/pnpm/store --config.allow-unused-patches=true --config.inject-workspace-packages=true --filter server deploy --prod /out/app
-RUN mkdir -p /out/app/dist /out/app/migrations /out/app/public && cp -a server/dist/. /out/app/dist/ && cp -a server/src/db/migrations/. /out/app/migrations/ && cp -a client/dist/. /out/app/public/
+RUN mkdir -p /out/app/dist /out/app/migrations /out/app/public && cp -a server/dist/. /out/app/dist/ && cp -a server/src/db/migrations/. /out/app/migrations/ && cp -a client/dist/. /out/app/public/ && cp -a client/src/locales /out/app/locales
 RUN cp LICENSE NOTICE ADDITIONAL_TERMS.md /out/app/ && mkdir -p /out/app/bin /out/app/koreader-plugin && cp -a server/bin/kepubify /out/app/bin/ && cp -a koreader-plugin/bookorbit.koplugin /out/app/koreader-plugin/
 COPY source-build.json /out/source-build.json
 COPY source.tar /out/sources/bookorbit-source.tar

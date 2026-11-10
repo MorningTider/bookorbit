@@ -134,7 +134,8 @@ def build(root, output, cache, docker="docker", preload_store=None):
                         "--output", "type=local,dest=" + str(artifact), "--progress=plain", str(context)], check=True)
         generated = json.loads((artifact / "source-build.json").read_text())
         if (generated.get("sourceCommit") != report["sourceCommit"] or not generated.get("sharpNativeCheck")
-                or generated.get("workspacePackagesChecked") != ["@bookorbit/types", "@bookorbit/plugin-api"]):
+                or generated.get("workspacePackagesChecked") != ["@bookorbit/types", "@bookorbit/plugin-api"]
+                or generated.get("serverTextLocalesChecked") != ["en", "zh"]):
             raise ValueError("Source build provenance or native dependency check failed")
         if digest(artifact / "sources/bookorbit-source.tar").hex() != report["sourceArchiveSha256"]:
             raise ValueError("Corresponding source archive mismatch")
