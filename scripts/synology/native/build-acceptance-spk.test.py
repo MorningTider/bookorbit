@@ -40,6 +40,13 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(m.production_acceptance(path),m.digest(path))
         checks['dedicatedNativeProcess']=False;path.write_text(json.dumps(value))
         with self.assertRaises(ValueError):m.production_acceptance(path)
+    def test_dsm7_package_icon_dimensions(self):
+        import struct
+        directory=pathlib.Path(__file__).with_name('spk')
+        for name,size in [('PACKAGE_ICON.PNG',64),('PACKAGE_ICON_256.PNG',256)]:
+            data=(directory/name).read_bytes()
+            self.assertEqual(data[:8],b'\x89PNG\r\n\x1a\n')
+            self.assertEqual(struct.unpack('>II',data[16:24]),(size,size))
     def test_output_overwrite_rejected(self):
         with self.assertRaisesRegex(ValueError,'must be new'):m.build(self.root,'unused',self.root)
 

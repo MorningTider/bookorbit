@@ -78,3 +78,13 @@ git merge --no-ff upgrade/upstream-v3.6.0
 ## 自用正式SPK
 
 以scripts/synology/native/build-private-stable-spk.py作为自用正式入口，传入--stage、--lifecycle-report、--private-stable-readiness、递增的--revision和全新--output。真实生产收据的源码/清单/控制器/迁移必须与候选一致，不能将旧验收套在新应用源码上。需要重新验收时继续先走候选流程。安装通过DSM套件中心正常上传升级，前后核对配置指纹、实际版本、数据库健康与书籍访问。公开发行批准与自用稳定标记分开维护。
+
+## 2026-11-10 上游核对
+
+官方服务端最新正式版为v3.7.0，相比定制基线v3.5.0有97个上游提交。用户fork的main落后官方main89个提交，独有提交为0，可通过GitHub的Sync fork和Update branch保持上游镜像。定制分支与原生部署基线分别维护。
+
+本轮完成版本与迁移清单核对，升级尚未执行。v3.7.0的重复书合并、书籍版本关联与现有验重、TXT转换文件归属需要联合回归。上游Drizzle账本141项，当前定制账本131项，存在同序号不同迁移，后续升级必须保留生产已执行迁移及其哈希，按项目生成器处理新增schema并单独验证原生升级。不能将两个账本直接拼接后作为可部署升级。
+
+官方发布说明与迁移清单来源为https://github.com/bookorbit/bookorbit/releases/tag/v3.7.0和https://github.com/bookorbit/bookorbit/blob/v3.7.0/server/src/db/migrations/meta/_journal.json。Android上游最新正式版为v0.7.1，当前custom.7已基于该版。
+
+群晖套件图标使用spk/package-icon.svg中与网页相同的Orbit标识，生成64px与256px PNG并随打包入口复制。图形路径来自现有pwa-icon-source.svg，背景固定为默认网页配色。未来修改图标时同步更新这两个尺寸并验证SPK归档内容及DSM页面。

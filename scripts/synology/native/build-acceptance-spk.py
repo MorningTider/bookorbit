@@ -110,7 +110,7 @@ def build(stage,report,output,revision=10000,production_report=None,private_stab
             fields.update(displayname='BookOrbit',description='Private native production migration candidate. Requires explicit production configuration.',description_chs='BookOrbit 原生生产迁移候选，需显式生产配置。')
         if stable_policy:stable_policy.apply_info(fields)
         (outer/'INFO').write_text(''.join(key+'='+json.dumps(value,ensure_ascii=False)+'\n' for key,value in fields.items()))
-        for name in ['PACKAGE_ICON.PNG','PACKAGE_ICON_256.PNG']:shutil.copyfile(repo/'docs/images/bookorbit-icon.png',outer/name)
+        for name in ['PACKAGE_ICON.PNG','PACKAGE_ICON_256.PNG']:shutil.copyfile(here/'spk'/name,outer/name)
         output.mkdir(parents=True)
         destination=output/('bookorbit-native_x86_64_'+version+'.spk')
         with tarfile.open(destination,'w',format=tarfile.PAX_FORMAT) as tar:
