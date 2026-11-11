@@ -26,7 +26,7 @@
 | BO-C05c | 下载进度和超时      | 实际章节计数、无新增超时、持续进度继续、取消与进程退出    | 已合并核对 | 通过               | 真实进度/闲置超时/取消回归通过          | 已部署，外部整本未逐站复测      | `server/src/modules/book-source/book-source-progress.service.test.ts`                             |
 | BO-C05d | 章节续传缓存        | 每本隔离、重试复用、完整性校验、活动保护和7天清理         | 已合并核对 | 通过               | 续传缓存及活动保护回归通过              | 已部署，缓存策略保留            | `server/src/modules/book-source/chapter-download.service.test.ts`                                 |
 | BO-C06  | 直链安全续传        | Range、ETag、Last-Modified、416、进程中断及变更拒绝       | 已合并核对 | 通过               | 安全续传及变更拒绝回归通过              | 已部署，故障组合未重复穷举      | `server/src/modules/book-request/fulfillment/direct-download.service.test.ts`                     |
-| BO-C07a | Gutenberg与漫画书源 | 插件检索、文件下载、命名、元数据封面与入库                | 已合并核对 | 插件14项通过       | 本机编译运行时Gutenberg检索下载通过     | 已部署，NAS漫画外网未复测       | —                                                                                                 |
+| BO-C07a | Gutenberg与漫画书源 | 插件检索、文件下载、命名、元数据封面与入库                | 已合并核对 | 插件14项通过       | 本机编译运行时Gutenberg检索下载通过     | 已部署，NAS运行时两书源通过     | —                                                                                                 |
 | BO-C07b | 现有文件格式        | EPUB/PDF/MOBI/AZW3/FB2/漫画/M4A读取与下载                 | 已合并核对 | 通过               | 格式专项回归及TXT/EPUB真实HTTP通过      | 已部署，其他格式未逐个实机复测  | `client/src/features/reader/audiobook/__tests__/AudiobookReaderView.spec.ts`                      |
 | BO-C08a | 中文与动态标签      | 设置、任务、状态、图表、提示、国际化即时切换              | 已合并核对 | 通过               | 真实中文挑战/评论/规则页面通过          | 已部署，动态语言目录已补齐      | `client/scripts/locale-catalog-validation.spec.mjs`                                               |
 | BO-C08b | 用户权限            | 接口/DTO/返回值、书库访问、配置和私有数据隔离             | 已合并核对 | 通过               | 双账号、书库访问、严格DTO及匿名拒绝通过 | 已部署，生产认证接口通过        | `server/src/modules/book-source/book-source.http.test.ts`                                         |
@@ -118,3 +118,11 @@ Mac空间再次不足时，又清理18个已核对的旧生成stage，释放约1
 每一行均与unit-feature-coverage.json中的测试路径核对，自动回归覆盖与实际HTTP/页面抽样分别记录。外部书源逐站下载、所有格式全部故障组合及整机重启未在本轮重复验证。七猫正文、番茄会员导出、完整Legado脚本兼容、公开再分发材料和Android实机仍按原需求单列，未因本次升级自动关闭。
 
 本机脱敏证据位于local/synology-native/upstream-v3.7.0，包含native-http-locales.json、lifecycle-35s.json、private-stable-readiness.json、production-browser-stable.json、production-font-author-stable.json、production-stable-acceptance.json、user-authentication-timestamps.json及final-verification.json。完整生产摘要保存在NAS的upgrade-validation-v37目录，没有创建数据库备份。
+
+## 2026-11-12 群晖书源运行时补验
+
+正式10044的编译插件加载器与直链下载器在套件普通账号下通过两项真实外网样本。Gutenberg检索返回4项，下载107350字节EPUB并校验容器。Internet Archive漫画检索返回2项，下载202744456字节CBZ，核验图片目录和封面提取。测试采用临时目录和内存任务仓库，未写入生产任务或书库。
+
+漫画直连遇连接失败，经现有Mac代理的单次networkProfile完成。这个结果适用于本轮网络条件，未改动NAS系统DNS或长期代理配置。临时下载、插件和验证脚本均已清理。记录位于本机忽略的local/synology-native/upstream-v3.7.0/source-runtime-nas.json。完整请求、人工审核和正式入库没有在本轮重新执行。
+
+Android0.8客户端通过生产Retrofit入口连接群晖普通账号的独立原生3.7服务与PG18临时数据库，完成双向阅读进度和回退、智能书架、阅读统计、Android会话及评论回复。隔离进程、数据库、角色、图书和账号凭据均已删除，随后生产健康检查正常。客户端具体清单与手机待办维护在相邻bookorbit-android仓库。

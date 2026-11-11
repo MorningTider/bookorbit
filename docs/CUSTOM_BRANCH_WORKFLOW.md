@@ -6,9 +6,9 @@
 
 - 上游仓库：`https://github.com/bookorbit/bookorbit.git`
 - 用户 fork：`https://github.com/MorningTider/bookorbit.git`
-- 正式基线：`v3.5.0`，对应提交 `c59dd011`
-- 定制分支：`custom/bookorbit-v3.5.0`
-- 定制分支从 `v3.5.0` 建立，再迁入现有定制改动。上游 `v3.5.0` 之后尚未进入正式版本的提交没有自动带入。
+- 正式基线：`v3.7.0`，对应提交 `6f8f5f4818eb737dc4d78fc5b5294fc3adb26860`
+- 当前已部署源码分支：`upgrade/upstream-v3.7.0`，历史定制分支为 `custom/bookorbit-v3.5.0`
+- 定制分支最初从 `v3.5.0` 建立，现已合并官方 `v3.7.0`，通过隔离验收并由DSM部署3.7.0-10044。下文历史命令保留为流程示例，当前升级应从已部署源码分支创建。
 
 `origin` 应指向用户 fork，`upstream` 指向官方仓库。不要在 `main` 上直接开发定制功能。
 
@@ -88,3 +88,9 @@ git merge --no-ff upgrade/upstream-v3.6.0
 官方发布说明与迁移清单来源为https://github.com/bookorbit/bookorbit/releases/tag/v3.7.0和https://github.com/bookorbit/bookorbit/blob/v3.7.0/server/src/db/migrations/meta/_journal.json。Android上游最新正式版为v0.7.1，当前custom.7已基于该版。
 
 群晖套件图标使用spk/package-icon.svg中与网页相同的Orbit标识，生成64px与256px PNG并随打包入口复制。图形路径来自现有pwa-icon-source.svg，背景固定为默认网页配色。未来修改图标时同步更新这两个尺寸并验证SPK归档内容及DSM页面。
+
+## 2026-11-12 当前维护基线
+
+服务端3.7升级已经完成，正式10044运行正常，逐项结果见UPGRADE_V3_7_0_ACCEPTANCE.md。保留生产131项迁移原文并追加两项生成迁移，实际账本133项。上面的2026-11-10段落记录升级前评估。
+
+Android现已合并官方v0.8.0并维护29项定制清单，公共进度、智能书架和统计适配已通过真实群晖隔离API。Android包、签名、模拟器和手机待办在相邻bookorbit-android仓库单独维护。
