@@ -1,4 +1,4 @@
-import { parseAudioDuration } from '../metadata/extractors/audio.extractor';
+import { probeAudioFile } from '../metadata/extractors/audio.extractor';
 import { FileWatcherService } from '../scanner/file-watcher.service';
 import { SelfWriteRegistry } from '../../common/services/self-write-registry.service';
 vi.mock('fs/promises', async () => {
@@ -9,7 +9,7 @@ vi.mock('fs/promises', async () => {
 vi.mock('../import-review/import-match.utils', () => ({ fullFileSha256: vi.fn().mockResolvedValue('complete-sha') }));
 vi.mock('../metadata/extractors/audio.extractor', async () => ({
   ...(await vi.importActual('../metadata/extractors/audio.extractor')),
-  parseAudioDuration: vi.fn(),
+  probeAudioFile: vi.fn(),
 }));
 vi.mock('../scanner/lib/hash', () => ({ computeFileHash: vi.fn() }));
 vi.mock('../../db/audio-track-order', () => ({ realignAudioTrackOrder: vi.fn() }));
@@ -98,7 +98,7 @@ describe('UploadService', () => {
   };
 
   const appSettings = { getUploadPattern: vi.fn(), getUploadPatternBookPerFolder: vi.fn(), isCrossPlatformPathSanitizationEnabled: vi.fn() };
-  const libraryService = { verifyUserAccess: vi.fn(), verifyUserAccessLevel: vi.fn() };
+  const libraryService = { verifyAccess: vi.fn(), verifyAccessLevel: vi.fn() };
   const validator = {
     sanitizeFilename: vi.fn(),
     validateFormat: vi.fn(),
@@ -164,8 +164,8 @@ describe('UploadService', () => {
     storage.cleanup.mockResolvedValue(undefined);
     processor.createBookRecord.mockResolvedValue({ bookId: 99, created: true });
     processor.withFolderBookLock.mockImplementation((_libraryId: number, _folderPath: string, work: () => Promise<unknown>) => work());
-    libraryService.verifyUserAccess.mockResolvedValue(undefined);
-    libraryService.verifyUserAccessLevel.mockResolvedValue(undefined);
+    libraryService.verifyAccess.mockResolvedValue(undefined);
+    libraryService.verifyAccessLevel.mockResolvedValue(undefined);
     appSettings.getUploadPattern.mockResolvedValue(null);
     appSettings.getUploadPatternBookPerFolder.mockResolvedValue(null);
     appSettings.isCrossPlatformPathSanitizationEnabled.mockResolvedValue(false);
@@ -206,9 +206,9 @@ describe('UploadService', () => {
 
   it('requires editor access before reading or converting a TXT file', async () => {
     db.select.mockReturnValueOnce(selectChain([{ libraryId: 3 }]));
-    libraryService.verifyUserAccessLevel.mockRejectedValueOnce(new ForbiddenException());
+    libraryService.verifyAccessLevel.mockRejectedValueOnce(new ForbiddenException());
     await expect(service.convertTxtToEpub(1, user)).rejects.toThrow(ForbiddenException);
-    expect(libraryService.verifyUserAccessLevel).toHaveBeenCalledWith(7, 3, false, 'editor');
+    expect(libraryService.verifyAccessLevel).toHaveBeenCalledWith(user, 3, 'editor');
     expect(db.select).toHaveBeenCalledTimes(1);
   });
 
@@ -898,7 +898,7 @@ describe('UploadService', () => {
 
   it('throws when user has no access to library', async () => {
     db.select.mockReturnValueOnce(selectChain([{ id: 1, allowedFormats: ['epub'], fileNamingPattern: null }]));
-    libraryService.verifyUserAccess.mockRejectedValue(new ForbiddenException('No access'));
+    libraryService.verifyAccess.mockRejectedValue(new ForbiddenException('No access'));
 
     await expect(service.upload(1, undefined, 'raw.epub', {} as any, user)).rejects.toBeInstanceOf(ForbiddenException);
     expect(storage.streamToTemp).not.toHaveBeenCalled();
@@ -1440,13 +1440,13 @@ describe('UploadService', () => {
 
     it('measures appended audio files while preserving book metadata and reading state', async () => {
       mockUploadedFormat('m4b');
-      vi.mocked(parseAudioDuration).mockResolvedValueOnce(123);
+      vi.mocked(probeAudioFile).mockResolvedValueOnce({ durationSeconds: 123, durationMs: 123000, chapters: [] });
       db.select
         .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
         .mockReturnValueOnce(selectJoinChain([makeBookRow()]))
         .mockReturnValueOnce(noHashConflict());
       await service.addFileToBook(10, 'book.m4b', {} as any, user, { preserveMetadata: true });
-      expect(parseAudioDuration).toHaveBeenCalledWith('/tmp/upload.bin');
+      expect(probeAudioFile).toHaveBeenCalledWith('/tmp/upload.bin');
       expect(insertValues).toHaveBeenCalledWith(expect.objectContaining({ durationSeconds: 123 }));
       expect(processor.extractAudioDurationAsync).not.toHaveBeenCalled();
       expect(processor.extractAddedAudioChaptersAsync).not.toHaveBeenCalled();
@@ -1454,7 +1454,7 @@ describe('UploadService', () => {
     });
     it('leaves the library untouched when incoming audio duration cannot be measured', async () => {
       mockUploadedFormat('m4b');
-      vi.mocked(parseAudioDuration).mockResolvedValueOnce(null);
+      vi.mocked(probeAudioFile).mockResolvedValueOnce(null);
       db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(selectJoinChain([makeBookRow()]));
       await expect(service.addFileToBook(10, 'book.m4b', {} as any, user, { preserveMetadata: true })).rejects.toThrow('duration');
       expect(storage.moveToPath).not.toHaveBeenCalled();
@@ -1600,7 +1600,7 @@ describe('UploadService', () => {
 
     it('throws ForbiddenException when user has no library access', async () => {
       db.select.mockReturnValueOnce(selectJoinChain([makeBookRow()])).mockReturnValueOnce(selectJoinChain([makeBookRow()]));
-      libraryService.verifyUserAccess.mockRejectedValue(new ForbiddenException('No access'));
+      libraryService.verifyAccess.mockRejectedValue(new ForbiddenException('No access'));
 
       await expect(service.addFileToBook(10, 'book.epub', {} as any, user)).rejects.toBeInstanceOf(ForbiddenException);
       expect(storage.streamToTemp).not.toHaveBeenCalled();
@@ -1749,7 +1749,7 @@ describe('UploadService', () => {
       db.select.mockReturnValueOnce(selectChain([{ id: 10, libraryId: 1 }]));
 
       await expect(service.renameBookFiles(10, user)).resolves.toBeUndefined();
-      expect(libraryService.verifyUserAccessLevel).toHaveBeenCalledWith(user.id, 1, false, 'editor');
+      expect(libraryService.verifyAccessLevel).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, isSuperuser: false }), 1, 'editor');
       expect(mockRenameService.performRename).toHaveBeenCalledWith(10, user.id, true, false);
     });
 
@@ -1757,7 +1757,7 @@ describe('UploadService', () => {
       const renameService = { performRename: vi.fn() };
       moduleRef.get.mockReturnValue(renameService);
       db.select.mockReturnValueOnce(selectChain([{ id: 10, libraryId: 1 }]));
-      libraryService.verifyUserAccessLevel.mockRejectedValue(new ForbiddenException('Editor access required'));
+      libraryService.verifyAccessLevel.mockRejectedValue(new ForbiddenException('Editor access required'));
 
       await expect(service.renameBookFiles(10, user)).rejects.toThrow(ForbiddenException);
       expect(moduleRef.get).not.toHaveBeenCalled();
@@ -1770,7 +1770,7 @@ describe('UploadService', () => {
       db.select.mockReturnValue(selectChain([{ id: 10, libraryId: 1 }]));
       await service.renameBookFiles(10, user);
       renameService.performRename.mockClear();
-      libraryService.verifyUserAccessLevel.mockRejectedValue(new ForbiddenException('Editor access required'));
+      libraryService.verifyAccessLevel.mockRejectedValue(new ForbiddenException('Editor access required'));
 
       await expect(service.renameBookFiles(10, user)).rejects.toThrow(ForbiddenException);
       expect(renameService.performRename).not.toHaveBeenCalled();
@@ -1783,7 +1783,7 @@ describe('UploadService', () => {
       db.select.mockReturnValueOnce(selectChain([{ id: 10, libraryId: 1 }]));
 
       await service.renameBookFiles(10, caller);
-      expect(libraryService.verifyUserAccessLevel).toHaveBeenCalledWith(caller.id, 1, true, 'editor');
+      expect(libraryService.verifyAccessLevel).toHaveBeenCalledWith(expect.objectContaining({ id: caller.id, isSuperuser: true }), 1, 'editor');
       expect(renameService.performRename).toHaveBeenCalledWith(10, caller.id, true, false);
     });
 
@@ -1795,7 +1795,7 @@ describe('UploadService', () => {
 
     it('throws ForbiddenException when user has no library access', async () => {
       db.select.mockReturnValueOnce(selectChain([{ id: 10, libraryId: 1 }]));
-      libraryService.verifyUserAccessLevel.mockRejectedValue(new ForbiddenException('No access to this library'));
+      libraryService.verifyAccessLevel.mockRejectedValue(new ForbiddenException('No access to this library'));
 
       await expect(service.renameBookFiles(10, user)).rejects.toBeInstanceOf(ForbiddenException);
     });

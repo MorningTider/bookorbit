@@ -90,7 +90,7 @@ export class BookSourceJobService {
   }
 
   private async verifyDestination(libraryId: number, user: RequestUser): Promise<void> {
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     const library = await this.libraries.findOne(libraryId);
     this.validator.validateFormat('book.epub', library.allowedFormats);
   }

@@ -136,7 +136,16 @@ const confirmTitle = computed(() =>
 
 const confirmDescription = computed(() => {
   if (!confirming.value) return ''
-  if (confirming.value.action === 'delete') return t('bookRequests.confirm.deleteDescription')
+  if (confirming.value.action === 'delete') {
+    return t(
+      confirming.value.requests.some((request) => request.download?.alwaysDeletesRemote)
+        ? 'bookRequests.confirm.deleteDescriptionRemoteDelete'
+        : 'bookRequests.confirm.deleteDescription',
+    )
+  }
+  if (confirming.value.requests.some((request) => cancelStopsATransfer(request) && request.download?.alwaysDeletesRemote)) {
+    return t('bookRequests.confirm.cancelDescriptionWithDownloadRemoteDelete')
+  }
   return confirming.value.requests.some(cancelStopsATransfer)
     ? t('bookRequests.confirm.cancelDescriptionWithDownload')
     : t('bookRequests.confirm.cancelDescription')
@@ -306,7 +315,7 @@ async function rejectRequest(request: BookRequestItem) {
 }
 
 async function cancelRequest(request: BookRequestItem) {
-  const outcome = await actions.cancel(request.id)
+  const outcome = await actions.cancel(request.id, { deleteFiles: request.download?.alwaysDeletesRemote ?? false })
   if (applyUpdate(outcome, 'bookRequests.errors.cancelFailed')) toast.success(t('bookRequests.toasts.cancelled'))
 }
 
@@ -330,7 +339,7 @@ async function restoreRequest(request: BookRequestItem) {
 }
 
 async function deleteRequest(request: BookRequestItem) {
-  const outcome = await actions.remove(request.id)
+  const outcome = await actions.remove(request.id, request.download?.alwaysDeletesRemote ?? false)
   if (!outcome.ok) {
     toast.error(t('bookRequests.errors.deleteFailed'), outcome.reason ? { description: outcome.reason } : undefined)
     return

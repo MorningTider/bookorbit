@@ -59,12 +59,12 @@ export class BookSourceService {
   ) {
     if (!/^[a-z][a-z0-9-]{0,6}:[a-zA-Z0-9][a-zA-Z0-9_-]{0,15}$/.test(identity)) throw new BadRequestException('书源任务标识无效');
     const [key, bookId] = identity.split(':');
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     const adapter = new RuleChapterSource(await this.rules.get(key!));
     const file = await this.chapters.download(adapter, bookId!, signal, onProgress);
     signal.throwIfAborted();
     await beforeImport?.(file.title);
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     return this.upload.upload(libraryId, folderId, this.validator.sanitizeFilename(`${file.title}.epub`), Readable.from([file.content]), user, {
       ...(importResolution ? { resolution: importResolution } : {}),
       origin: { provider: adapter.key, id: bookId! },
@@ -83,11 +83,11 @@ export class BookSourceService {
   ) {
     await this.downloadPolicy.assertEnabled('qidian');
     qidianBookId(bookId);
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     const file = await this.chapters.download(this.qidian, bookId, signal, onProgress);
     signal.throwIfAborted();
     await beforeImport?.(file.title);
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     return this.upload.upload(libraryId, folderId, this.validator.sanitizeFilename(`${file.title}.epub`), Readable.from([file.content]), user, {
       ...(importResolution ? { resolution: importResolution } : {}),
       origin: { provider: 'qidian', id: bookId },
@@ -106,14 +106,14 @@ export class BookSourceService {
   ) {
     await this.downloadPolicy.assertEnabled('fanqie');
     tomatoBookId(bookId);
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     const startedAt = Date.now();
     this.logger.log(`[book_source.acquire] [start] userId=${user.id} libraryId=${libraryId} bookId=${bookId} - acquisition started`);
     try {
       const file = await this.tomato.download(bookId, signal, onProgress);
       signal.throwIfAborted();
       await beforeImport?.(file.title);
-      await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+      await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
       const result = await this.upload.upload(
         libraryId,
         folderId,

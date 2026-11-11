@@ -595,7 +595,8 @@
         "profile": "个人信息",
         "privacy": "隐私与共享",
         "notifications": "通知",
-        "restrictions": "限制"
+        "restrictions": "限制",
+        "apiKeys": "API 密钥"
       },
       "demoRestricted": {
         "cannotEdit": "演示版受限账户无法编辑账户设置",
@@ -1521,7 +1522,8 @@
         "magic-links": "魔法链接",
         "oidc": "OIDC / SSO",
         "tts": "文本转语音",
-        "server-fonts": "服务端字体"
+        "server-fonts": "服务端字体",
+        "api-keys": "API 密钥"
       },
       "tts": {
         "title": "提供商",
@@ -3802,7 +3804,8 @@
         "clientsEmpty": {
           "title": "还没有下载客户端",
           "body": "直接通过 HTTP 下载不需要客户端。连接一个客户端后，BookOrbit 也能获取通过 BT 或 Usenet 分发的发布。",
-          "note": "支持 qBittorrent、Transmission、Deluge、NZBGet 和 SABnzbd。"
+          "note": "支持 qBittorrent、Transmission、Deluge、NZBGet 和 SABnzbd。",
+          "noteWithTorbox": "支持 qBittorrent、Transmission、Deluge、rTorrent、NZBGet、SABnzbd 和 TorBox。"
         },
         "summary": "{type} - 分类 {category}，优先级 {priority}",
         "disabled": "已禁用",
@@ -3820,7 +3823,8 @@
           "deluge": "Deluge",
           "nzbget": "NZBGet",
           "sabnzbd": "SABnzbd",
-          "rtorrent": "rTorrent"
+          "rtorrent": "rTorrent",
+          "torbox": "TorBox"
         },
         "color": {
           "label": "颜色",
@@ -3850,7 +3854,8 @@
           "passwordBrief": "已加密存储。",
           "apiKeyBrief": "在 SABnzbd 的 Config > General 下可以找到。已加密存储。",
           "useHardlinksBrief": "导入时不占用双倍磁盘空间。跨文件系统时回退为复制。",
-          "baseUrlRtorrentBrief": "填写 XML-RPC 接口地址，通常为 /RPC2，使用 ruTorrent 时通常为 plugins/httprpc/action.php。若 Web 服务器要求认证，请填写其用户名和密码。"
+          "baseUrlRtorrentBrief": "填写 XML-RPC 接口地址，通常为 /RPC2，使用 ruTorrent 时通常为 plugins/httprpc/action.php。若 Web 服务器要求认证，请填写其用户名和密码。",
+          "torboxApiKeyBrief": "可在 https://torbox.app/settings?section=account 获取，保存时会加密。"
         },
         "mappings": {
           "title": "路径映射",
@@ -3904,7 +3909,8 @@
           "nameRequired": "请为此客户端命名。",
           "urlRequired": "请输入 BookOrbit 连接此客户端所用的地址。",
           "mappingRequired": "请至少添加一个路径映射，以便 BookOrbit 知道可以从哪个目录导入。",
-          "apiKeyRequired": "请输入 SABnzbd 的 Config > General 下的 API 密钥。"
+          "apiKeyRequired": "请输入 SABnzbd 的 Config > General 下的 API 密钥。",
+          "torboxApiKeyRequired": "请输入 TorBox 账号设置中的 API 密钥。"
         },
         "encryptionKeyMissing": "未设置 BOOK_REQUEST_ENCRYPTION_KEY，无法保存客户端凭据。可用以下命令生成：openssl rand -hex 32",
         "confirmDelete": {
@@ -4335,13 +4341,15 @@
           "deluge": "你自己的 Deluge。使用 Web UI 密码登录;分类需要开启 Label 插件。",
           "nzbget": "你自己的 NZBGet。BookOrbit 通过其 JSON-RPC API 发送 NZB 文件。",
           "sabnzbd": "你自己的 SABnzbd。BookOrbit 使用其 API 密钥发送 NZB 文件。",
-          "rtorrent": "通过 XML-RPC 连接自建 rTorrent。分类会用作任务标签，文件保存位置由 rTorrent 自身配置决定。"
+          "rtorrent": "通过 XML-RPC 连接自建 rTorrent。分类会用作任务标签，文件保存位置由 rTorrent 自身配置决定。",
+          "torbox": "使用你的 TorBox 云端账号。BookOrbit 将种子发送到该账号，再获取已完成的文件并入库。"
         },
         "searchHealth": {
           "failingOnce": "上次搜索失败",
           "failingStreak": "连续 {count} 次搜索失败",
           "lastSearchAt": "上次搜索 {time}"
-        }
+        },
+        "validateKey": "验证密钥"
       }
     },
     "nav": {
@@ -4396,7 +4404,9 @@
         "auditLog": "谁改变了什么，什么时候改变。",
         "requests": "来源、下载客户端，以及书籍下载完成后的处理方式。",
         "readerTts": "朗读语音、速度和语音默认。",
-        "adminTts": "此服务器上每个读者都可使用文字转语音引擎。"
+        "adminTts": "此服务器上每个读者都可使用文字转语音引擎。",
+        "apiKeys": "让脚本和其他应用以你的身份访问 BookOrbit。",
+        "adminApiKeys": "管理服务器 API 密钥开关及有效期上限。"
       },
       "backToApp": "返回图书馆",
       "pageDescriptions": {
@@ -5464,7 +5474,8 @@
       "OidcIdentity": "OIDC 身份",
       "MagicLinkToken": "魔法链接",
       "ReadingInsightsProfile": "读取洞察力资料",
-      "MetadataHttpProvider": "元数据提供商"
+      "MetadataHttpProvider": "元数据提供商",
+      "ApiKey": "API 密钥"
     },
     "actionLabels": {
       "AuthRegister": "注册账户",
@@ -5595,7 +5606,12 @@
       "BookDuplicatesResolve": "处理重复书籍",
       "MetadataHttpProviderCreate": "已添加元数据提供商",
       "MetadataHttpProviderUpdate": "已更新元数据提供商",
-      "MetadataHttpProviderDelete": "已移除元数据提供商"
+      "MetadataHttpProviderDelete": "已移除元数据提供商",
+      "ApiKeyCreate": "创建 API 密钥",
+      "ApiKeyRename": "重命名 API 密钥",
+      "ApiKeyRegenerate": "重新生成 API 密钥",
+      "ApiKeyRevoke": "撤销 API 密钥",
+      "ApiKeyRevokeAll": "撤销全部 API 密钥"
     },
     "views": {
       "label": "显示",
@@ -5728,7 +5744,8 @@
         "private": "未共享",
         "summary": "摘要",
         "detailed": "详细信息"
-      }
+      },
+      "viaApiKey": "通过 API 密钥"
     },
     "retention": {
       "button": "{count, plural, one {点击#天} other {点击#天}}",
@@ -10117,7 +10134,8 @@
       "confirm": {
         "title": "移除这个种子？",
         "description": "种子将停止做种。已下载的文件保留在磁盘上。",
-        "descriptionWithFiles": "种子将停止做种,其已下载的文件会被删除。导入的书仍保留在你的书库中。"
+        "descriptionWithFiles": "种子将停止做种,其已下载的文件会被删除。导入的书仍保留在你的书库中。",
+        "descriptionRemoteDelete": "种子会停止做种，下载器会永久删除该任务及对应文件。已入库的书籍会继续保留在书库中。"
       }
     },
     "pipeline": {
@@ -10182,7 +10200,10 @@
       "discardImportDescription": "下载的文件将从 Book Dock 移除,请求会被标记为失败。种子会继续做种;如果不想让它继续,请单独停止。",
       "leaveTitle": "退出这条请求？",
       "leaveDescription": "你将不再关注它,也不再收到它的通知。发起请求的人不受影响,请求仍归其所有。",
-      "rejectDescription": "所有等待这些请求的人都会收到被拒绝的通知。不会下载任何内容。"
+      "rejectDescription": "所有等待这些请求的人都会收到被拒绝的通知。不会下载任何内容。",
+      "cancelDownloadDescriptionRemoteDelete": "当前传输会停止，下载器会永久删除该任务及对应文件。请求保持开放，以便选择其他资源。",
+      "cancelDescriptionWithDownloadRemoteDelete": "当前传输会停止，下载器会永久删除该任务及对应文件。",
+      "deleteDescriptionRemoteDelete": "该请求及所有请求者的记录会永久删除。仍在做种的任务及对应文件也会由下载器永久删除。选择忽略请求，则只会将它从你自己的列表中隐藏。"
     },
     "outcome": {
       "filedIn": "已入库到 {library} {time}",
@@ -11522,7 +11543,15 @@
       "LIBRARY_BUSY": "书库正在扫描、移动、重命名或合并，请完成后重试。",
       "LINK_GROUP_NOT_EDITABLE": "这些书籍关联到你没有编辑权限的书目。",
       "LINK_GROUP_FULL": "{max, plural, one {最多关联 # 本书，请先取消部分关联。} other {最多关联 # 本书，请先取消部分关联。}}",
-      "RESOLUTION_IN_PROGRESS": "重复项处理正在进行，请等待完成。"
+      "RESOLUTION_IN_PROGRESS": "重复项处理正在进行，请等待完成。",
+      "API_KEYS_DISABLED": "此服务器已关闭 API 密钥功能。",
+      "API_KEY_READ_ONLY": "此 API 密钥仅具备读取权限。",
+      "API_KEY_ROUTE_FORBIDDEN": "此操作不接受 API 密钥。",
+      "API_KEY_LIMIT_REACHED": "已达到 {limit} 个有效 API 密钥的上限，请先撤销一个。",
+      "API_KEY_SCOPE_EXCEEDS_OWNER": "密钥的授权范围不能超过所有者的权限。",
+      "API_KEY_EXPIRY_EXCEEDS_CAP": "此服务器的密钥有效期上限为 {cap} 天。",
+      "API_KEY_ADMIN_WITH_LIBRARIES": "管理员密钥无法限定为指定书库。",
+      "API_KEY_OWNER_NOT_PERMITTED": "该用户需要处于启用状态，并具有“创建 API 密钥”权限，才能使用 API 密钥。"
     }
   },
   "hardcover": {
@@ -15006,7 +15035,8 @@
       "magic-links": "免登录链接",
       "oidc": "OIDC / SSO",
       "server-fonts": "服务端字体管理",
-      "tts": "文本转语音"
+      "tts": "文本转语音",
+      "api-keys": "API 密钥"
     },
     "system": {
       "file-naming": "文件名称",
@@ -15019,7 +15049,8 @@
       "profile": "账户",
       "privacy": "隐私与共享",
       "notifications": "通知",
-      "restrictions": "内容限制"
+      "restrictions": "内容限制",
+      "apiKeys": "API 密钥"
     },
     "smartScopes": "智能书架",
     "collections": "收藏夹",
@@ -16570,6 +16601,149 @@
         "title": "翻页不息",
         "description": "本月阅读 500 页"
       }
+    }
+  },
+  "apiKeys": {
+    "errors": {
+      "load": "无法加载 API 密钥。",
+      "create": "无法创建 API 密钥。",
+      "rename": "无法重命名 API 密钥。",
+      "regenerate": "无法重新生成 API 密钥。",
+      "revoke": "无法撤销 API 密钥。",
+      "revokeAll": "无法撤销这些 API 密钥。",
+      "nameRequired": "请输入密钥名称。",
+      "saveSettings": "无法保存 API 密钥设置。"
+    },
+    "expiry": {
+      "never": "永不过期",
+      "days": "{count, plural, other {# 天}}"
+    },
+    "access": {
+      "read": "只读",
+      "readHint": "允许查看内容。",
+      "write": "读写",
+      "writeHint": "允许在下方授权范围内修改内容。"
+    },
+    "state": {
+      "active": "有效",
+      "expiring": "即将过期",
+      "expired": "已过期",
+      "revoked": "已撤销"
+    },
+    "create": {
+      "title": "创建 API 密钥",
+      "description": "允许脚本或其他应用以你的身份使用 BookOrbit，访问范围由此处的授权决定。",
+      "issueTitle": "签发 API 密钥",
+      "issueDescription": "密钥属于该用户，并在此处的授权范围内以该用户身份操作。",
+      "name": "名称",
+      "namePlaceholder": "备份脚本",
+      "nameHint": "用名称说明密钥的用途。",
+      "expiry": "有效期",
+      "expiryCapped": "此服务器的密钥有效期上限为{count, plural, other { # 天}}。",
+      "access": "访问权限",
+      "libraries": "书库",
+      "librariesAll": "我的全部书库，包括以后新增的书库",
+      "librariesAllTheirs": "该用户的全部书库，包括以后新增的书库",
+      "librariesSome": "仅指定书库",
+      "librariesSelected": "{count, plural, =0 {尚未选择} other {已选 # 个，共 {total} 个}}",
+      "librariesRequired": "请至少选择一个书库。",
+      "admin": "管理员权限",
+      "adminHint": "密钥可以执行管理员的全部操作。",
+      "adminWithLibraries": "密钥限定为指定书库时，此选项不可用。",
+      "adminWarning": "持有此密钥的人可以控制整台服务器。请妥善保管并设置较短的有效期。",
+      "permissions": "附加权限",
+      "permissionsHint": "阅读上述书库无需附加权限。请按脚本的实际需要授权，权限上限为密钥所有者的权限。",
+      "noPermissions": "没有可授予的权限。",
+      "creating": "正在创建…",
+      "submit": "创建密钥",
+      "issueSubmit": "签发密钥"
+    },
+    "reveal": {
+      "title": "复制 {name} 的密钥",
+      "description": "请像保存密码一样，将密钥保存到使用它的应用或脚本中。",
+      "onceOnly": "密钥仅显示这一次，遗失后需要重新生成。",
+      "tokenLabel": "API 密钥",
+      "copy": "复制",
+      "copied": "已复制",
+      "copyFailed": "无法复制密钥，请选中后手动复制。",
+      "copiedAnnouncement": "密钥已复制到剪贴板。",
+      "examplesTitle": "使用密钥",
+      "examplesHint": "通过以下任一请求头发送密钥，链接中应避免包含密钥。",
+      "done": "完成"
+    },
+    "list": {
+      "label": "API 密钥",
+      "activeCount": "{count, plural, other {# 个有效密钥}}，上限 {max} 个",
+      "limitReached": "已达到 {max} 个有效密钥的上限，请先撤销一个密钥再创建。",
+      "adminBadge": "管理员",
+      "permissions": "权限",
+      "permissionsAdmin": "全部权限",
+      "permissionsNone": "仅阅读",
+      "permissionsCount": "{count, plural, other {# 项权限}}",
+      "libraries": "书库",
+      "librariesAll": "全部",
+      "librariesNone": "书库已全部移除",
+      "libraryUnknown": "书库 {id}",
+      "librariesCount": "{count, plural, other {# 个书库}}",
+      "created": "创建时间",
+      "createdBy": "{date}，由 {username} 签发",
+      "lastUsed": "上次使用",
+      "neverUsed": "从未使用",
+      "lastUsedFrom": "{time}，来自 {ip}",
+      "expires": "到期时间",
+      "noExpiry": "永不过期",
+      "revokedOn": "撤销于 {date}",
+      "renameLabel": "密钥名称",
+      "revokedHeading": "已撤销",
+      "revokedHint": "已撤销的密钥会保留 90 天，然后删除。"
+    },
+    "actions": {
+      "create": "创建密钥",
+      "issue": "签发密钥",
+      "rename": "重命名",
+      "renameAria": "重命名 {name}",
+      "regenerate": "重新生成",
+      "regenerateAria": "重新生成 {name}",
+      "revoke": "撤销",
+      "revokeAria": "撤销 {name}",
+      "revokeAll": "全部撤销"
+    },
+    "confirm": {
+      "regenerateTitle": "重新生成 {name}？",
+      "regenerateDescription": "将生成权限相同的新密钥，旧密钥会立即失效，使用旧密钥的应用需要同步更新。",
+      "revokeTitle": "撤销 {name}？",
+      "revokeDescription": "使用此密钥的应用会立即停止访问。撤销操作无法撤回。",
+      "revokeAllTitle": "撤销全部 API 密钥？",
+      "revokeAllDescription": "使用这些密钥的全部脚本和应用会立即停止访问。撤销操作无法撤回。",
+      "revokeAllIssuedDescription": "该用户的全部密钥会立即失效，包括其自行创建的密钥。撤销操作无法撤回。"
+    },
+    "announce": {
+      "renamed": "密钥已重命名为 {name}。",
+      "revoked": "已撤销 {name}。",
+      "revokedAll": "{count, plural, =0 {没有可撤销的密钥。} other {已撤销 # 个密钥。}}"
+    },
+    "disabledNotice": "服务器已关闭 API 密钥功能，管理员重新开启后，现有密钥才能恢复使用。",
+    "ownerNotPermitted": "需要先为此用户授予“创建 API 密钥”权限，才能为其签发密钥。缺少该权限时，其已有密钥也会失效。",
+    "empty": {
+      "title": "暂无 API 密钥",
+      "hint": "创建密钥，让备份脚本、家庭自动化或其他应用通过密钥访问你的书库。",
+      "issuedTitle": "暂无 API 密钥",
+      "issuedHint": "该用户自行创建或由他人签发给此用户的密钥会显示在这里。"
+    },
+    "admin": {
+      "section": "API 密钥",
+      "sectionSummary": "供脚本和应用使用的密钥",
+      "title": "API 密钥",
+      "hint": "这里的修改会立即生效。"
+    },
+    "server": {
+      "enabled": "允许 API 密钥",
+      "enabledHint": "关闭时，现有密钥停止工作，也无法创建新密钥。密钥会保留，重新开启后恢复使用。",
+      "maxLifetime": "密钥有效期上限",
+      "maxLifetimeHint": "新密钥的有效期受此上限约束，并且无法选择永不过期。已有密钥保留原到期时间。",
+      "noLimit": "不限制",
+      "saved": "API 密钥设置已保存。",
+      "perUserHint": "可在“用户”中，为各用户设置“创建 API 密钥”权限。"
     }
   }
 }

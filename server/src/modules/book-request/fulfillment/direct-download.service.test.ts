@@ -636,13 +636,18 @@ describe('DirectDownloadService', () => {
       );
     }
 
+    // The failed state is published before the discard that follows it has finished removing the directory.
+    async function stagingRemoved(): Promise<void> {
+      await vi.waitFor(async () => expect(await stagingExists()).toBe(false), { timeout: SETTLE_MS });
+    }
+
     it('leaves nothing behind when the server answers with a page rather than a file', async () => {
       fetchMock.mockResolvedValue(new Response('<html>not found</html>', { headers: { 'content-type': 'text/html' } }));
 
       await service.add({ fileUrl: 'https://archive.org/download/x/book.epub', fileName: 'book.epub', clientKey: HASH });
       await settle();
 
-      expect(await stagingExists()).toBe(false);
+      await stagingRemoved();
     });
 
     it('leaves nothing behind when the file declares itself past the size cap', async () => {
@@ -651,7 +656,7 @@ describe('DirectDownloadService', () => {
       await service.add({ fileUrl: 'https://archive.org/download/x/huge.m4b', fileName: 'huge.m4b', clientKey: HASH });
       await settle();
 
-      expect(await stagingExists()).toBe(false);
+      await stagingRemoved();
     });
 
     it('leaves nothing behind when the connection fails outright', async () => {
@@ -660,7 +665,7 @@ describe('DirectDownloadService', () => {
       await service.add({ fileUrl: 'https://archive.org/download/x/book.epub', fileName: 'book.epub', clientKey: HASH });
       await settle();
 
-      expect(await stagingExists()).toBe(false);
+      await stagingRemoved();
     });
 
     it('leaves nothing behind when the stream breaks partway through', async () => {
@@ -675,7 +680,7 @@ describe('DirectDownloadService', () => {
       await service.add({ fileUrl: 'https://archive.org/download/x/book.epub', fileName: 'book.epub', clientKey: HASH });
       await settle();
 
-      expect(await stagingExists()).toBe(false);
+      await stagingRemoved();
     });
 
     /** Read once by the poll loop and then never again, so the entry must not outlive the process. */

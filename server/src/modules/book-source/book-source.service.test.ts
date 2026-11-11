@@ -14,7 +14,7 @@ import { TomatoRuntimeService } from './tomato-runtime.service';
 import { BookSourceService } from './book-source.service';
 
 const user = { id: 7, isSuperuser: false } as RequestUser;
-const verifyUserAccessLevel = vi.fn();
+const verifyAccessLevel = vi.fn();
 const upload = vi.fn();
 const download = vi.fn();
 
@@ -27,7 +27,7 @@ async function service() {
       { provide: ChapterDownloadService, useValue: { download: vi.fn() } },
       { provide: QidianChapterSource, useValue: {} },
       { provide: bookSourceConfig.KEY, useValue: { tomatoBinaryPath: '/opt/tomato/downloader' } },
-      { provide: LibraryService, useValue: { verifyUserAccessLevel } },
+      { provide: LibraryService, useValue: { verifyAccessLevel } },
       { provide: UploadService, useValue: { upload } },
       { provide: UploadValidatorService, useValue: { sanitizeFilename: (name: string) => name } },
       { provide: TomatoRuntimeService, useValue: { download } },
@@ -39,16 +39,16 @@ async function service() {
 describe('Book source acquisition', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    verifyUserAccessLevel.mockResolvedValue(undefined);
+    verifyAccessLevel.mockResolvedValue(undefined);
     download.mockResolvedValue({ content: Buffer.from('validated epub'), title: '测试小说' });
     upload.mockResolvedValue({ bookId: 11, filename: 'book.epub', format: 'epub', sizeBytes: 14 });
   });
   it('checks editor access before starting any download', async () => {
-    verifyUserAccessLevel.mockRejectedValue(new ForbiddenException());
+    verifyAccessLevel.mockRejectedValue(new ForbiddenException());
     await expect((await service()).acquireTomato(3, undefined, '7290175791344651298', user, new AbortController().signal)).rejects.toThrow(
       ForbiddenException,
     );
-    expect(verifyUserAccessLevel).toHaveBeenCalledWith(7, 3, false, 'editor');
+    expect(verifyAccessLevel).toHaveBeenCalledWith(user, 3, 'editor');
     expect(download).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
   });

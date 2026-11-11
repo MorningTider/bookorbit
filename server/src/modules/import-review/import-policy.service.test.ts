@@ -11,7 +11,7 @@ function setup() {
       return Promise.resolve();
     }),
   };
-  const libraries = { verifyUserAccessLevel: vi.fn() };
+  const libraries = { verifyAccessLevel: vi.fn() };
   return { store, settings, libraries, service: new ImportPolicyService(settings as never, libraries as never) };
 }
 const user = { id: 7, isSuperuser: false } as RequestUser;
@@ -28,7 +28,7 @@ describe('import duplicate policy inheritance', () => {
   });
   it('checks current editor access before writing overrides and rejects an implicit reset', async () => {
     const { service, settings, libraries } = setup();
-    libraries.verifyUserAccessLevel.mockRejectedValueOnce(new Error('denied'));
+    libraries.verifyAccessLevel.mockRejectedValueOnce(new Error('denied'));
     await expect(service.setLibrary(3, DEFAULT_IMPORT_DUPLICATE_POLICY, user)).rejects.toThrow('denied');
     expect(settings.setValue).not.toHaveBeenCalled();
     await expect(service.setLibrary(3, undefined, user)).rejects.toThrow('explicit');

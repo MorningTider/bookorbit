@@ -1,7 +1,7 @@
 import { FileLockService, bookOperationLockKey } from '../../common/services/file-lock.service';
 import { recordBookFileHashHistory } from '../../db/book-file-hash-history';
 import { isAudioFormat } from '@bookorbit/types';
-import { parseAudioDuration } from '../metadata/extractors/audio.extractor';
+import { probeAudioFile } from '../metadata/extractors/audio.extractor';
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -56,7 +56,7 @@ export class ImportFileCommitService {
     if (target.file.format !== input.format) throw new ConflictException('Only a file of the same format can be replaced');
     await this.paths.assertWithinRoot(target.file.absolutePath, target.root);
     const fileHash = await computeFileHash(input.incoming);
-    const durationSeconds = isAudioFormat(input.format) ? await parseAudioDuration(input.incoming) : undefined;
+    const durationSeconds = isAudioFormat(input.format) ? ((await probeAudioFile(input.incoming))?.durationSeconds ?? null) : undefined;
     if (durationSeconds === null) throw new ConflictException('Unable to measure the incoming audio file duration');
     const isFixedLayout = await this.extraction.detectFixedLayout(input.incoming, input.format);
     const overlay = await inspectEpubMediaOverlayFields(input.incoming, input.format, (error) =>
@@ -76,7 +76,7 @@ export class ImportFileCommitService {
             .for('update')
             .limit(1);
           if (!book) throw new ConflictException('The target book moved; review it again');
-          await this.libraries.verifyUserAccessLevel(user.id, book.libraryId, user.isSuperuser, 'editor');
+          await this.libraries.verifyAccessLevel(user, book.libraryId, 'editor');
           const [file] = await tx
             .select()
             .from(bookFiles)

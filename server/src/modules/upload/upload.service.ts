@@ -1,4 +1,4 @@
-import { parseAudioDuration } from '../metadata/extractors/audio.extractor';
+import { probeAudioFile } from '../metadata/extractors/audio.extractor';
 import { randomUUID } from 'node:crypto';
 import { ConflictException } from '@nestjs/common';
 import type { ImportIdentity, ImportOrigin, ImportResolution } from '@bookorbit/types';
@@ -168,7 +168,7 @@ export class UploadService {
   ): Promise<StoredUploadResult> {
     const resolution = options.resolution;
     if (!resolution || resolution.action === 'new') throw new BadRequestException('An existing-book action is required');
-    await this.libraryService.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraryService.verifyAccessLevel(user, libraryId, 'editor');
     try {
       if (resolution.action === 'replace') {
         const result = await this.importCommit.replace({ ...resolution, incoming: tempPath, format, reviewId: options.reviewId }, user);
@@ -200,7 +200,7 @@ export class UploadService {
   async convertTxtToEpub(bookId: number, user: RequestUser, options: ConvertTxtDto = {}) {
     const [owner] = await this.db.select({ libraryId: books.libraryId }).from(books).where(eq(books.id, bookId)).limit(1);
     if (!owner) throw new NotFoundException('Book not found');
-    await this.libraryService.verifyUserAccessLevel(user.id, owner.libraryId, user.isSuperuser, 'editor');
+    await this.libraryService.verifyAccessLevel(user, owner.libraryId, 'editor');
     if (this.convertingBooks.has(bookId)) throw new BadRequestException('This book is already being converted');
     if (this.convertingBooks.size >= 2) throw new ServiceUnavailableException('Conversion queue is busy; retry shortly');
     this.convertingBooks.add(bookId);
@@ -265,7 +265,7 @@ export class UploadService {
         isbn: metadata?.isbn13 || metadata?.isbn10,
         cover,
       });
-      await this.libraryService.verifyUserAccessLevel(user.id, owner.libraryId, user.isSuperuser, 'editor');
+      await this.libraryService.verifyAccessLevel(user, owner.libraryId, 'editor');
       const result = await this.addFileToBook(bookId, filename, createReadStream(output), user);
       this.logger.log(
         `[book.convert_txt] [end] bookId=${bookId} durationMs=${Date.now() - startedAt} fileId=${result.id} - TXT conversion completed`,
@@ -315,10 +315,9 @@ export class UploadService {
     this.logger.log(
       `[${event}] [start] libraryId=${libraryId} userId=${user.id} folderId=${folderId ?? 'auto'} rawFilename="${rawFilename}" - upload started`,
     );
-    const isSuperuser = user.isSuperuser;
 
     const library = await this.findLibraryOrFail(libraryId);
-    await this.libraryService.verifyUserAccess(user.id, libraryId, isSuperuser);
+    await this.libraryService.verifyAccess(user, libraryId);
 
     const folder = await this.resolveFolder(libraryId, folderId);
 
@@ -453,7 +452,7 @@ export class UploadService {
     try {
       const [book] = await this.db.select({ libraryId: books.libraryId }).from(books).where(eq(books.id, bookId)).limit(1);
       if (!book) throw new NotFoundException('Book not found');
-      await this.libraryService.verifyUserAccessLevel(user.id, book.libraryId, user.isSuperuser, 'editor');
+      await this.libraryService.verifyAccessLevel(user, book.libraryId, 'editor');
       const result = await repairConvertedEdition(this.db, bookId, book.libraryId);
       this.logger.log(
         `[book.repair_converted_edition] [end] bookId=${bookId} userId=${user.id} durationMs=${Date.now() - startedAt} fileId=${result.fileId} removedDuplicateBookId=${result.removedDuplicateBookId} - edition repair completed`,
@@ -498,7 +497,7 @@ export class UploadService {
 
     if (!bookRow) throw new NotFoundException(`Book ${bookId} not found`);
 
-    await this.libraryService.verifyUserAccess(user.id, bookRow.libraryId, user.isSuperuser);
+    await this.libraryService.verifyAccess(user, bookRow.libraryId);
 
     const filename = this.validator.sanitizeFilename(rawFilename);
     const format = this.validator.validateFormat(filename, bookRow.allowedFormats);
@@ -536,8 +535,9 @@ export class UploadService {
           .limit(1);
         if (!current) throw new NotFoundException(`Book ${bookId} not found`);
 
-        await this.libraryService.verifyUserAccess(user.id, current.libraryId, user.isSuperuser);
-        const durationSeconds = options?.preserveMetadata && isAudioFormat(format) ? await parseAudioDuration(tempPath) : undefined;
+        await this.libraryService.verifyAccess(user, current.libraryId);
+        const durationSeconds =
+          options?.preserveMetadata && isAudioFormat(format) ? ((await probeAudioFile(tempPath))?.durationSeconds ?? null) : undefined;
         if (durationSeconds === null) throw new BadRequestException('Unable to measure the incoming audio file duration');
 
         const samePartialHash = await this.db
@@ -750,7 +750,7 @@ export class UploadService {
 
     if (!bookRow) throw new NotFoundException(`Book ${bookId} not found`);
 
-    await this.libraryService.verifyUserAccessLevel(user.id, bookRow.libraryId, user.isSuperuser, 'editor');
+    await this.libraryService.verifyAccessLevel(user, bookRow.libraryId, 'editor');
 
     const fileRenameService = this.resolveFileRenameService();
     if (!fileRenameService) {

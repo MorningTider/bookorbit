@@ -250,7 +250,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
     matches: ImportDuplicateMatch[],
     user: RequestUser,
   ): Promise<never> {
-    await this.libraries.verifyUserAccessLevel(user.id, input.libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, input.libraryId, 'editor');
     const id = randomUUID();
     const directory = join(this.directory, id);
     await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -289,7 +289,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
   async get(id: string, user: RequestUser) {
     const row = await this.repository.ownedReview(id, user.id);
     if (!row) throw new NotFoundException('Import review not found');
-    await this.libraries.verifyUserAccessLevel(user.id, row.libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, row.libraryId, 'editor');
     if (row.status === 'pending' && row.expiresAt.getTime() < Date.now()) throw new GoneException('Import review expired');
     await this.paths.assertWithinRoot(row.stagingPath, join(this.directory, row.id));
     return row;
@@ -348,7 +348,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
   async filesPage(bookId: number, cursor: number | undefined, format: string | undefined, user: RequestUser) {
     const page = await this.repository.filesPage(bookId, cursor, format, user);
     if (!page) throw new NotFoundException('Book not found');
-    await this.libraries.verifyUserAccessLevel(user.id, page.libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, page.libraryId, 'editor');
     return {
       items: page.files.slice(0, 50).map((file) => ({ ...file, filename: basename(file.filename) })),
       nextCursor: page.files.length > 50 ? page.files[49]!.id : null,
@@ -357,7 +357,7 @@ export class ImportReviewService implements OnApplicationBootstrap {
   async fileVersion(id: number, user: RequestUser) {
     const row = await this.repository.file(id, user);
     if (!row) throw new NotFoundException('File not found');
-    await this.libraries.verifyUserAccessLevel(user.id, row.libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, row.libraryId, 'editor');
     await this.paths.assertWithinRoot(row.file.absolutePath, row.root);
     const stat = await lstat(row.file.absolutePath);
     if (!stat.isFile() || stat.isSymbolicLink()) throw new BadRequestException('File is not a regular library file');

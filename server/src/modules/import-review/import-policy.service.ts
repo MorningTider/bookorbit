@@ -31,7 +31,7 @@ export class ImportPolicyService {
     return parsePolicy(await this.settings.getValue(GLOBAL_KEY)) ?? { ...DEFAULT_IMPORT_DUPLICATE_POLICY };
   }
   async forLibrary(libraryId: number, user: RequestUser): Promise<ImportPolicyResponse> {
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     const [global, override] = await Promise.all([this.global(), this.settings.getValue(`${GLOBAL_KEY}:library:${libraryId}`).then(parsePolicy)]);
     return { global, override, effective: override ?? global };
   }
@@ -41,7 +41,7 @@ export class ImportPolicyService {
   }
   async setLibrary(libraryId: number, policy: ImportDuplicatePolicy | null | undefined, user: RequestUser) {
     if (policy === undefined) throw new BadRequestException('An explicit policy or null is required');
-    await this.libraries.verifyUserAccessLevel(user.id, libraryId, user.isSuperuser, 'editor');
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     await this.settings.setValue(`${GLOBAL_KEY}:library:${libraryId}`, JSON.stringify(policy));
     return this.forLibrary(libraryId, user);
   }

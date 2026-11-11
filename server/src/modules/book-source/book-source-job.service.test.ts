@@ -12,7 +12,7 @@ import { BookSourceJobRepository } from './book-source-job.repository';
 import { BookSourceJobService } from './book-source-job.service';
 import type { RequestUser } from '../../common/types/request-user';
 const repository = { remove: vi.fn(), enqueue: vi.fn(), owned: vi.fn(), retry: vi.fn() };
-const libraries = { verifyUserAccessLevel: vi.fn(), findOne: vi.fn() };
+const libraries = { verifyAccessLevel: vi.fn(), findOne: vi.fn() };
 const user = { id: 7, active: true, isSuperuser: false } as RequestUser;
 const row = {
   id: 1,
@@ -57,7 +57,7 @@ describe('chapter acquisition job identity and permissions', () => {
     expect(repository.enqueue).toHaveBeenCalledWith(7, 3, undefined, 'qidian:1010868264');
   });
   it('requires current library editor access before queueing', async () => {
-    libraries.verifyUserAccessLevel.mockRejectedValue(new ForbiddenException());
+    libraries.verifyAccessLevel.mockRejectedValue(new ForbiddenException());
     await expect((await service()).enqueueQidian(3, undefined, '101', user)).rejects.toThrow(ForbiddenException);
     expect(repository.enqueue).not.toHaveBeenCalled();
   });

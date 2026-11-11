@@ -218,7 +218,7 @@ describe('EpubService', () => {
     findPrimaryFilesByBookIds: vi.fn(),
   };
   const libraryService = {
-    verifyUserAccess: vi.fn(),
+    verifyAccess: vi.fn(),
   };
   const txtCache = { prepare: vi.fn() };
   let service: EpubService;
@@ -236,7 +236,7 @@ describe('EpubService', () => {
     service = module.get(EpubService);
     bookReadService.findLibraryIdByBookId.mockResolvedValue(3);
     bookReadService.findPrimaryFilesByBookIds.mockResolvedValue([{ format: 'epub', absolutePath: '/books/book.epub', sizeBytes: null }]);
-    libraryService.verifyUserAccess.mockResolvedValue(undefined);
+    libraryService.verifyAccess.mockResolvedValue(undefined);
     mockStat.mockResolvedValue({ mtimeMs: 100 } as Awaited<ReturnType<typeof stat>>);
     mockOpenRange.mockImplementation(async (_path, entry, start, end) => Readable.from([(await entry.buffer()).subarray(start, end + 1)]));
   });
@@ -336,7 +336,7 @@ describe('EpubService', () => {
         ],
       }),
     );
-    expect(libraryService.verifyUserAccess).toHaveBeenCalledWith(10, 3, false);
+    expect(libraryService.verifyAccess).toHaveBeenCalledWith(expect.objectContaining({ id: 10, isSuperuser: false }), 3);
   });
 
   it('falls back to NCX TOC when nav parsing fails', async () => {
@@ -636,11 +636,11 @@ describe('EpubService', () => {
     txtCache.prepare.mockResolvedValue('/tmp/txt-reading.epub');
     mockOpenFile.mockResolvedValue(makeEpubArchive() as any);
     await service.getBookInfo(5, 77, user);
-    expect(libraryService.verifyUserAccess).toHaveBeenCalledWith(user.id, 3, false);
+    expect(libraryService.verifyAccess).toHaveBeenCalledWith(user, 3);
     expect(txtCache.prepare).toHaveBeenCalledWith(5, 77, '/books/original.txt');
     expect(mockOpenFile).toHaveBeenCalledWith('/tmp/txt-reading.epub');
     txtCache.prepare.mockClear();
-    libraryService.verifyUserAccess.mockRejectedValueOnce(new ForbiddenException());
+    libraryService.verifyAccess.mockRejectedValueOnce(new ForbiddenException());
     await expect(service.getBookInfo(5, 77, user)).rejects.toBeInstanceOf(ForbiddenException);
     expect(txtCache.prepare).not.toHaveBeenCalled();
     bookReadService.findFileById.mockResolvedValueOnce({ id: 77, bookId: 6, format: 'txt', absolutePath: '/books/another-user.txt' });

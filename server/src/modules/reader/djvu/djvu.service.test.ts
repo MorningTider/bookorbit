@@ -162,6 +162,9 @@ describe('DjVu reader service', () => {
     const documents = module.get(DjvuDocumentService);
     const queues = documents as unknown as { waiters: unknown[]; backgroundWaiters: unknown[] };
     const render = run.getMockImplementation()!;
+    const timeoutMs = config.timeoutMs;
+    // Queue admission is checked here. The separate expiry test uses the short deadline.
+    config.timeoutMs = 5000;
     let release!: () => void;
     const blocked = new Promise<void>((resolve) => {
       release = resolve;
@@ -171,13 +174,20 @@ describe('DjVu reader service', () => {
       return render(...args);
     });
     const readers = Array.from({ length: 18 }, () => service.getPageCount(1, user));
-    await vi.waitFor(() => expect(queues.waiters).toHaveLength(16));
-    const background = Array.from({ length: 4 }, () => documents.extractMetadata(path));
-    await vi.waitFor(() => expect(queues.backgroundWaiters).toHaveLength(4));
-    await expect(service.getPageCount(1, user)).rejects.toMatchObject({ status: 503 });
-    release();
-    const results = await Promise.allSettled([...readers, ...background]);
-    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(0);
+    const readersDone = Promise.allSettled(readers);
+    try {
+      await vi.waitFor(() => expect(queues.waiters).toHaveLength(16));
+      const background = Array.from({ length: 4 }, () => documents.extractMetadata(path));
+      const backgroundDone = Promise.allSettled(background);
+      await vi.waitFor(() => expect(queues.backgroundWaiters).toHaveLength(4));
+      await expect(service.getPageCount(1, user)).rejects.toMatchObject({ status: 503 });
+      release();
+      const results = [...(await readersDone), ...(await backgroundDone)];
+      expect(results.filter((result) => result.status === 'rejected')).toHaveLength(0);
+    } finally {
+      release();
+      config.timeoutMs = timeoutMs;
+    }
   });
 
   it('expires queued requests without starting more decoders', async () => {
