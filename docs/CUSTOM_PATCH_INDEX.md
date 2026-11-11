@@ -151,4 +151,4 @@ TXT 转换并发修复实机完成：a316516b 经 10024 验收后交付自用正
 - 7d867edd在Source.Dockerfile复制服务端动态语言目录，finalize-source-build.mjs实际调用serverText校验中英文，source-build.py拒绝缺少该收据的构建。
 - 0f5e138d修正schema-upgrade-policy.py同schema更新误拒，新增没有目标允许列表项的回归，保留来源、载荷、策略和实际迁移防篡改校验。
 
-3.7.0-10044已通过DSM部署，应用仍为同一已验收7d867edd载荷。验收范围、账户摘要差异及剩余环境清理见UPGRADE_V3_7_0_ACCEPTANCE.md。
+3.7.0-10044已通过DSM部署，应用仍为同一已验收7d867edd载荷。账户两项认证时间差异与原完整摘要重建已核对，隔离测试环境已清理，逐项验收范围见UPGRADE_V3_7_0_ACCEPTANCE.md。

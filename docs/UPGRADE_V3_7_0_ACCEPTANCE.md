@@ -30,7 +30,7 @@
 | BO-C07b | 现有文件格式        | EPUB/PDF/MOBI/AZW3/FB2/漫画/M4A读取与下载                 | 已合并核对 | 通过               | 格式专项回归及TXT/EPUB真实HTTP通过      | 已部署，其他格式未逐个实机复测  | `client/src/features/reader/audiobook/__tests__/AudiobookReaderView.spec.ts`                      |
 | BO-C08a | 中文与动态标签      | 设置、任务、状态、图表、提示、国际化即时切换              | 已合并核对 | 通过               | 真实中文挑战/评论/规则页面通过          | 已部署，动态语言目录已补齐      | `client/scripts/locale-catalog-validation.spec.mjs`                                               |
 | BO-C08b | 用户权限            | 接口/DTO/返回值、书库访问、配置和私有数据隔离             | 已合并核对 | 通过               | 双账号、书库访问、严格DTO及匿名拒绝通过 | 已部署，生产认证接口通过        | `server/src/modules/book-source/book-source.http.test.ts`                                         |
-| BO-C09a | 原生运行库          | 普通UID、Node/Sharp/媒体/Python/CMap、路径和私有环境      | 已合并核对 | 原生22套207项通过  | 普通UID原生完整载荷HTTP通过             | 已部署，末次进程复核待网络      | 原生单测收据与控制器10项生命周期收据                                                              |
+| BO-C09a | 原生运行库          | 普通UID、Node/Sharp/媒体/Python/CMap、路径和私有环境      | 已合并核对 | 原生22套207项通过  | 普通UID原生完整载荷HTTP通过             | UID217211、Range通过            | 原生单测收据与控制器10项生命周期收据                                                              |
 | BO-C09b | SPK升级生命周期     | 原生启动监督、延迟就绪、配置持久化、正常DSM升级           | 已合并核对 | 原生22套207项通过  | 控制器10项及普通账号守卫8项通过         | DSM10042/10044通过              | 原生单测收据与控制器10项生命周期收据                                                              |
 | BO-C09c | 套件图标            | 网页Orbit标识、64/256 PNG、实际包与DSM显示                | 已合并核对 | 原生22套207项通过  | Orbit图标资产与归档回归通过             | 正式包已含Orbit图标             | 原生单测收据与控制器10项生命周期收据                                                              |
 | BO-C10  | 原生共享PG18        | 连接池、非超级用户、已有迁移哈希、旧路径及生产配置        | 已合并核对 | 迁移单测与PG18通过 | PG18两条增量迁移及回填通过              | 133项账本，生产数据库健康       | 隔离PG18迁移131→133，旧账本及业务数据校验通过                                                     |
@@ -105,14 +105,16 @@ Mac空间再次不足时，又清理18个已核对的旧生成stage，释放约1
 
 生产只读API已核验书籍查询、详情、4路并发、真实文件Range、评论读取、下载器配置、前端入口、匿名拒绝与健康。七个中文字体文件全部真实FontFace.load成功，18位作者中10位已有持久头像，缩略图与原图共20个接口均为200。浏览器后续会话过期，作者列表的前台图片渲染没有补记为本轮通过。
 
-14张原业务表的列、行数与完整行摘要均与升级前一致，包括25本书、6484条文件、25条元数据、18位作者、28条作者关系、7条阅读进度、19条阅读会话、7条书源任务及7个字体。service.json全文SHA256不变。users行包含可变的登录和设置字段，整行摘要发生变化。候选阶段使用历史会话时间重建原摘要成功，正式复核时重建未命中，不能宣称用户整行逐字节一致。此差异单列，不扩大为书籍或阅读数据变化。
+14张原业务表的列、行数与完整行摘要均与升级前一致，包括25本书、6484条文件、25条元数据、18位作者、28条作者关系、7条阅读进度、19条阅读会话、7条书源任务及7个字体。service.json全文SHA256不变。账户审计确认期间重新登录更新了last_login_at，刷新会话更新了last_authenticated_at。使用旧登录审计时间与保留的刷新时间重建升级前完整行摘要，匹配成功，两个认证时间字段以外的全部原账户字段一致。此前仅替换认证刷新时间的重建漏掉重新登录时间，已在最终核对中补全。
 
 截图中的TXT format acceptance是隔离测试书库名称。已通过正常页面改为“TXT 格式验证”，保存后确认旧名消失。该名称属于测试数据。
 
-当前Mac网络切换后，内网与Tailscale的SSH均超时。最终专用进程核对、隔离实例及测试数据库/角色清理仍待连接恢复。已安装正式包的运行状态及以上已取得的证据继续保留，不能将待清理项写成已完成。
+用户恢复内网连接后，已完成正式包普通UID217211进程、原生文件Range字节摘要及13项生产检查。隔离进程停止，测试数据库与角色删除，18186端口关闭，本机隔离账号凭据删除，临时浏览器标签页关闭。临时程序和数据目录清理结果由final-verification.json记录。
+
+已核对正式10044归档的SHA256，并按既有清理授权删除本机10042候选与失败10043归档，共769884160字节。保留当前10044正式包及脱敏验收记录。
 
 ### 证据范围
 
 每一行均与unit-feature-coverage.json中的测试路径核对，自动回归覆盖与实际HTTP/页面抽样分别记录。外部书源逐站下载、所有格式全部故障组合及整机重启未在本轮重复验证。七猫正文、番茄会员导出、完整Legado脚本兼容、公开再分发材料和Android实机仍按原需求单列，未因本次升级自动关闭。
 
-本机脱敏证据位于local/synology-native/upstream-v3.7.0，包含native-http-locales.json、lifecycle-35s.json、private-stable-readiness.json、production-browser-stable.json及production-font-author-stable.json。完整生产摘要保存在NAS的upgrade-validation-v37目录，没有创建数据库备份。
+本机脱敏证据位于local/synology-native/upstream-v3.7.0，包含native-http-locales.json、lifecycle-35s.json、private-stable-readiness.json、production-browser-stable.json、production-font-author-stable.json、production-stable-acceptance.json、user-authentication-timestamps.json及final-verification.json。完整生产摘要保存在NAS的upgrade-validation-v37目录，没有创建数据库备份。
