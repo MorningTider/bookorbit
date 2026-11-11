@@ -11,8 +11,8 @@ import { LibraryService } from '../library/library.service';
 import { BookSourceJobRepository } from './book-source-job.repository';
 import { BookSourceJobService } from './book-source-job.service';
 import type { RequestUser } from '../../common/types/request-user';
-const repository = { remove: vi.fn(), enqueue: vi.fn(), owned: vi.fn(), retry: vi.fn() };
-const libraries = { verifyAccessLevel: vi.fn(), findOne: vi.fn() };
+const repository = { list: vi.fn(), cancel: vi.fn(), remove: vi.fn(), enqueue: vi.fn(), owned: vi.fn(), retry: vi.fn() };
+const libraries = { verifyAccess: vi.fn(), findAccessibleLibraryIds: vi.fn(), verifyAccessLevel: vi.fn(), findOne: vi.fn() };
 const user = { id: 7, active: true, isSuperuser: false } as RequestUser;
 const row = {
   id: 1,
@@ -107,4 +107,35 @@ it('removes only the current active user task and does not invoke library mutati
   repository.remove.mockClear();
   await expect(instance.remove(1, { ...user, active: false })).rejects.toThrow(ForbiddenException);
   expect(repository.remove).not.toHaveBeenCalled();
+});
+
+describe('API key source job scope', () => {
+  const scoped = {
+    ...user,
+    credential: { kind: 'api_key', keyId: 4, keyName: 'test', audience: 'api', access: 'write', libraryIds: [3], ownerIsSuperuser: true },
+  } as RequestUser;
+  beforeEach(() => {
+    vi.resetAllMocks();
+    repository.owned.mockResolvedValue({ ...row, status: 'failed' });
+    repository.list.mockResolvedValue([]);
+    libraries.findAccessibleLibraryIds.mockResolvedValue([3]);
+  });
+  it('filters library visibility in the paginated repository query', async () => {
+    expect(await (await service()).list(scoped, 30)).toEqual({ items: [], nextCursor: null });
+    expect(libraries.findAccessibleLibraryIds).toHaveBeenCalledWith(scoped);
+    expect(repository.list).toHaveBeenCalledWith(7, 30, [3]);
+  });
+  it.each(['get', 'cancel', 'remove', 'retry'] as const)('checks the key library scope before %s', async (operation) => {
+    libraries.verifyAccess.mockRejectedValue(new ForbiddenException());
+    await expect((await service())[operation](1, scoped)).rejects.toThrow(ForbiddenException);
+    expect(libraries.verifyAccess).toHaveBeenCalledWith(scoped, 3);
+    expect(repository.cancel).not.toHaveBeenCalled();
+    expect(repository.remove).not.toHaveBeenCalled();
+    expect(repository.retry).not.toHaveBeenCalled();
+  });
+  it('preserves the existing interactive history query', async () => {
+    await (await service()).list(user, 30);
+    expect(repository.list).toHaveBeenCalledWith(7, 30);
+    expect(libraries.findAccessibleLibraryIds).not.toHaveBeenCalled();
+  });
 });

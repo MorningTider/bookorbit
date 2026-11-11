@@ -10,7 +10,7 @@ import { ForbiddenException, Inject, Injectable, Logger, ServiceUnavailableExcep
 import type { ConfigType } from '@nestjs/config';
 import type { BookSourceJob, BookSourceJobPage, BookSourceJobStatus, BookSourceJobProgress } from '@bookorbit/types';
 import { bookSourceConfig } from '../../config/config';
-import type { RequestUser } from '../../common/types/request-user';
+import { apiKeyCredentialOf, type RequestUser } from '../../common/types/request-user';
 import { bookSourceJobs } from '../../db/schema';
 import { LibraryService } from '../library/library.service';
 import { BookSourceJobRepository } from './book-source-job.repository';
@@ -96,7 +96,9 @@ export class BookSourceJobService {
   }
 
   async list(user: RequestUser, cursor?: number): Promise<BookSourceJobPage> {
-    const rows = await this.repository.list(user.id, cursor);
+    const rows = apiKeyCredentialOf(user)
+      ? await this.repository.list(user.id, cursor, await this.libraries.findAccessibleLibraryIds(user))
+      : await this.repository.list(user.id, cursor);
     return {
       items: rows.slice(0, 25).map((job) => sourceJobResponse(job, this.progress.read(job.id, user.id))),
       nextCursor: rows.length > 25 ? rows[24]!.id : null,
@@ -104,12 +106,12 @@ export class BookSourceJobService {
   }
 
   async get(id: number, user: RequestUser) {
-    return sourceJobResponse(await this.repository.owned(id, user.id), this.progress.read(id, user.id));
+    return sourceJobResponse(await this.owned(id, user), this.progress.read(id, user.id));
   }
 
   async cancel(id: number, user: RequestUser) {
     return this.mutate('book_source.cancel', `jobId=${id} userId=${user.id}`, async () => {
-      const job = await this.repository.owned(id, user.id);
+      const job = await this.owned(id, user);
       if (job.status === 'awaiting_choice' && job.reviewId) await this.importReviews.discard(job.reviewId, user);
       return sourceJobResponse(await this.repository.cancel(id, user.id));
     });
@@ -118,13 +120,14 @@ export class BookSourceJobService {
   async remove(id: number, user: RequestUser) {
     return this.mutate('book_source.remove', `jobId=${id} userId=${user.id}`, async () => {
       if (!user.active) throw new ForbiddenException();
+      if (apiKeyCredentialOf(user)) await this.owned(id, user);
       return sourceJobResponse(await this.repository.remove(id, user.id));
     });
   }
 
   async retry(id: number, user: RequestUser, confirmedImportNotCompleted = false) {
     return this.mutate('book_source.retry', `jobId=${id} userId=${user.id}`, async () => {
-      const job = await this.repository.owned(id, user.id);
+      const job = await this.owned(id, user);
       if (!user.active) throw new ForbiddenException();
       if (job.sourceBookId.startsWith('qidian:')) await this.downloadPolicy.assertEnabled('qidian');
       else if (!job.sourceBookId.includes(':')) await this.downloadPolicy.assertEnabled('fanqie');
@@ -133,6 +136,12 @@ export class BookSourceJobService {
       if (!job.sourceBookId.includes(':') && !this.config.tomatoBinaryPath) throw new ServiceUnavailableException('番茄下载器未配置');
       return sourceJobResponse(await (confirmedImportNotCompleted ? this.repository.retry(id, user.id, true) : this.repository.retry(id, user.id)));
     });
+  }
+
+  private async owned(id: number, user: RequestUser) {
+    const job = await this.repository.owned(id, user.id);
+    if (apiKeyCredentialOf(user)) await this.libraries.verifyAccess(user, job.libraryId);
+    return job;
   }
 
   private async mutate(event: string, ids: string, operation: () => Promise<BookSourceJob>) {

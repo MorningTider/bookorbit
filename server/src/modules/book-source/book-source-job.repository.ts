@@ -39,11 +39,12 @@ export class BookSourceJobRepository {
     });
   }
 
-  async list(userId: number, cursor?: number) {
+  async list(userId: number, cursor?: number, libraryIds?: number[]) {
+    if (libraryIds?.length === 0) return [];
     return this.db
       .select()
       .from(jobs)
-      .where(and(eq(jobs.userId, userId), cursor ? lt(jobs.id, cursor) : undefined))
+      .where(and(eq(jobs.userId, userId), cursor ? lt(jobs.id, cursor) : undefined, libraryIds ? inArray(jobs.libraryId, libraryIds) : undefined))
       .orderBy(desc(jobs.id))
       .limit(26);
   }

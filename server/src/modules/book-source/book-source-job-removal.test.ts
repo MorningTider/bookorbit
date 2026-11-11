@@ -34,3 +34,23 @@ describe('terminal source task removal', () => {
     await expect(setup([], false).repository.remove(11, 8)).rejects.toThrow(NotFoundException);
   });
 });
+
+describe('source job library pagination', () => {
+  function listing() {
+    const where = vi.fn().mockReturnValue({ orderBy: () => ({ limit: () => Promise.resolve([]) }) });
+    const select = vi.fn().mockReturnValue({ from: () => ({ where }) });
+    return { repository: new BookSourceJobRepository({ select } as never), select, where };
+  }
+  it('filters by both user and library before the cursor limit', async () => {
+    const { repository, where } = listing();
+    await repository.list(7, 100, [3]);
+    const query = new PgDialect().sqlToQuery(where.mock.calls[0]![0]);
+    expect(query.sql).toContain('"book_source_jobs"."library_id"');
+    expect(query.params).toEqual([7, 100, 3]);
+  });
+  it('returns no jobs for an empty visible library scope', async () => {
+    const { repository, select } = listing();
+    expect(await repository.list(7, undefined, [])).toEqual([]);
+    expect(select).not.toHaveBeenCalled();
+  });
+});
