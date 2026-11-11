@@ -2,49 +2,49 @@
 
 本表由现有需求清单、定制补丁索引、功能矩阵及用户后续需求整理。每一项在完成源码核对、自动测试、隔离业务及群晖升级核对后填写证据。旧版已验收记录只作基线，不自动计为新版通过。
 
-- 升级起点为custom/bookorbit-v3.5.0的6f053c6f，当前生产3.5.0-10041。
+- 升级起点为custom/bookorbit-v3.5.0，旧生产为3.5.0-10041。当前已通过DSM安装3.7.0-10044自用正式包。
 - 目标为官方v3.7.0，提交6f8f5f4818eb737dc4d78fc5b5294fc3adb26860。
 - 升级分支为upgrade/upstream-v3.7.0。
 - 原生PG独立项目继续按既有配置接入。用户此前要求不创建数据库备份，当前升级沿用该约束。
 - 七猫正文、番茄会员正文、Android TXT原生阅读和手机实际性能等原有待办维持独立状态。
 
-| 编号    | 功能                | 核对范围                                                  | 源码       | 自动测试           | 隔离业务                  | 群晖     | 证据                                                                                              |
-| ------- | ------------------- | --------------------------------------------------------- | ---------- | ------------------ | ------------------------- | -------- | ------------------------------------------------------------------------------------------------- |
-| BO-C01a | TXT上传与编码       | TXT上传、UTF-8/GBK/GB18030/UTF-16、权限                   | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/metadata/extractors/txt-format.extractor.test.ts`                             |
-| BO-C01b | 扫描组织方式        | 每文件一本、每目录一本、既有组织配置及同书附件            | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/scanner/composables/useLiveScanBooks.test.ts`                                |
-| BO-C01c | 同书格式归属        | 转换后、文件监控、定向扫描及全量扫描均保持同一本书        | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `server/src/modules/scanner/lib/group-loose-txt-epub.test.ts`                                     |
-| BO-C02a | TXT转EPUB           | 编码与章节选项、已有EPUB保护、原始文件和阅读记录          | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `client/src/features/book/components/__tests__/TxtConversionDialog.spec.ts`                       |
-| BO-C02b | TXT网页阅读         | 直接阅读、章节、编码、位置、缓存与并发                    | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/reader/shared/composables/__tests__/useReaderProgress.spec.ts`               |
-| BO-C03a | 中文书籍元数据      | 豆瓣、百度、番茄、起点、七猫的搜索、匹配、来源及错误      | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/metadata-fetch/providers/chinese-catalog/baidu-page.test.ts`                  |
-| BO-C03b | 自动元数据队列      | 全局与书库覆盖、导入触发、并发上限、失败与重试            | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/settings/metadata-auto-fetch/__tests__/BookMetadataFetchSettings.spec.ts`    |
-| BO-C03c | 封面                | 代理、来源请求头、失败回退、已显示封面空状态              | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/book-source/SourceBookPreview.spec.ts`                                       |
-| BO-C04a | 小说聚合搜索        | 部分关键词、多结果、封面作者简介分类和来源标记            | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/book-source/composables/__tests__/useFanqieAcquisition.spec.ts`              |
-| BO-C04b | 下载来源设置        | 滑动开关、提供商前提、独立下载开关及后端强制策略          | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/settings/metadata-preferences/__tests__/ProviderConfigPanelControls.spec.ts` |
-| BO-C04c | 公开章节引擎        | 番茄、起点免费卷、通用JSON/CSS规则、限流与取消            | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/chapter-download.service.test.ts`                                 |
-| BO-C05a | 任务列表            | 分页、书名来源、状态时间、结果跳转与终态确认删除          | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/book-source/composables/__tests__/useFanqieAcquisition.spec.ts`              |
-| BO-C05b | 任务恢复            | 所有权、重复提交、租约、旧worker隔离和核对后重试          | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/book-source-job.repository.test.ts`                               |
-| BO-C05c | 下载进度和超时      | 实际章节计数、无新增超时、持续进度继续、取消与进程退出    | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/book-source-progress.service.test.ts`                             |
-| BO-C05d | 章节续传缓存        | 每本隔离、重试复用、完整性校验、活动保护和7天清理         | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/chapter-download.service.test.ts`                                 |
-| BO-C06  | 直链安全续传        | Range、ETag、Last-Modified、416、进程中断及变更拒绝       | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-request/fulfillment/direct-download.service.test.ts`                     |
-| BO-C07a | Gutenberg与漫画书源 | 插件检索、文件下载、命名、元数据封面与入库                | 已合并核对 | 插件14项通过       | 待验收                    | 待验收   | —                                                                                                 |
-| BO-C07b | 现有文件格式        | EPUB/PDF/MOBI/AZW3/FB2/漫画/M4A读取与下载                 | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/reader/audiobook/__tests__/AudiobookReaderView.spec.ts`                      |
-| BO-C08a | 中文与动态标签      | 设置、任务、状态、图表、提示、国际化即时切换              | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/scripts/locale-catalog-validation.spec.mjs`                                               |
-| BO-C08b | 用户权限            | 接口/DTO/返回值、书库访问、配置和私有数据隔离             | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/book-source/book-source.http.test.ts`                                         |
-| BO-C09a | 原生运行库          | 普通UID、Node/Sharp/媒体/Python/CMap、路径和私有环境      | 已合并核对 | 原生工具205项通过  | 待验收                    | 待验收   | 原生单测收据与控制器10项生命周期收据                                                              |
-| BO-C09b | SPK升级生命周期     | 原生启动监督、延迟就绪、配置持久化、正常DSM升级           | 已合并核对 | 原生工具205项通过  | 控制器通过，应用待验收    | 待验收   | 原生单测收据与控制器10项生命周期收据                                                              |
-| BO-C09c | 套件图标            | 网页Orbit标识、64/256 PNG、实际包与DSM显示                | 已合并核对 | 原生工具205项通过  | 待验收                    | 待验收   | 原生单测收据与控制器10项生命周期收据                                                              |
-| BO-C10  | 原生共享PG18        | 连接池、非超级用户、已有迁移哈希、旧路径及生产配置        | 已合并核对 | 迁移单测与PG18通过 | 结构/数据通过，HTTP待验收 | 待验收   | 隔离PG18迁移131→133，旧账本及业务数据校验通过                                                     |
-| BO-C11a | 国内作者提供商      | 百度/豆瓣/番茄/起点、搜索/链接/优先级/访问失败            | 已合并核对 | 通过               | 待验收                    | 待验收   | `server/src/modules/authors/author-enrichment-config.service.test.ts`                             |
-| BO-C11b | 作者头像保存        | 编辑保存、异步图片落盘、详情/缓存作者列表即时一致         | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/author/composables/useAuthorBooks.test.ts`                                   |
-| BO-C12  | 中文阅读字体        | 5家族7文件、中文名、设置滑动开关、升级保留和字体服务      | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/reader/epub/__tests__/publisher-font-size-transform.spec.ts`                 |
-| BO-C13a | 可配置验重          | 全局与书库覆盖、来源/ISBN/SHA256/标题作者理由和媒体隔离   | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `server/src/modules/book-duplicates/book-duplicate-normalize.test.ts`                             |
-| BO-C13b | 重复导入选择        | 上传、断点上传、小说、Book Dock的新建/追加/同格式替换     | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `client/src/features/import-review/ImportReviewDialog.spec.ts`                                    |
-| BO-C13c | 替换一致性          | 保留bookId/fileId/元数据/阅读记录，文件版本校验和失败恢复 | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `server/src/modules/upload/import-file-commit.service.test.ts`                                    |
-| BO-C14  | 已入库结果标记      | 来源标识、明确/可能重复、可见书库及跳转已有书目           | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `client/src/features/book-source/SourceBookPreview.spec.ts`                                       |
-| BO-C15  | 大型文件列表        | 服务端分页、既有附件选择、有声轨及同路径TXT明确确认       | 已合并核对 | 通过               | 待验收                    | 待验收   | `client/src/features/import-review/ImportPolicySettings.spec.ts`                                  |
-| BO-C16  | 共享评论            | 书评/章节/段落、回复、删除权限、幂等和分页                | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `client/src/features/book/composables/useBookComments.test.ts`                                    |
-| BO-C17  | 最近阅读格式进度    | 辅助格式、向后阅读、音频时间优先及Android DTO             | 已合并核对 | 通过               | 结构/数据通过，HTTP待验收 | 待验收   | `client/src/features/book/lib/book-card-mapper.test.ts`                                           |
-| BO-C18  | Android联动         | custom.7字体、CFI、时间、评论、认证及内容Range接口        | 后续适配   | 后续验证           | 后续验证                  | 后续验证 | 按用户要求，完成服务端后推进                                                                      |
+| 编号    | 功能                | 核对范围                                                  | 源码       | 自动测试           | 隔离业务                                | 群晖                            | 证据                                                                                              |
+| ------- | ------------------- | --------------------------------------------------------- | ---------- | ------------------ | --------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------- |
+| BO-C01a | TXT上传与编码       | TXT上传、UTF-8/GBK/GB18030/UTF-16、权限                   | 已合并核对 | 通过               | TXT真实上传通过，编码组合由回归覆盖     | 已部署，TXT样本通过             | `server/src/modules/metadata/extractors/txt-format.extractor.test.ts`                             |
+| BO-C01b | 扫描组织方式        | 每文件一本、每目录一本、既有组织配置及同书附件            | 已合并核对 | 通过               | 扫描/附件分组回归通过                   | 已部署，原书库保留              | `client/src/features/scanner/composables/useLiveScanBooks.test.ts`                                |
+| BO-C01c | 同书格式归属        | 转换后、文件监控、定向扫描及全量扫描均保持同一本书        | 已合并核对 | 通过               | 转换同书及进度通过                      | 已部署，原数据保留              | `server/src/modules/scanner/lib/group-loose-txt-epub.test.ts`                                     |
+| BO-C02a | TXT转EPUB           | 编码与章节选项、已有EPUB保护、原始文件和阅读记录          | 已合并核对 | 通过               | TXT转EPUB同书及进度通过                 | 已部署，原文件保留              | `client/src/features/book/components/__tests__/TxtConversionDialog.spec.ts`                       |
+| BO-C02b | TXT网页阅读         | 直接阅读、章节、编码、位置、缓存与并发                    | 已合并核对 | 通过               | TXT正文、章节信息及匿名拒绝通过         | 已部署，TXT样本通过             | `client/src/features/reader/shared/composables/__tests__/useReaderProgress.spec.ts`               |
+| BO-C03a | 中文书籍元数据      | 豆瓣、百度、番茄、起点、七猫的搜索、匹配、来源及错误      | 已合并核对 | 通过               | 解析及提供商契约回归，外网未逐站复测    | 已部署，外部可用性另列          | `server/src/modules/metadata-fetch/providers/chinese-catalog/baidu-page.test.ts`                  |
+| BO-C03b | 自动元数据队列      | 全局与书库覆盖、导入触发、并发上限、失败与重试            | 已合并核对 | 通过               | 队列/覆盖/失败重试回归通过              | 已部署，配置保留                | `client/src/features/settings/metadata-auto-fetch/__tests__/BookMetadataFetchSettings.spec.ts`    |
+| BO-C03c | 封面                | 代理、来源请求头、失败回退、已显示封面空状态              | 已合并核对 | 通过               | 封面及来源请求头回归通过                | 已部署，原数据保留              | `client/src/features/book-source/SourceBookPreview.spec.ts`                                       |
+| BO-C04a | 小说聚合搜索        | 部分关键词、多结果、封面作者简介分类和来源标记            | 已合并核对 | 通过               | 关键词聚合及结果展示回归通过            | 已部署，外网未逐站复测          | `client/src/features/book-source/composables/__tests__/useFanqieAcquisition.spec.ts`              |
+| BO-C04b | 下载来源设置        | 滑动开关、提供商前提、独立下载开关及后端强制策略          | 已合并核对 | 通过               | 页面开关独立保存及恢复通过              | 已部署，原来源配置保留          | `client/src/features/settings/metadata-preferences/__tests__/ProviderConfigPanelControls.spec.ts` |
+| BO-C04c | 公开章节引擎        | 番茄、起点免费卷、通用JSON/CSS规则、限流与取消            | 已合并核对 | 通过               | 公开章节引擎及来源限制回归通过          | 已部署，会员能力另列            | `server/src/modules/book-source/chapter-download.service.test.ts`                                 |
+| BO-C05a | 任务列表            | 分页、书名来源、状态时间、结果跳转与终态确认删除          | 已合并核对 | 通过               | 任务运行时及列表契约通过                | 已部署，7条原任务保留           | `client/src/features/book-source/composables/__tests__/useFanqieAcquisition.spec.ts`              |
+| BO-C05b | 任务恢复            | 所有权、重复提交、租约、旧worker隔离和核对后重试          | 已合并核对 | 通过               | 所有权/租约/幂等/重试回归通过           | 已部署，原任务保留              | `server/src/modules/book-source/book-source-job.repository.test.ts`                               |
+| BO-C05c | 下载进度和超时      | 实际章节计数、无新增超时、持续进度继续、取消与进程退出    | 已合并核对 | 通过               | 真实进度/闲置超时/取消回归通过          | 已部署，外部整本未逐站复测      | `server/src/modules/book-source/book-source-progress.service.test.ts`                             |
+| BO-C05d | 章节续传缓存        | 每本隔离、重试复用、完整性校验、活动保护和7天清理         | 已合并核对 | 通过               | 续传缓存及活动保护回归通过              | 已部署，缓存策略保留            | `server/src/modules/book-source/chapter-download.service.test.ts`                                 |
+| BO-C06  | 直链安全续传        | Range、ETag、Last-Modified、416、进程中断及变更拒绝       | 已合并核对 | 通过               | 安全续传及变更拒绝回归通过              | 已部署，故障组合未重复穷举      | `server/src/modules/book-request/fulfillment/direct-download.service.test.ts`                     |
+| BO-C07a | Gutenberg与漫画书源 | 插件检索、文件下载、命名、元数据封面与入库                | 已合并核对 | 插件14项通过       | 本机编译运行时Gutenberg检索下载通过     | 已部署，NAS漫画外网未复测       | —                                                                                                 |
+| BO-C07b | 现有文件格式        | EPUB/PDF/MOBI/AZW3/FB2/漫画/M4A读取与下载                 | 已合并核对 | 通过               | 格式专项回归及TXT/EPUB真实HTTP通过      | 已部署，其他格式未逐个实机复测  | `client/src/features/reader/audiobook/__tests__/AudiobookReaderView.spec.ts`                      |
+| BO-C08a | 中文与动态标签      | 设置、任务、状态、图表、提示、国际化即时切换              | 已合并核对 | 通过               | 真实中文挑战/评论/规则页面通过          | 已部署，动态语言目录已补齐      | `client/scripts/locale-catalog-validation.spec.mjs`                                               |
+| BO-C08b | 用户权限            | 接口/DTO/返回值、书库访问、配置和私有数据隔离             | 已合并核对 | 通过               | 双账号、书库访问、严格DTO及匿名拒绝通过 | 已部署，生产认证接口通过        | `server/src/modules/book-source/book-source.http.test.ts`                                         |
+| BO-C09a | 原生运行库          | 普通UID、Node/Sharp/媒体/Python/CMap、路径和私有环境      | 已合并核对 | 原生22套207项通过  | 普通UID原生完整载荷HTTP通过             | 已部署，末次进程复核待网络      | 原生单测收据与控制器10项生命周期收据                                                              |
+| BO-C09b | SPK升级生命周期     | 原生启动监督、延迟就绪、配置持久化、正常DSM升级           | 已合并核对 | 原生22套207项通过  | 控制器10项及普通账号守卫8项通过         | DSM10042/10044通过              | 原生单测收据与控制器10项生命周期收据                                                              |
+| BO-C09c | 套件图标            | 网页Orbit标识、64/256 PNG、实际包与DSM显示                | 已合并核对 | 原生22套207项通过  | Orbit图标资产与归档回归通过             | 正式包已含Orbit图标             | 原生单测收据与控制器10项生命周期收据                                                              |
+| BO-C10  | 原生共享PG18        | 连接池、非超级用户、已有迁移哈希、旧路径及生产配置        | 已合并核对 | 迁移单测与PG18通过 | PG18两条增量迁移及回填通过              | 133项账本，生产数据库健康       | 隔离PG18迁移131→133，旧账本及业务数据校验通过                                                     |
+| BO-C11a | 国内作者提供商      | 百度/豆瓣/番茄/起点、搜索/链接/优先级/访问失败            | 已合并核对 | 通过               | 国内作者提供商契约回归通过              | 已部署，外网未逐站复测          | `server/src/modules/authors/author-enrichment-config.service.test.ts`                             |
+| BO-C11b | 作者头像保存        | 编辑保存、异步图片落盘、详情/缓存作者列表即时一致         | 已合并核对 | 通过               | 迟到预览/编辑保存/缓存列表回归通过      | 10位已有头像的缩略图及原图均200 | `client/src/features/author/composables/useAuthorBooks.test.ts`                                   |
+| BO-C12  | 中文阅读字体        | 5家族7文件、中文名、设置滑动开关、升级保留和字体服务      | 已合并核对 | 通过               | 字体相关回归通过                        | 5家族7文件全部FontFace.load通过 | `client/src/features/reader/epub/__tests__/publisher-font-size-transform.spec.ts`                 |
+| BO-C13a | 可配置验重          | 全局与书库覆盖、来源/ISBN/SHA256/标题作者理由和媒体隔离   | 已合并核对 | 通过               | 规则HTTP及全局/书库页面通过             | 已部署，配置与身份表保留        | `server/src/modules/book-duplicates/book-duplicate-normalize.test.ts`                             |
+| BO-C13b | 重复导入选择        | 上传、断点上传、小说、Book Dock的新建/追加/同格式替换     | 已合并核对 | 通过               | 新建/追加/替换及中断恢复回归通过        | 已部署，旧数据保留              | `client/src/features/import-review/ImportReviewDialog.spec.ts`                                    |
+| BO-C13c | 替换一致性          | 保留bookId/fileId/元数据/阅读记录，文件版本校验和失败恢复 | 已合并核对 | 通过               | 文件版本/保留ID/失败恢复回归通过        | 已部署，原阅读记录保留          | `server/src/modules/upload/import-file-commit.service.test.ts`                                    |
+| BO-C14  | 已入库结果标记      | 来源标识、明确/可能重复、可见书库及跳转已有书目           | 已合并核对 | 通过               | 结果标记与来源身份回归通过              | 已部署，身份表摘要一致          | `client/src/features/book-source/SourceBookPreview.spec.ts`                                       |
+| BO-C15  | 大型文件列表        | 服务端分页、既有附件选择、有声轨及同路径TXT明确确认       | 已合并核对 | 通过               | 文件分页及权限真实HTTP通过              | 已部署，6484条原文件保留        | `client/src/features/import-review/ImportPolicySettings.spec.ts`                                  |
+| BO-C16  | 共享评论            | 书评/章节/段落、回复、删除权限、幂等和分页                | 已合并核对 | 通过               | 双用户书评/章节/段评/回复/权限通过      | 生产评论读取通过                | `client/src/features/book/composables/useBookComments.test.ts`                                    |
+| BO-C17  | 最近阅读格式进度    | 辅助格式、向后阅读、音频时间优先及Android DTO             | 已合并核对 | 通过               | 真实最近文件进度及书架一致通过          | 7条进度/19条会话摘要一致        | `client/src/features/book/lib/book-card-mapper.test.ts`                                           |
+| BO-C18  | Android联动         | custom.7字体、CFI、时间、评论、认证及内容Range接口        | 后续适配   | 后续验证           | 后续验证                                | 后续验证                        | 按用户要求，完成服务端后推进                                                                      |
 
 ## 数据库迁移专项
 
@@ -54,7 +54,9 @@
 
 所有已实现定制项均有新版证据。新增上游功能与定制验重、附件归属和元数据规则的重叠均须处理。界面、后台任务与数据库验证分别记录，原有待办继续列明。正式包绑定本次源码、迁移、载荷及真实验收收据。
 
-## 本轮进展
+## 执行过程记录
+
+以下按执行顺序保留当时状态，当前结果以文末正式安装记录为准。
 
 - 生产仍为3.5.0-10041。用户要求先完成群晖服务端升级与定制功能验收，再继续Android。
 - 33处合并冲突已逐项处理，保留国内书籍与作者提供商、TXT、下载任务、验重和共享评论。完整服务端测试19347项通过，23项跳过。完整前端测试8934项通过。两端正常type-check及lint通过。真实数据库E2E尚待执行，这些测试数量不作为真实数据库验收。
@@ -94,3 +96,23 @@ Mac空间再次不足时，又清理18个已核对的旧生成stage，释放约1
 10042已通过DSM升级及生产只读验收。由相同应用载荷生成的10043在postupgrade被拒绝，实际拒绝发生在运行迁移之前。原因是验收收据只列出3.5旧迁移指纹，运行时把已等于目标的3.7指纹也当作跨schema前置版本检查。此前单元测试默认把目标指纹放入允许列表，未覆盖正式收据只有旧指纹的场景。
 
 守卫现接受与包内目标完全相同的前置迁移指纹，同时继续核对收据、来源、载荷、策略及实际迁移文件摘要。未知前置指纹和被改写的迁移仍拒绝。新增回归移除目标允许列表项，验证同schema接受及改写SQL拒绝。22套207项原生测试通过，正式安装流程需由下一修订包重新验证。应用源码与载荷保持7d867edd，不重新编译已通过的应用。
+
+## 2026-11-11 正式安装与逐项核对结果
+
+应用源码为7d867edd1d1e60d57470b52098857594017037b6，升级守卫和打包提交为0f5e138d。10042候选由DSM完成3.5到3.7的迁移。10043被同schema守卫误拒后，使用既有专用账号原生启动入口恢复服务。修复包10044再次由DSM正常安装，postupgrade和start均返回0，套件状态running/status_code=0，INFO无beta，releaseChannel=stable、publicationScope=private。正式包SHA256为534ffe77bab2ec5a829be06dbb6467145a06ff23868dae42c22172f2f21f9a90。
+
+完整服务端19347项通过、23项跳过，完整前端8934项通过，两端正常type-check及lint通过。最终原生22套207项通过，群晖普通账号8项升级守卫回归通过。Linux载荷41613项，清单SHA256为5c6ce53242761a09429b79ebd6541c690f1b5f5632c4184c219ffc77b1b8313c。原生隔离17项HTTP/迁移检查通过，完整语言目录已实际调用serverText校验中英文。
+
+生产只读API已核验书籍查询、详情、4路并发、真实文件Range、评论读取、下载器配置、前端入口、匿名拒绝与健康。七个中文字体文件全部真实FontFace.load成功，18位作者中10位已有持久头像，缩略图与原图共20个接口均为200。浏览器后续会话过期，作者列表的前台图片渲染没有补记为本轮通过。
+
+14张原业务表的列、行数与完整行摘要均与升级前一致，包括25本书、6484条文件、25条元数据、18位作者、28条作者关系、7条阅读进度、19条阅读会话、7条书源任务及7个字体。service.json全文SHA256不变。users行包含可变的登录和设置字段，整行摘要发生变化。候选阶段使用历史会话时间重建原摘要成功，正式复核时重建未命中，不能宣称用户整行逐字节一致。此差异单列，不扩大为书籍或阅读数据变化。
+
+截图中的TXT format acceptance是隔离测试书库名称。已通过正常页面改为“TXT 格式验证”，保存后确认旧名消失。该名称属于测试数据。
+
+当前Mac网络切换后，内网与Tailscale的SSH均超时。最终专用进程核对、隔离实例及测试数据库/角色清理仍待连接恢复。已安装正式包的运行状态及以上已取得的证据继续保留，不能将待清理项写成已完成。
+
+### 证据范围
+
+每一行均与unit-feature-coverage.json中的测试路径核对，自动回归覆盖与实际HTTP/页面抽样分别记录。外部书源逐站下载、所有格式全部故障组合及整机重启未在本轮重复验证。七猫正文、番茄会员导出、完整Legado脚本兼容、公开再分发材料和Android实机仍按原需求单列，未因本次升级自动关闭。
+
+本机脱敏证据位于local/synology-native/upstream-v3.7.0，包含native-http-locales.json、lifecycle-35s.json、private-stable-readiness.json、production-browser-stable.json及production-font-author-stable.json。完整生产摘要保存在NAS的upgrade-validation-v37目录，没有创建数据库备份。

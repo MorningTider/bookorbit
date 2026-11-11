@@ -144,3 +144,11 @@ TXT 转换并发修复实机完成：a316516b 经 10024 验收后交付自用正
 `packages/types/src/book-comments.ts`定义共同接口。服务端`book-comment`模块、`book_comments`表和Drizzle生成的0130迁移承载公共评论；每次服务调用通过BookService核对访问，管理删除路由另有ManageUsers权限。列表以id游标和限定条数查询，根线程与回复分别建立索引。
 
 网页`useBookComments`和`CommentsTab`负责评论草稿、幂等重试、回复、分页与删除确认。所有用户文本使用Vue文本插值。Android对应BA-C25。书架卡片在`BookRepository.enrichBookIds`按当前用户和当前页书籍批量读取各文件最后阅读时间，并选择最近一次的进度，回归覆盖辅助格式和较低新进度。
+
+## 3.7原生升级补丁
+
+- dd3dd310合并官方v3.7.0及既有定制，附加Drizzle升级迁移、旧播客空库保护和逐项需求映射。
+- 7d867edd在Source.Dockerfile复制服务端动态语言目录，finalize-source-build.mjs实际调用serverText校验中英文，source-build.py拒绝缺少该收据的构建。
+- 0f5e138d修正schema-upgrade-policy.py同schema更新误拒，新增没有目标允许列表项的回归，保留来源、载荷、策略和实际迁移防篡改校验。
+
+3.7.0-10044已通过DSM部署，应用仍为同一已验收7d867edd载荷。验收范围、账户摘要差异及剩余环境清理见UPGRADE_V3_7_0_ACCEPTANCE.md。
