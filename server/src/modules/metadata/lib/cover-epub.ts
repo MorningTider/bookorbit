@@ -1,6 +1,8 @@
 import * as unzipper from 'unzipper';
 import { XMLParser } from 'fast-xml-parser';
 
+import { isGeneratedGutenbergCover } from '../../../common/utils/placeholder-cover.utils';
+
 import { attr, findInZip, resolvePath, toRecordArray } from './epub-zip-utils';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', removeNSPrefix: true });
@@ -27,7 +29,7 @@ async function imageFromHtmlCoverPage(zip: unzipper.CentralDirectory, htmlItem: 
  * Tries EPUB3 cover-image property, EPUB2 meta cover, guide reference, and id-based fallbacks.
  * Returns null if no cover is found or the file is not a valid EPUB.
  */
-export async function extractEpubCover(absolutePath: string): Promise<Buffer | null> {
+async function readEpubCover(absolutePath: string): Promise<Buffer | null> {
   try {
     const zip = await unzipper.Open.file(absolutePath);
 
@@ -128,4 +130,9 @@ export async function extractEpubCover(absolutePath: string): Promise<Buffer | n
   } catch {
     return null;
   }
+}
+
+export async function extractEpubCover(absolutePath: string): Promise<Buffer | null> {
+  const cover = await readEpubCover(absolutePath);
+  return cover && !(await isGeneratedGutenbergCover(cover)) ? cover : null;
 }

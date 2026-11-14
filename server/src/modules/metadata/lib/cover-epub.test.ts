@@ -1,3 +1,4 @@
+import { readFile } from 'fs/promises';
 vi.mock('unzipper', () => ({ Open: { file: vi.fn() } }));
 
 import * as unzipper from 'unzipper';
@@ -16,6 +17,21 @@ function zipFile(path: string, content: string | Buffer) {
 
 describe('extractEpubCover', () => {
   beforeEach(() => vi.resetAllMocks());
+
+  it('leaves a generated Gutenberg cover missing so automatic import can fetch artwork', async () => {
+    const cover = await readFile(new URL('../../../common/utils/__fixtures__/gutenberg-generated-cover.png', import.meta.url));
+    mockOpenFile.mockResolvedValue({
+      files: [
+        zipFile('META-INF/container.xml', '<container><rootfiles><rootfile full-path="OPS/content.opf" /></rootfiles></container>'),
+        zipFile(
+          'OPS/content.opf',
+          '<package><manifest><item id="cover" href="cover.png" media-type="image/png" properties="cover-image" /></manifest></package>',
+        ),
+        zipFile('OPS/cover.png', cover),
+      ],
+    });
+    await expect(extractEpubCover('/book.epub')).resolves.toBeNull();
+  });
 
   it('extracts cover via EPUB3 cover-image manifest property', async () => {
     const containerXml = `<container><rootfiles><rootfile full-path="OPS/content.opf" /></rootfiles></container>`;

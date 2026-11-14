@@ -15,7 +15,7 @@ import { isFileDerivedChapterSource } from '../../common/utils/audiobook-chapter
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 import { normalizeRemoteImageUrl, remoteImageHeaders } from '../../common/utils/remote-image-headers';
 import { inNameOrder } from '../../common/utils/insert-lock-order.utils';
-import { isKnownPlaceholderCover } from '../../common/utils/placeholder-cover.utils';
+import { isGeneratedGutenbergCover, isKnownPlaceholderCover } from '../../common/utils/placeholder-cover.utils';
 import {
   chooseCanonicalMetadataTextRow,
   normalizeMetadataText,
@@ -452,7 +452,14 @@ export class MetadataService {
     } catch {
       return 'unusable';
     }
-    if (!width || !height || Math.min(width, height) < MIN_COVER_SHORT_SIDE_PX || isKnownPlaceholderCover(bytes)) return 'unusable';
+    if (
+      !width ||
+      !height ||
+      Math.min(width, height) < MIN_COVER_SHORT_SIDE_PX ||
+      isKnownPlaceholderCover(bytes) ||
+      (await isGeneratedGutenbergCover(bytes))
+    )
+      return 'unusable';
     return coverShapeFromSize(width, height) === (medium === 'audio' ? 'square' : 'portrait') ? 'fits' : 'wrong_shape';
   }
 
