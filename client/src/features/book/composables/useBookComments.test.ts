@@ -29,6 +29,23 @@ describe('shared book comment interaction', () => {
     expect(apiMock.mock.lastCall?.[0]).toContain('before=1')
     expect(state.items.value.map((row) => row.id)).toEqual([1, 2])
   })
+  it('sends reviews with the JSON content type required by the server', async () => {
+    const state = scope.run(() => useBookComments(ref(7)))!
+    await flushPromises()
+    state.draft.value = '这个书值读'
+    apiMock.mockImplementation(async (_url, init) => {
+      if (init?.method !== 'POST') return response([comment])
+      const headers = new Headers(init.headers)
+      if (headers.get('Content-Type') !== 'application/json') return new Response(null, { status: 400 })
+      const payload = JSON.parse(String(init.body))
+      expect(payload).toMatchObject({ clientId: expect.any(String), body: '这个书值读' })
+      return new Response(JSON.stringify(comment), { status: 201 })
+    })
+    await state.send()
+    expect(state.error.value).toBe(false)
+    expect(state.draft.value).toBe('')
+    expect(state.items.value).toEqual([comment])
+  })
   it('retains the draft and request id on a failed submission, then replies to the chosen user', async () => {
     const state = scope.run(() => useBookComments(ref(7)))!
     await flushPromises()
@@ -44,6 +61,8 @@ describe('shared book comment interaction', () => {
     await state.send()
     const writes = apiMock.mock.calls.filter((call) => call[1]?.method === 'POST')
     expect(JSON.parse(String(writes[1][1]?.body))).toEqual(first)
+    expect(new Headers(writes[0][1]?.headers).get('Content-Type')).toBe('application/json')
+    expect(new Headers(writes[1][1]?.headers).get('Content-Type')).toBe('application/json')
     expect(first.parentId).toBe(1)
     expect(state.draft.value).toBe('')
   })

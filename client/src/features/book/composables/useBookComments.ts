@@ -69,7 +69,11 @@ export function useBookComments(bookId: Ref<number>) {
     saving.value = true
     error.value = false
     try {
-      const response = await api(`/api/v1/books/${bookId.value}/comments`, { method: 'POST', body: JSON.stringify(payload) })
+      const response = await api(`/api/v1/books/${bookId.value}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
       if (!response.ok) throw new Error('Comment save failed')
       if (current !== generation) return
       draft.value = ''
