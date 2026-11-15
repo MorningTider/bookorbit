@@ -110,3 +110,4 @@ export * from "./book-source";
 export * from "./import-review";
 
 export * from "./book-comments";
+export * from "./epub-toc";

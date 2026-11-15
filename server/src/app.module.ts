@@ -1,3 +1,4 @@
+import { EpubTocModule } from './modules/epub-toc/epub-toc.module';
 import { BookCommentModule } from './modules/book-comment/book-comment.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -195,6 +196,7 @@ import { StoryEditsModule } from './modules/story-edits/story-edits.module';
     ReaderPreferencesModule,
     UserPreferencesModule,
     EpubModule,
+    EpubTocModule,
     BookDockModule,
     BookRequestModule,
     BookSourceModule,

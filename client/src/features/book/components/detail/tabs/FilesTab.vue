@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EpubTocDialog from '../files/EpubTocDialog.vue'
 import { computed, nextTick, ref, toRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -56,6 +57,36 @@ const {
 const canUpload = computed(() => hasPermission(Permission.LibraryUpload))
 const canDownload = computed(() => hasPermission('library_download'))
 const canEdit = canEditMetadata
+const tocFileId = ref<number | null>(null)
+const canOrganizeToc = computed(() => canEdit.value && selectedFile.value?.format === 'epub')
+function openTocOrganizer() {
+  if (canOrganizeToc.value && selectedFile.value) tocFileId.value = selectedFile.value.id
+}
+function closeTocOrganizer() {
+  tocFileId.value = null
+  if (route.query.organizeTocFileId) {
+    const query = { ...route.query }
+    delete query.organizeTocFileId
+    void router.replace({ query })
+  }
+}
+function handleTocSaved() {
+  closeTocOrganizer()
+  emit('refetch')
+}
+watch(
+  [() => route.query.organizeTocFileId, canEdit, () => props.book.id],
+  ([requested, allowed]) => {
+    const id = Number(requested)
+    if (allowed && props.book.files.some((file) => file.id === id && file.format === 'epub')) {
+      selectFile(id)
+      tocFileId.value = id
+    } else if (!allowed || !props.book.files.some((file) => file.id === tocFileId.value)) {
+      tocFileId.value = null
+    }
+  },
+  { immediate: true },
+)
 const canDelete = computed(() => hasPermission('library_delete_books'))
 /** Demo accounts are refused by every read-aloud route, so they never see the entry or probe for it. */
 const canGenerateReadAloud = computed(() => hasPermission(Permission.LibraryGenerateReadAloud) && !isDemoRestrictedAccount.value)
@@ -499,12 +530,22 @@ async function confirmDelete() {
             @copy-path="copyPath"
           />
 
+          <button
+            v-if="canOrganizeToc"
+            class="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
+            @click="openTocOrganizer"
+          >
+            {{ t('epubToc.entry') }}
+          </button>
+
           <WriteBackCard :book="book" :can-edit="canEdit" @edit-metadata="goToMetadata" />
         </div>
       </Teleport>
     </div>
 
     <p v-if="copiedPathFileId != null" role="status" class="sr-only">{{ t('book.detail.files.pathCopied') }}</p>
+
+    <EpubTocDialog v-if="tocFileId !== null" :book-id="book.id" :file-id="tocFileId" @close="closeTocOrganizer" @saved="handleTocSaved" />
 
     <ReadAloudDialog
       v-if="readAloud.capability.value"

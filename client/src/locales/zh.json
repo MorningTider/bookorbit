@@ -16745,5 +16745,28 @@
       "saved": "API 密钥设置已保存。",
       "perUserHint": "可在“用户”中，为各用户设置“创建 API 密钥”权限。"
     }
+  },
+  "epubToc": {
+    "saved": "目录已保存到 EPUB。",
+    "invalidName": "请填写有效的分组名称，最多 500 字。",
+    "title": "整理 EPUB 目录",
+    "description": "选择各分组的起始目录项，调整书名并预览，确认后写回 EPUB。",
+    "loadFailed": "目录读取失败，请重新加载。",
+    "saveFailed": "目录保存失败，分组选择已保留。",
+    "stale": "EPUB 文件已更新，请重新加载目录后再保存。",
+    "loading": "正在读取 EPUB 目录",
+    "search": "搜索目录项",
+    "suggest": "使用分组建议",
+    "clear": "清空分组",
+    "selectStarts": "勾选各本书或各卷的起始目录项，作为分组标题。",
+    "groupName": "书名或分卷名称",
+    "preview": "分组预览（{count} 组）",
+    "opening": "点击分组名称进入开篇，展开后可查看后续卷章。",
+    "noGroups": "选择起始目录项后创建分组。",
+    "entryCount": "包含 {count} 个原目录项",
+    "same": "当前目录已符合此分组方案。",
+    "reload": "重新加载目录",
+    "save": "保存到 EPUB",
+    "entry": "整理目录"
   }
 }

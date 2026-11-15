@@ -2,6 +2,7 @@
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { useLibraryPermissions } from '@/features/library/composables/useLibraryPermissions'
 import { toast } from 'vue-sonner'
 import { useFoliate, type RelocateDetail } from './epub/composables/useFoliate'
 import type { SelectionDetail } from './epub/composables/useFoliateSelection'
@@ -258,6 +259,15 @@ function handleTranslate() {
 }
 
 const bookMeta = ref<BookDetail | null>(null)
+const { hasLibraryPermission } = useLibraryPermissions()
+const canOrganizeToc = computed(
+  () =>
+    normalizedFileFormat === 'epub' && bookMeta.value !== null && hasLibraryPermission('library_edit_metadata', bookMeta.value.libraryId, 'editor'),
+)
+function openTocOrganizer() {
+  if (!canOrganizeToc.value) return
+  void router.push({ name: 'book-detail', params: { bookId }, query: { tab: 'files', organizeTocFileId: String(fileId) } })
+}
 const initialNavigationPending = ref(true)
 
 const {
@@ -1671,6 +1681,7 @@ onUnmounted(() => {
       :locationMetaByCfi="sidebarLocationMetaByCfi"
       :activeHref="activeHref"
       :expandedHrefs="expandedHrefs"
+      :can-organize-toc="canOrganizeToc"
       :pinned="isSidebarPinned"
       :navigationLocked="isNavigationLocked"
       @close="showSidebar = false"
@@ -1683,6 +1694,7 @@ onUnmounted(() => {
       @editBookmark="handleSidebarEditBookmark"
       @deleteAnnotation="handleSidebarDeleteAnnotation"
       @toggleExpand="toggleExpand"
+      @organize-toc="openTocOrganizer"
     />
 
     <ReaderSearchPanel

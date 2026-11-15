@@ -16745,5 +16745,28 @@
         "description": "Read 500 pages this month"
       }
     }
+  },
+  "epubToc": {
+    "saved": "Directory saved to EPUB.",
+    "invalidName": "Enter a valid group name of up to 500 characters.",
+    "title": "Organize EPUB directory",
+    "description": "Choose group starting entries, adjust their names and review the result before writing the directory into the EPUB.",
+    "loadFailed": "Unable to load the directory. Try reloading.",
+    "saveFailed": "Unable to save the directory. Your grouping choices are retained.",
+    "stale": "The EPUB has changed. Reload the directory before saving.",
+    "loading": "Reading EPUB directory",
+    "search": "Search directory entries",
+    "suggest": "Use suggestions",
+    "clear": "Clear groups",
+    "selectStarts": "Select the first entry of each book or volume to start a group.",
+    "groupName": "Book or volume name",
+    "preview": "Group preview ({count})",
+    "opening": "A group name opens its first entry. Expand it to see the following chapters.",
+    "noGroups": "Select a starting entry to create a group.",
+    "entryCount": "Contains {count} original directory entries",
+    "same": "The directory already matches this grouping.",
+    "reload": "Reload directory",
+    "save": "Save to EPUB",
+    "entry": "Organize directory"
   }
 }

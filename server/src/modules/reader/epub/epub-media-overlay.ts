@@ -1,3 +1,5 @@
+import { normalizeEpubZipPath, resolveEpubHref, findEpubZipEntry } from '../../../common/utils/epub-navigation-path.utils';
+export { cleanEpubZipPath, normalizeEpubZipPath, resolveEpubHref, findEpubZipEntry } from '../../../common/utils/epub-navigation-path.utils';
 import * as unzipper from 'unzipper';
 import { XMLParser } from 'fast-xml-parser';
 import { parseEpubPackage } from './epub-package';
@@ -35,67 +37,8 @@ function toArray<T>(v: T | T[] | undefined | null): T[] {
   return Array.isArray(v) ? v : [v];
 }
 
-function safeDecodeURI(path: string): string {
-  try {
-    return decodeURI(path);
-  } catch {
-    return path;
-  }
-}
-
-function joinZipPathSegments(path: string): string {
-  const resolved: string[] = [];
-  for (const part of path.replace(/^\/+/, '').split('/')) {
-    if (!part || part === '.') continue;
-    if (part === '..') {
-      if (resolved.length > 0) resolved.pop();
-      continue;
-    }
-    resolved.push(part);
-  }
-  return resolved.join('/');
-}
-
-export function normalizeEpubZipPath(path: string): string {
-  return joinZipPathSegments(safeDecodeURI((path ?? '').replace(/\\/g, '/')));
-}
-
-/** The same normalization without percent-decoding, for a path that has already been decoded once. */
-export function cleanEpubZipPath(path: string): string {
-  return joinZipPathSegments((path ?? '').replace(/\\/g, '/'));
-}
-
-export function resolveEpubHref(href: string, basePath: string): string {
-  if (!href || /^[a-z][a-z\d+.-]*:/i.test(href)) return href;
-  const decoded = safeDecodeURI(href);
-  const [pathWithQuery, fragment] = decoded.split('#');
-  const path = pathWithQuery.split('?')[0];
-  const resolvedPath = path.startsWith('/') ? normalizeEpubZipPath(path) : normalizeEpubZipPath(basePath + path);
-  return fragment ? `${resolvedPath}#${fragment}` : resolvedPath;
-}
-
 function zipDir(path: string): string {
   return path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
-}
-
-/**
- * An entry named exactly `path` wins. Decoded names are compared only after that: hrefs arrive
- * decoded, so an entry whose name holds a literal escape such as `%20` is found only that way, but
- * it must not answer for the entry its escape decodes to.
- */
-export function findEpubZipEntry(files: unzipper.File[], path: string): unzipper.File | undefined {
-  const exact = cleanEpubZipPath(path);
-  const clean = normalizeEpubZipPath(path);
-  const cleanLower = clean.toLowerCase();
-  let decodedMatch: unzipper.File | undefined;
-  let ciMatch: unzipper.File | undefined;
-  for (const file of files) {
-    if (cleanEpubZipPath(file.path) === exact) return file;
-    const fp = normalizeEpubZipPath(file.path);
-    if (!decodedMatch && fp === clean) decodedMatch = file;
-    if (!ciMatch && fp.toLowerCase() === cleanLower) ciMatch = file;
-  }
-  return decodedMatch ?? ciMatch;
 }
 
 function parseClock(value: unknown): number | null {

@@ -1,3 +1,4 @@
+import { patch as patchEpubArchive } from './formats/epub/epub-zip-patcher';
 import { ConflictException, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { readFile, stat } from 'fs/promises';
@@ -156,6 +157,10 @@ export class FileWriteService implements OnModuleDestroy {
       release();
     }
     this.writeQueue.length = 0;
+  }
+
+  patchTemporaryEpub(path: string, entries: Map<string, Buffer>): Promise<void> {
+    return patchEpubArchive(path, entries);
   }
 
   async drainScheduledWritesForTests(): Promise<void> {

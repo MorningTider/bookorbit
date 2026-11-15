@@ -67,6 +67,16 @@ describe('ReaderSidebar', () => {
     expect(wrapper.emitted('toggleExpand')?.[0]).toEqual(['ch1.xhtml#start'])
   })
 
+  it('shows the directory organizer only when the parent grants editor access', async () => {
+    const wrapper = mount(ReaderSidebar, { props: makeBaseProps(), global })
+    expect(wrapper.findAll('button').some((button) => button.text().includes('Organize directory'))).toBe(false)
+    await wrapper.setProps({ canOrganizeToc: true })
+    const action = wrapper.findAll('button').find((button) => button.text().includes('Organize directory'))
+    expect(action).toBeDefined()
+    await action!.trigger('click')
+    expect(wrapper.emitted('organizeToc')).toHaveLength(1)
+  })
+
   it('scrolls the active TOC chapter into view when the active href changes', async () => {
     const wrapper = mount(ReaderSidebar, {
       props: {

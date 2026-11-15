@@ -22,10 +22,12 @@ const props = withDefaults(
     activeHref: string
     expandedHrefs: Set<string>
     pinned: boolean
+    canOrganizeToc?: boolean
     navigationLocked?: boolean
   }>(),
   {
     navigationLocked: false,
+    canOrganizeToc: false,
   },
 )
 
@@ -40,7 +42,12 @@ const emit = defineEmits<{
   deleteAnnotation: [id: number]
   toggleExpand: [href: string]
   togglePinned: []
+  organizeToc: []
 }>()
+
+function organizeToc() {
+  emit('organizeToc')
+}
 
 type Tab = 'chapters' | 'bookmarks' | 'highlights'
 const tabOptions = computed(
@@ -308,6 +315,14 @@ function togglePinned() {
 
       <div ref="scrollContainer" class="flex-1 overflow-y-auto">
         <template v-if="activeTab === 'chapters'">
+          <button
+            v-if="canOrganizeToc"
+            class="flex w-full items-center gap-2 border-b border-border px-4 py-2 text-sm text-primary hover:bg-muted"
+            :disabled="navigationLocked"
+            @click="organizeToc"
+          >
+            <Pencil :size="14" />{{ t('epubToc.entry') }}
+          </button>
           <TocList
             :items="chapters"
             :activeHref="activeHref"

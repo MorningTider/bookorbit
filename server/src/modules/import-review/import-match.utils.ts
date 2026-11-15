@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import type { ImportIdentity } from '@bookorbit/types';
 import { canonicalizeIsbn, mediaFamilyForFormat } from '../book-duplicates/book-duplicate-normalize';
 
@@ -16,11 +14,7 @@ export function matchingImportAuthors(a: string[], b: string[]) {
   const names = new Set(a.map(normalizeImportText).filter(Boolean));
   return b.some((name) => names.has(normalizeImportText(name)));
 }
-export async function fullFileSha256(path: string): Promise<string> {
-  const hash = createHash('sha256');
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
-  return hash.digest('hex');
-}
+export { fullFileSha256 } from '../../common/utils/full-file-sha256.utils';
 
 export function importIsbn10(identity: ImportIdentity): string | null {
   const canonical = importIsbn(identity);

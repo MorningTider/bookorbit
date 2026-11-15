@@ -1,3 +1,4 @@
+import { normalizeZipPath, resolveHref } from '../../../common/utils/epub-navigation-path.utils';
 import { TxtReaderCacheService } from './txt-reader-cache.service';
 import { ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { stat } from 'fs/promises';
@@ -87,6 +88,7 @@ const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   textNodeName: '#text',
+  htmlEntities: true,
 });
 
 function toArray<T>(v: T | T[] | undefined | null): T[] {
@@ -105,38 +107,6 @@ function getText(v: unknown): string | null {
   return null;
 }
 
-function safeDecodeURI(path: string): string {
-  try {
-    return decodeURI(path);
-  } catch {
-    return path;
-  }
-}
-
-function normalizeZipPath(path: string): string {
-  const clean = safeDecodeURI((path ?? '').replace(/\\/g, '/')).replace(/^\/+/, '');
-  const parts = clean.split('/');
-  const resolved: string[] = [];
-  for (const part of parts) {
-    if (!part || part === '.') continue;
-    if (part === '..') {
-      if (resolved.length > 0) resolved.pop();
-      continue;
-    }
-    resolved.push(part);
-  }
-  return resolved.join('/');
-}
-
-function resolveHref(href: string, basePath: string): string {
-  if (!href || /^[a-z][a-z\d+.-]*:/i.test(href)) return href;
-  const decoded = safeDecodeURI(href);
-  const [pathWithQuery, fragment] = decoded.split('#');
-  const path = pathWithQuery.split('?')[0];
-  const resolvedPath = path.startsWith('/') ? normalizeZipPath(path) : normalizeZipPath(basePath + path);
-  return fragment ? `${resolvedPath}#${fragment}` : resolvedPath;
-}
-
 function guessContentType(path: string): string {
   const dot = path.lastIndexOf('.');
   if (dot < 0) return 'application/octet-stream';
@@ -146,7 +116,7 @@ function guessContentType(path: string): string {
 function parseNavOl(ol: Record<string, unknown>, basePath: string): EpubTocItem[] {
   return toArray(ol?.li as any)
     .map((li: any) => {
-      const a = li?.a as Record<string, unknown> | string | undefined;
+      const a = (li?.a ?? li?.span) as Record<string, unknown> | string | undefined;
       let label = '';
       let href: string | undefined;
 
@@ -346,6 +316,10 @@ export class EpubService {
     private readonly libraryService: LibraryService,
     @Optional() private readonly txtReaderCache?: TxtReaderCacheService,
   ) {}
+
+  inspectFile(epubPath: string): Promise<EpubBookInfo> {
+    return parseEpub(epubPath);
+  }
 
   async getBookInfo(bookId: number, fileId: number | undefined, user: RequestUser): Promise<EpubBookInfo> {
     const epubPath = await this.resolveEpubPath(bookId, fileId, user);
