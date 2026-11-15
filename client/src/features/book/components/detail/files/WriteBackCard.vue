@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight } from '@lucide/vue'
 import type { BookDetail } from '@bookorbit/types'
-import { formatList, formatListParts, formatRelativeFromNow } from '@/i18n/formatters'
+import { formatListParts, formatRelativeFromNow } from '@/i18n/formatters'
 import { formatColorVar } from '@/features/book/lib/format-colors'
 import { resolveWriteBackFields } from '@/features/book/lib/write-back-fields'
 import { writableFieldsByFormat } from '@/features/book/lib/file-write-targets'
@@ -50,7 +50,9 @@ const summary = computed(() => {
   if (filled.value.length === 0) return t('book.detail.files.writtenNothing', { total: fields.value.length })
   const named = filled.value.slice(0, NAMED_FIELD_LIMIT).map((entry) => entry.label)
   const rest = filled.value.length - named.length
-  const list = formatList(named)
+  const list = formatListParts(named)
+    .map((part) => part.value)
+    .join('')
   if (rest <= 0) return t('book.detail.files.writtenSummaryAll', { fields: list, format: targetFormat.value })
   return t('book.detail.files.writtenSummary', { fields: list, count: rest, format: targetFormat.value })
 })

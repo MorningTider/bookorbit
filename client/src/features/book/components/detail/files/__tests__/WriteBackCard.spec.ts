@@ -62,11 +62,12 @@ describe('WriteBackCard', () => {
 
 it('updates dynamic field names with the interface locale', async () => {
   await setI18nLocale('en')
-  const wrapper = mount(WriteBackCard, { props: { book: book(EPUB_ONLY), canEdit: false } })
+  const value = { ...book(EPUB_ONLY), isbn13: '9781234567890' }
+  const wrapper = mount(WriteBackCard, { props: { book: value, canEdit: false } })
   expect(wrapper.text()).toContain('Title')
   await setI18nLocale('zh')
   await nextTick()
-  expect(wrapper.text()).toContain('书名')
+  expect(wrapper.text()).toContain('书名和ISBN-13')
   expect(wrapper.text()).not.toContain('Title')
   wrapper.unmount()
   await setI18nLocale('en')
