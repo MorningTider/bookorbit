@@ -1,3 +1,4 @@
+import { GithubSourceService } from './github-source.service';
 import { UploadValidatorService } from '../upload/upload-validator.service';
 import { ImportReviewService } from '../import-review/import-review.service';
 import { BookSourceProgress } from './book-source-progress.service';
@@ -11,6 +12,7 @@ import { LibraryService } from '../library/library.service';
 import { BookSourceJobRepository } from './book-source-job.repository';
 import { BookSourceJobService } from './book-source-job.service';
 import type { RequestUser } from '../../common/types/request-user';
+const github = { prepare: vi.fn(), assertCurrent: vi.fn() };
 const repository = { list: vi.fn(), cancel: vi.fn(), remove: vi.fn(), enqueue: vi.fn(), owned: vi.fn(), retry: vi.fn() };
 const libraries = { verifyAccess: vi.fn(), findAccessibleLibraryIds: vi.fn(), verifyAccessLevel: vi.fn(), findOne: vi.fn() };
 const user = { id: 7, active: true, isSuperuser: false } as RequestUser;
@@ -36,6 +38,7 @@ async function service(assertEnabled = () => Promise.resolve(undefined)) {
       { provide: DownloadSourcePolicy, useValue: { enabled: () => Promise.resolve(true), assertEnabled } },
       { provide: ChapterRuleRegistry, useValue: { all: vi.fn().mockResolvedValue([]), get: vi.fn().mockResolvedValue({ key: 'sample' }) } },
       BookSourceJobService,
+      { provide: GithubSourceService, useValue: github },
       UploadValidatorService,
       { provide: BookSourceJobRepository, useValue: repository },
       { provide: LibraryService, useValue: libraries },
@@ -51,6 +54,23 @@ describe('chapter acquisition job identity and permissions', () => {
     repository.enqueue.mockResolvedValue(row);
     repository.owned.mockResolvedValue({ ...row, status: 'failed' });
     repository.retry.mockResolvedValue(row);
+  });
+  it('checks library access before resolving a GitHub catalog file', async () => {
+    libraries.verifyAccessLevel.mockRejectedValue(new ForbiddenException());
+    await expect((await service()).enqueueGithub(3, undefined, 1, null, user)).rejects.toThrow(ForbiddenException);
+    expect(github.prepare).not.toHaveBeenCalled();
+    expect(repository.enqueue).not.toHaveBeenCalled();
+  });
+  it('queues GitHub files using their actual format and a complete immutable snapshot', async () => {
+    const file = { repositoryId: 1, repository: 'owner/books', path: '书.mobi', filename: '书.mobi', blobSha: 'a'.repeat(40), format: 'mobi' };
+    github.prepare.mockResolvedValue(file);
+    libraries.findOne.mockResolvedValue({ allowedFormats: ['mobi'] });
+    await (await service()).enqueueGithub(3, undefined, 1, null, user);
+    expect(repository.enqueue).toHaveBeenCalledWith(7, 3, undefined, expect.stringMatching(/^github:[a-f0-9]{18}$/), undefined, file);
+    libraries.findOne.mockResolvedValue({ allowedFormats: ['epub'] });
+    repository.enqueue.mockClear();
+    await expect((await service()).enqueueGithub(3, undefined, 1, null, user)).rejects.toThrow('does not allow');
+    expect(repository.enqueue).not.toHaveBeenCalled();
   });
   it('namespaces the durable identity while exposing a numeric source ID and provider', async () => {
     expect(await (await service()).enqueueQidian(3, undefined, '1010868264', user)).toMatchObject({ source: 'qidian', sourceBookId: '1010868264' });

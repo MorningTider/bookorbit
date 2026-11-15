@@ -10,6 +10,7 @@ export class DownloadIdleDeadline {
   constructor(
     private readonly timeoutMs: number,
     signal: AbortSignal,
+    private readonly timeoutMessage = '下载连续无新增章节，已超时停止；已下载章节保留，可重试续传',
   ) {
     this.signal = AbortSignal.any([signal, this.controller.signal]);
     this.renew();
@@ -29,7 +30,7 @@ export class DownloadIdleDeadline {
   private renew(): void {
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
-      this.controller.abort(new BadGatewayException('下载连续无新增章节，已超时停止；已下载章节保留，可重试续传'));
+      this.controller.abort(new BadGatewayException(this.timeoutMessage));
     }, this.timeoutMs);
     this.timer.unref();
   }

@@ -6,9 +6,9 @@ import { posix } from 'node:path';
 const MAX_XML_BYTES = 1024 * 1024;
 const parser = new XMLParser({ ignoreAttributes: false, processEntities: false });
 
-export async function assertSourceEpub(bytes: Buffer): Promise<void> {
+export async function assertSourceEpub(bytes: Buffer | string): Promise<void> {
   try {
-    const zip = await unzipper.Open.buffer(bytes);
+    const zip = await (typeof bytes === 'string' ? unzipper.Open.file(bytes) : unzipper.Open.buffer(bytes));
     if (zip.files.length > 10000) throw new BadGatewayException('EPUB 文件数量过多');
     const paths = new Set<string>();
     let expandedBytes = 0;

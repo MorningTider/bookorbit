@@ -18,6 +18,7 @@ import { PROVIDER_GROUP_ORDER } from '../lib/provider-rows'
 import type { ProviderChipView, ProviderDraftEntry, ProviderGroupId, ProviderRowDef } from '../lib/provider-rows'
 import { useProviderRows } from '../composables/useProviderRows'
 import ProviderRow from './ProviderRow.vue'
+import GithubSourceManager from '@/features/book-source/GithubSourceManager.vue'
 
 const { t } = useI18n()
 
@@ -50,6 +51,15 @@ const TESTABLE_PROVIDERS: BuiltInMetadataProviderKey[] = [MetadataProviderKey.AM
 const rows = useProviderRows()
 const draft = ref<ProviderConfigurations | null>(null)
 const expandedKeys = ref(new Set<string>())
+const githubManager = ref<InstanceType<typeof GithubSourceManager> | null>(null)
+const githubDirty = ref(false)
+const githubBusy = ref(false)
+function handleGithubDirty(value: boolean) {
+  githubDirty.value = value
+}
+function handleGithubBusy(value: boolean) {
+  githubBusy.value = value
+}
 const search = ref('')
 const filter = ref<ProviderFilter>('all')
 
@@ -227,7 +237,7 @@ const dirtyRows = computed(() => {
   return presentRows.value.filter((row) => JSON.stringify(current[row.key]) !== JSON.stringify(config[row.key]))
 })
 
-const dirtyNames = computed(() => formatList(dirtyRows.value.map((row) => row.label)))
+const dirtyNames = computed(() => formatList([...dirtyRows.value.map((row) => row.label), ...(githubDirty.value ? ['GitHub'] : [])]))
 
 /* ── Actions ────────────────────────────────────────────────────── */
 
@@ -269,6 +279,7 @@ function testProvider(row: ProviderRowDef) {
 }
 
 function discard() {
+  void githubManager.value?.discard()
   if (!props.config) return
   draft.value = JSON.parse(JSON.stringify(props.config)) as ProviderConfigurations
 }
@@ -279,8 +290,9 @@ function toggleDownloadSource(key: 'fanqie' | 'qidian') {
   draft.value[key].downloadEnabled = draft.value[key].downloadEnabled === false
 }
 
-function save() {
-  if (!draft.value) return
+async function save() {
+  if (!draft.value || githubBusy.value) return
+  if (githubManager.value && !(await githubManager.value.save())) return
   emit('save', draft.value)
 }
 
@@ -373,11 +385,7 @@ function clearFilters() {
         </Button>
       </div>
 
-      <section
-        v-if="downloadSourceKeys.length"
-        class="mt-5 space-y-3 rounded-lg border border-border bg-card p-4"
-        :aria-label="t('chapterSources.downloadSettings')"
-      >
+      <section class="mt-5 space-y-3 rounded-lg border border-border bg-card p-4" :aria-label="t('chapterSources.downloadSettings')">
         <h2 class="font-semibold">{{ t('chapterSources.downloadSettings') }}</h2>
         <p class="text-sm text-muted-foreground">{{ t('chapterSources.downloadSettingsHint') }}</p>
         <div v-for="key in downloadSourceKeys" :key="key" class="flex items-center justify-between gap-3 py-2">
@@ -398,22 +406,25 @@ function clearFilters() {
             />
           </button>
         </div>
+        <GithubSourceManager ref="githubManager" @dirty="handleGithubDirty" @busy="handleGithubBusy" />
       </section>
 
       <div
-        v-if="dirtyRows.length"
+        v-if="dirtyRows.length || githubDirty"
         class="sticky bottom-0 z-10 mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80"
       >
         <span class="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
         <p class="min-w-0 flex-1 truncate text-xs">
-          <span class="font-semibold">{{ t('settings.metadata.providers.unsavedChanges', { count: dirtyRows.length }) }}</span>
+          <span class="font-semibold">{{
+            t('settings.metadata.providers.unsavedChanges', { count: dirtyRows.length + (githubDirty ? 1 : 0) })
+          }}</span>
           <span class="text-muted-foreground"> · {{ dirtyNames }}</span>
         </p>
-        <Button type="button" variant="outline" size="sm" :disabled="saving" @click="discard">
+        <Button type="button" variant="outline" size="sm" :disabled="saving || githubBusy" @click="discard">
           <RotateCcw :size="13" aria-hidden="true" />
           <span>{{ t('settings.metadata.providers.discard') }}</span>
         </Button>
-        <Button type="submit" size="sm" :disabled="saving">
+        <Button type="submit" size="sm" :disabled="saving || githubBusy">
           <Loader2 v-if="saving" :size="13" class="animate-spin" aria-hidden="true" />
           <Save v-else :size="13" aria-hidden="true" />
           <span>{{ t('settings.metadata.providers.saveChanges') }}</span>

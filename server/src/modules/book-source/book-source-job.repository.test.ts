@@ -38,6 +38,9 @@ describe.skipIf(!databaseUrl)('BookSourceJobRepository PostgreSQL integration', 
     await pool.query(await readFile(new URL('../../db/migrations/0128_upload_session_import_review.sql', import.meta.url), 'utf8'));
     await pool.query(await readFile(new URL('../../db/migrations/0129_import_destination_review.sql', import.meta.url), 'utf8'));
 
+    await pool.query('DROP TABLE IF EXISTS github_book_entries, github_book_repositories CASCADE');
+    await pool.query(await readFile(new URL('../../db/migrations/0134_github_book_sources.sql', import.meta.url), 'utf8'));
+
     await pool.query('INSERT INTO users(id) VALUES (7),(8) ON CONFLICT DO NOTHING; INSERT INTO libraries(id) VALUES (3),(4) ON CONFLICT DO NOTHING');
     const module = await Test.createTestingModule({
       providers: [BookSourceJobRepository, ImportReviewRepository, UploadSessionRepository, { provide: DB, useValue: drizzle(pool, { schema }) }],

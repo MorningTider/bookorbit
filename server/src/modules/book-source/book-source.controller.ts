@@ -1,3 +1,4 @@
+import { AcquireGithubDto } from './dto/github-book-source.dto';
 import { RetrySourceJobDto } from './dto/retry-source-job.dto';
 import { AcquireRuleChaptersDto } from './dto/public-chapter-rules.dto';
 import { AcquireQidianDto } from './dto/acquire-qidian.dto';
@@ -38,6 +39,12 @@ export class BookSourceController {
     return dto.importResolution
       ? this.jobs.enqueueQidian(id, dto.folderId, dto.bookId, user, dto.importResolution)
       : this.jobs.enqueueQidian(id, dto.folderId, dto.bookId, user);
+  }
+
+  @Post('libraries/:id/sources/github')
+  @HttpCode(202)
+  acquireGithub(@Param('id', ParseIntPipe) id: number, @Body() dto: AcquireGithubDto, @CurrentUser() user: RequestUser) {
+    return this.jobs.enqueueGithub(id, dto.folderId, dto.entryId, dto.blobSha, user, dto.importResolution);
   }
 
   @Get('book-sources/chapter-sources')

@@ -56,3 +56,5 @@ export * from './import-reviews';
 
 export * from './book-comments';
 export * from './story-edits';
+
+export * from './github-book-sources';

@@ -939,6 +939,27 @@
       "when": 1794426217991,
       "tag": "0133_upstream_v3_8_custom",
       "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1794767132383,
+      "tag": "0134_github_book_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1794767555244,
+      "tag": "0135_github_catalog_search_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1794769213574,
+      "tag": "0136_github_catalog_pending_metadata",
+      "breakpoints": true
     }
   ]
 }

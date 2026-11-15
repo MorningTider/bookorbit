@@ -1,3 +1,5 @@
+import { Optional } from '@nestjs/common';
+import { GithubSourceService, githubJobIdentity } from './github-source.service';
 import { UploadValidatorService } from '../upload/upload-validator.service';
 import { ImportReviewService } from '../import-review/import-review.service';
 import { importResolutionFromDto } from '../import-review/dto/import-review.dto';
@@ -50,6 +52,7 @@ export class BookSourceJobService {
     private readonly rules: ChapterRuleRegistry,
     private readonly validator: UploadValidatorService,
     @Inject(bookSourceConfig.KEY) private readonly config: ConfigType<typeof bookSourceConfig>,
+    @Optional() private readonly github?: GithubSourceService,
   ) {}
 
   async enqueue(libraryId: number, folderId: number | undefined, bookId: string, user: RequestUser, resolution?: ImportResolution) {
@@ -89,10 +92,36 @@ export class BookSourceJobService {
     });
   }
 
-  private async verifyDestination(libraryId: number, user: RequestUser): Promise<void> {
+  async enqueueGithub(
+    libraryId: number,
+    folderId: number | undefined,
+    entryId: number,
+    blobSha: string | null | undefined,
+    user: RequestUser,
+    resolution?: ImportResolution,
+  ) {
+    return this.mutate('book_source.enqueue', `userId=${user.id} libraryId=${libraryId}`, async () => {
+      if (!this.github) throw new ServiceUnavailableException('GitHub source is unavailable');
+      await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
+      const file = await this.github.prepare(entryId, blobSha);
+      await this.verifyDestination(libraryId, user, file.filename);
+      return sourceJobResponse(
+        await this.repository.enqueue(
+          user.id,
+          libraryId,
+          folderId,
+          githubJobIdentity(file),
+          resolution ? importResolutionFromDto(resolution) : undefined,
+          file,
+        ),
+      );
+    });
+  }
+
+  private async verifyDestination(libraryId: number, user: RequestUser, filename = 'book.epub'): Promise<void> {
     await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
     const library = await this.libraries.findOne(libraryId);
-    this.validator.validateFormat('book.epub', library.allowedFormats);
+    this.validator.validateFormat(filename, library.allowedFormats);
   }
 
   async list(user: RequestUser, cursor?: number): Promise<BookSourceJobPage> {
@@ -131,8 +160,13 @@ export class BookSourceJobService {
       if (!user.active) throw new ForbiddenException();
       if (job.sourceBookId.startsWith('qidian:')) await this.downloadPolicy.assertEnabled('qidian');
       else if (!job.sourceBookId.includes(':')) await this.downloadPolicy.assertEnabled('fanqie');
-      await this.verifyDestination(job.libraryId, user);
-      if (job.sourceBookId.includes(':') && !job.sourceBookId.startsWith('qidian:')) await this.rules.get(job.sourceBookId.split(':')[0]!);
+      await this.verifyDestination(job.libraryId, user, job.sourceFile?.filename);
+      if (/^github:[a-f0-9]{18}$/.test(job.sourceBookId)) {
+        if (!this.github || !job.sourceFile) throw new ServiceUnavailableException('GitHub task snapshot is missing');
+        await this.github.assertCurrent(job.sourceFile);
+      }
+      if (job.sourceBookId.includes(':') && !job.sourceBookId.startsWith('qidian:') && !/^github:[a-f0-9]{18}$/.test(job.sourceBookId))
+        await this.rules.get(job.sourceBookId.split(':')[0]!);
       if (!job.sourceBookId.includes(':') && !this.config.tomatoBinaryPath) throw new ServiceUnavailableException('番茄下载器未配置');
       return sourceJobResponse(await (confirmedImportNotCompleted ? this.repository.retry(id, user.id, true) : this.repository.retry(id, user.id)));
     });

@@ -111,3 +111,5 @@ export * from "./import-review";
 
 export * from "./book-comments";
 export * from "./epub-toc";
+
+export * from "./github-book-source";

@@ -1,4 +1,5 @@
 import { sourceResponseError, sourceErrorMessage } from './source-errors'
+import { githubSourceError } from './github-source-errors'
 import { i18n } from '@/i18n'
 import { selectSourceDestination } from './source-destination'
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -16,6 +17,8 @@ import type {
   BookSourceStatus,
   FanqieAcquisitionRequest,
   MetadataCandidate,
+  GithubSourceCandidate,
+  GithubSourceSearchPage,
 } from '@bookorbit/types'
 import { useMetadataSearch } from '@/features/book/composables/useMetadataSearch'
 import { usePermissions } from '@/features/auth/composables/usePermissions'
@@ -37,6 +40,15 @@ export function sourceJobPercent(job: BookSourceJob): number | undefined {
   if (job.status === 'completed' || job.status === 'awaiting_choice') return 100
   const progress = job.progress
   if (
+    progress &&
+    Number.isSafeInteger(progress.downloadedBytes) &&
+    Number.isSafeInteger(progress.totalBytes) &&
+    progress.totalBytes! > 0 &&
+    progress.downloadedBytes! >= 0 &&
+    progress.downloadedBytes! <= progress.totalBytes!
+  )
+    return Math.floor((100 * progress.downloadedBytes!) / progress.totalBytes!)
+  if (
     !progress ||
     !Number.isSafeInteger(progress.completedChapters) ||
     !Number.isSafeInteger(progress.totalChapters) ||
@@ -55,6 +67,13 @@ export function useFanqieAcquisition() {
   const { hasPermission } = usePermissions()
   const { user } = useAuth()
   const title = ref('')
+  const githubResults = ref<GithubSourceCandidate[]>([])
+  const githubCursor = ref<string | null>(null)
+  const githubLoading = ref(false)
+  const searched = ref(false)
+  const githubPaged = ref(false)
+  let githubQuery = ''
+  let searchSequence = 0
   const customSources = ref<PublicChapterSource[]>([])
   const customSource = ref('')
   const customBookId = ref('')
@@ -84,7 +103,12 @@ export function useFanqieAcquisition() {
   const editableLibraries = computed(() =>
     libraries.value.filter(
       (library) =>
-        (!library.allowedFormats.length || library.allowedFormats.some((format) => format.toLowerCase() === 'epub')) &&
+        (!library.allowedFormats.length ||
+          library.allowedFormats.some(
+            (format) =>
+              format.toLowerCase() === 'epub' ||
+              (status.value?.github?.enabled && ['pdf', 'mobi', 'azw3', 'txt', 'fb2'].includes(format.toLowerCase())),
+          )) &&
         (user.value?.isSuperuser || library.accessLevel === 'editor' || library.accessLevel === 'owner'),
     ),
   )
@@ -93,8 +117,10 @@ export function useFanqieAcquisition() {
       (key) => metadata.providers.value.some((provider) => provider.key === key) && status.value?.[key]?.enabled !== false && status.value !== null,
     ),
   )
-  const fanqieEnabled = computed(() => enabledSources.value.length > 0)
-  const configured = computed(() => enabledSources.value.some((key) => status.value?.[key]?.configured === true))
+  const fanqieEnabled = computed(() => enabledSources.value.length > 0 || status.value?.github?.enabled === true)
+  const configured = computed(
+    () => enabledSources.value.some((key) => status.value?.[key]?.configured === true) || status.value?.github?.configured === true,
+  )
   const results = computed(() =>
     metadata.results.value.filter((candidate) => enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian')),
   )
@@ -150,9 +176,62 @@ export function useFanqieAcquisition() {
   })
   function canDownload(candidate: MetadataCandidate) {
     return (
+      destinationAllows('epub') &&
       enabledSources.value.includes(candidate.provider as 'fanqie' | 'qidian') &&
       status.value?.[candidate.provider as 'fanqie' | 'qidian']?.configured === true
     )
+  }
+
+  function destinationAllows(format: string) {
+    const library = editableLibraries.value.find((item) => item.id === libraryId.value)
+    return !!library && (!library.allowedFormats.length || library.allowedFormats.some((item) => item.toLowerCase() === format))
+  }
+  function canDownloadGithub(book: GithubSourceCandidate) {
+    return canAcquire.value && status.value?.github?.enabled === true && destinationAllows(book.format)
+  }
+  async function acquireGithub(book: GithubSourceCandidate) {
+    if (!canDownloadGithub(book) || pendingId.value || !libraryId.value) return
+    pendingId.value = `github:${book.id}`
+    error.value = null
+    try {
+      await readResponse(
+        await api(`/api/v1/libraries/${libraryId.value}/sources/github`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId: book.id, blobSha: book.blobSha }),
+        }),
+      )
+      cursor.value = null
+      toast.success(i18n.global.t('chapterSources.queuedNotice'))
+      await refreshJobs()
+    } catch (cause) {
+      error.value = githubSourceError(sourceErrorMessage(cause, 'chapterSources.submitFailed'))
+    } finally {
+      pendingId.value = null
+    }
+  }
+  async function searchGithub(query: string, more = false) {
+    const sequence = searchSequence
+    githubLoading.value = true
+    try {
+      const parameters = new URLSearchParams({ query })
+      if (more && githubCursor.value) parameters.set('cursor', githubCursor.value)
+      const page = await readResponse<GithubSourceSearchPage>(await api(`/api/v1/book-sources/github/search?${parameters}`))
+      if (stopped || sequence !== searchSequence) return
+      githubResults.value = page.items
+      githubPaged.value = more
+      githubCursor.value = page.nextCursor
+    } catch (cause) {
+      if (!stopped && sequence === searchSequence) error.value = githubSourceError(sourceErrorMessage(cause, 'chapterSources.searchFailed'))
+    } finally {
+      if (sequence === searchSequence) githubLoading.value = false
+    }
+  }
+  function moreGithub() {
+    return searchGithub(githubQuery, true)
+  }
+  function firstGithub() {
+    return searchGithub(githubQuery)
   }
 
   async function readResponse<T>(response: Response): Promise<T> {
@@ -235,6 +314,7 @@ export function useFanqieAcquisition() {
   }
 
   function canRetry(job: BookSourceJob) {
+    if (job.source === 'github') return status.value?.github?.enabled === true
     if (!job.source || job.source === 'fanqie') return enabledSources.value.includes('fanqie') && status.value?.fanqie.configured === true
     if (job.source === 'qidian') return enabledSources.value.includes('qidian') && status.value?.qidian?.configured === true
     return customSources.value.some((item) => item.key === job.source)
@@ -257,15 +337,20 @@ export function useFanqieAcquisition() {
   }
 
   async function search() {
-    if (!title.value.trim() || !enabledSources.value.length) return
+    if (!title.value.trim() || !fanqieEnabled.value) return
     error.value = null
+    searched.value = true
+    searchSequence++
+    githubQuery = title.value.trim()
+    githubResults.value = []
+    githubCursor.value = null
     try {
-      await metadata.search({
-        title: title.value.trim(),
-        providers: enabledSources.value,
-        mediaKind: 'ebook',
-        resultsPerProvider: 20,
-      })
+      await Promise.all([
+        ...(enabledSources.value.length
+          ? [metadata.search({ title: githubQuery, providers: enabledSources.value, mediaKind: 'ebook', resultsPerProvider: 20 })]
+          : []),
+        ...(status.value?.github?.enabled ? [searchGithub(githubQuery)] : []),
+      ])
     } catch {
       error.value = i18n.global.t('chapterSources.searchFailed')
     }
@@ -490,8 +575,16 @@ export function useFanqieAcquisition() {
     statusLabel,
     progressPercent: sourceJobPercent,
     results,
-    isSearching: metadata.isStreaming,
-    hasSearched: metadata.hasSearched,
+    githubResults,
+    githubCursor,
+    githubEnabled: computed(() => status.value?.github?.enabled === true),
+    acquireGithub,
+    canDownloadGithub,
+    moreGithub,
+    firstGithub,
+    githubPaged,
+    isSearching: computed(() => metadata.isStreaming.value || githubLoading.value),
+    hasSearched: computed(() => metadata.hasSearched.value || searched.value),
     providerErrors: metadata.interruptedProviders,
     load,
     search,

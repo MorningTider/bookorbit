@@ -9,6 +9,7 @@ import ImportReviewQueue from '@/features/import-review/ImportReviewQueue.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import SourceBookPreview from './SourceBookPreview.vue'
 import ChapterRuleManager from './ChapterRuleManager.vue'
+import { githubSourceError } from './composables/github-source-errors'
 import { useFanqieAcquisition } from './composables/useFanqieAcquisition'
 
 const { t, locale } = useI18n()
@@ -16,6 +17,7 @@ function taskTime(value: string) {
   return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 function taskSource(source?: string) {
+  if (source === 'github') return 'GitHub'
   return source === 'qidian' ? t('chapterSources.qidian') : !source || source === 'fanqie' ? t('chapterSources.fanqie') : source
 }
 const {
@@ -62,6 +64,14 @@ const {
   progressPercent,
   retry,
   error,
+  githubResults,
+  githubCursor,
+  githubEnabled,
+  acquireGithub,
+  canDownloadGithub,
+  moreGithub,
+  firstGithub,
+  githubPaged,
   results,
   isSearching,
   hasSearched,
@@ -71,6 +81,13 @@ const {
   acquire,
   cancel,
 } = useFanqieAcquisition()
+function fileSize(bytes: number | null | undefined) {
+  if (bytes === null || bytes === undefined) return t('githubSources.unknownSize')
+  return (
+    new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }).format(bytes / (bytes >= 1048576 ? 1048576 : 1024)) +
+    (bytes >= 1048576 ? ' MB' : ' KB')
+  )
+}
 onMounted(load)
 </script>
 
@@ -81,6 +98,7 @@ onMounted(load)
       <span v-for="key in enabledSources" :key="key" class="rounded-full bg-muted px-3 py-1 text-xs">{{
         t(key === 'fanqie' ? 'chapterSources.fanqie' : 'chapterSources.qidian')
       }}</span>
+      <span v-if="githubEnabled" class="rounded-full bg-muted px-3 py-1 text-xs">GitHub</span>
     </div>
     <p v-if="!configured && canAcquire" role="status" class="text-sm text-muted-foreground">{{ t('chapterSources.downloaderUnavailable') }}</p>
     <p v-if="!fanqieEnabled" role="status" class="text-sm text-muted-foreground">{{ t('chapterSources.enableProvider') }}</p>
@@ -136,9 +154,13 @@ onMounted(load)
     <p v-if="importCheckError" role="alert" class="text-sm text-destructive">{{ importCheckError }}</p>
     <section class="space-y-3" aria-live="polite" :aria-label="t('chapterSources.results')">
       <h2 class="font-semibold">
-        {{ t('chapterSources.results') }} <span v-if="results.length" class="text-muted-foreground">({{ results.length }})</span>
+        {{ t('chapterSources.results') }}
+        <span v-if="results.length + githubResults.length" class="text-muted-foreground">({{ results.length + githubResults.length }})</span>
       </h2>
-      <p v-if="hasSearched && !isSearching && !results.length && !providerErrors.length && !error" class="text-sm text-muted-foreground">
+      <p
+        v-if="hasSearched && !isSearching && !results.length && !githubResults.length && !providerErrors.length && !error"
+        class="text-sm text-muted-foreground"
+      >
         {{ t('chapterSources.noResults') }}
       </p>
       <ul class="grid gap-4 lg:grid-cols-2">
@@ -152,7 +174,24 @@ onMounted(load)
             t(book.provider === 'qidian' ? 'chapterSources.acquirePublic' : 'chapterSources.acquire')
           }}</Button>
         </li>
+        <li v-for="book in githubResults" :key="`github:${book.id}`" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-4">
+          <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span class="rounded-full bg-muted px-2 py-1">GitHub · {{ book.repositoryLabel }}</span
+            ><span>{{ book.format.toUpperCase() }} · {{ fileSize(book.sizeBytes) }}</span>
+          </div>
+          <h3 class="break-words font-medium">{{ book.title }}</h3>
+          <p class="break-all text-xs text-muted-foreground">{{ book.repository }} / {{ book.path }}</p>
+          <Button v-if="canAcquire" :disabled="!canDownloadGithub(book) || pendingId !== null" @click="acquireGithub(book)">{{
+            t('githubSources.acquire', { format: book.format.toUpperCase() })
+          }}</Button>
+        </li>
       </ul>
+      <Button v-if="githubPaged" type="button" variant="outline" :disabled="isSearching" @click="firstGithub">{{
+        t('githubSources.firstResults')
+      }}</Button>
+      <Button v-if="githubCursor" type="button" variant="outline" :disabled="isSearching" @click="moreGithub">{{
+        t('githubSources.moreResults')
+      }}</Button>
     </section>
     <section v-if="canAcquire" class="space-y-3" :aria-label="t('chapterSources.tasks')">
       <h3 class="font-medium">{{ t('chapterSources.tasks') }}</h3>
@@ -204,7 +243,13 @@ onMounted(load)
                     :value="progressPercent(job)"
                   />
                   <p
-                    v-if="job.status !== 'completed' && job.status !== 'awaiting_choice' && progressPercent(job) !== undefined"
+                    v-if="job.status !== 'completed' && job.status !== 'awaiting_choice' && job.progress?.downloadedBytes !== undefined"
+                    class="text-xs text-muted-foreground"
+                  >
+                    {{ fileSize(job.progress.downloadedBytes) }} / {{ fileSize(job.progress.totalBytes ?? 0) }}
+                  </p>
+                  <p
+                    v-else-if="job.status !== 'completed' && job.status !== 'awaiting_choice' && progressPercent(job) !== undefined"
                     class="text-xs text-muted-foreground"
                   >
                     {{
@@ -217,7 +262,9 @@ onMounted(load)
                   </p>
                   <p v-else-if="job.status === 'completed'" class="text-xs text-muted-foreground">100%</p>
                 </div>
-                <p v-if="job.error" class="mt-2 max-w-sm break-words text-destructive">{{ job.error }}</p>
+                <p v-if="job.error" class="mt-2 max-w-sm break-words text-destructive">
+                  {{ job.source === 'github' ? githubSourceError(job.error) : job.error }}
+                </p>
                 <p class="mt-1 text-xs text-muted-foreground">{{ t('chapterSources.taskUpdated', { time: taskTime(job.updatedAt) }) }}</p>
               </td>
               <td class="whitespace-nowrap p-3 align-top">

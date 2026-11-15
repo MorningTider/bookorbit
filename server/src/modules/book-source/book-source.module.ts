@@ -1,3 +1,7 @@
+import { GithubSourceClient } from './github-source.client';
+import { GithubSourceRepository } from './github-source.repository';
+import { GithubSourceService } from './github-source.service';
+import { GithubSourceConfigController, GithubSourceSearchController } from './github-source.controller';
 import { ImportReviewModule } from '../import-review/import-review.module';
 import { BookSourceProgress } from './book-source-progress.service';
 import { DownloadSourcePolicy } from './download-source-policy.service';
@@ -19,8 +23,11 @@ import { BookSourceController } from './book-source.controller';
 
 @Module({
   imports: [ImportReviewModule, LibraryModule, UploadModule, AuthModule, MetadataPreferencesModule],
-  controllers: [BookSourceController, ChapterRulesController],
+  controllers: [BookSourceController, ChapterRulesController, GithubSourceConfigController, GithubSourceSearchController],
   providers: [
+    GithubSourceClient,
+    GithubSourceRepository,
+    GithubSourceService,
     DownloadSourcePolicy,
     ChapterRuleRegistry,
     ChapterDownloadService,

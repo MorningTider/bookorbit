@@ -31,7 +31,7 @@ describe('ProviderConfigPanel', () => {
     })
 
     expect(wrapper.text()).not.toContain('Libro.fm')
-    expect(wrapper.findAll('[role="switch"]')).toHaveLength(11)
+    expect(wrapper.findAll('[role="switch"]')).toHaveLength(12)
     await wrapper.find('form').trigger('submit')
     expect(wrapper.emitted('save')?.[0]?.[0]).not.toHaveProperty('librofm')
     wrapper.unmount()
@@ -47,7 +47,7 @@ describe('ProviderConfigPanel', () => {
     })
 
     expect(wrapper.text()).toContain('Libro.fm')
-    expect(wrapper.findAll('[role="switch"]')).toHaveLength(12)
+    expect(wrapper.findAll('[role="switch"]')).toHaveLength(13)
     wrapper.unmount()
   })
 })

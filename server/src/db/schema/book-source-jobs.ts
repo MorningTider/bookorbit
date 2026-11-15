@@ -1,5 +1,5 @@
 import { bookImportReviews } from './import-reviews';
-import type { ImportResolution } from '@bookorbit/types';
+import type { GithubSourceFile, ImportResolution } from '@bookorbit/types';
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 import { users } from './auth';
@@ -27,6 +27,7 @@ export const bookSourceJobs = pgTable(
     error: text('error'),
     reviewId: uuid('review_id').references(() => bookImportReviews.id, { onDelete: 'set null' }),
     importResolution: jsonb('import_resolution').$type<ImportResolution>(),
+    sourceFile: jsonb('source_file').$type<GithubSourceFile>(),
     workerId: varchar('worker_id', { length: 36 }),
     leaseUntil: timestamp('lease_until', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

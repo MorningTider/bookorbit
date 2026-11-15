@@ -10,7 +10,7 @@ import { BookSourceJobRepository } from './book-source-job.repository';
 import { BookSourceWorker } from './book-source-worker.service';
 
 const repository = { reconcileReviews: vi.fn(), claim: vi.fn(), heartbeat: vi.fn(), beginImport: vi.fn(), finish: vi.fn() };
-const sources = { acquireQidian: vi.fn(), acquireTomato: vi.fn() };
+const sources = { acquireQidian: vi.fn(), acquireTomato: vi.fn(), acquireRuleChapters: vi.fn(), acquireGithub: vi.fn() };
 const auth = { findActingUser: vi.fn() };
 const job = { id: 1, userId: 7, libraryId: 3, folderId: null, sourceBookId: '7290175791344651298' };
 const user = { id: 7, active: true, isSuperuser: false, permissions: [Permission.LibraryUpload, Permission.BookRequestSelfFulfill] };
@@ -72,6 +72,47 @@ describe('BookSourceWorker durable orchestration', () => {
       undefined,
     );
     expect(sources.acquireTomato).not.toHaveBeenCalled();
+    await instance.onModuleDestroy();
+  });
+  it('routes GitHub snapshots through the same durable import lifecycle', async () => {
+    const sourceFile = { repositoryId: 1, repository: 'owner/books', blobSha: 'a'.repeat(40), filename: '书.epub' };
+    repository.claim
+      .mockReset()
+      .mockResolvedValueOnce({ ...job, sourceBookId: 'github:123456789012345678', sourceFile })
+      .mockResolvedValue(null);
+    sources.acquireGithub.mockResolvedValue({ bookId: 19 });
+    const instance = await worker();
+    await instance.tick();
+    await vi.waitFor(() =>
+      expect(repository.finish).toHaveBeenCalledWith(1, expect.any(String), { status: 'completed', resultBookId: 19, error: null }),
+    );
+    expect(sources.acquireGithub).toHaveBeenCalledWith(
+      3,
+      undefined,
+      'github:123456789012345678',
+      expect.objectContaining({ id: 7 }),
+      expect.any(AbortSignal),
+      expect.any(Function),
+      expect.any(Function),
+      undefined,
+      sourceFile,
+    );
+    expect(sources.acquireTomato).not.toHaveBeenCalled();
+    await instance.onModuleDestroy();
+  });
+  it('preserves an existing public chapter rule named github', async () => {
+    repository.claim
+      .mockReset()
+      .mockResolvedValueOnce({ ...job, sourceBookId: 'github:old-book' })
+      .mockResolvedValue(null);
+    sources.acquireRuleChapters.mockResolvedValue({ bookId: 20 });
+    const instance = await worker();
+    await instance.tick();
+    await vi.waitFor(() =>
+      expect(repository.finish).toHaveBeenCalledWith(1, expect.any(String), { status: 'completed', resultBookId: 20, error: null }),
+    );
+    expect(sources.acquireGithub).not.toHaveBeenCalled();
+    expect(sources.acquireRuleChapters).toHaveBeenCalled();
     await instance.onModuleDestroy();
   });
   it('returns from queue polling while a download is running and persists the imported book', async () => {

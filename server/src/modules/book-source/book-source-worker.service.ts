@@ -84,21 +84,24 @@ export class BookSourceWorker implements OnModuleDestroy {
         : job.sourceBookId.includes(':')
           ? this.sources.acquireRuleChapters.bind(this.sources)
           : this.sources.acquireTomato.bind(this.sources);
-      const result = await acquire(
+      const args = [
         job.libraryId,
         job.folderId ?? undefined,
         isQidian ? job.sourceBookId.slice(7) : job.sourceBookId,
         user,
         controller.signal,
-        async (title) => {
+        async (title: string) => {
           Object.assign(user, await this.actingUser(job.userId));
           controller.signal.throwIfAborted();
           if (!(await this.repository.beginImport(job.id, this.workerId, title))) throw new ForbiddenException('下载已取消或任务租约失效');
           importing = true;
         },
-        (progress) => this.progress.update(job.id, progress),
+        (progress: import('@bookorbit/types').BookSourceJobProgress) => this.progress.update(job.id, progress),
         job.importResolution ?? undefined,
-      );
+      ] as const;
+      const result = /^github:[a-f0-9]{18}$/.test(job.sourceBookId)
+        ? await this.sources.acquireGithub(...args, job.sourceFile ?? undefined)
+        : await acquire(...args);
       await this.repository.finish(job.id, this.workerId, { status: 'completed', resultBookId: result.bookId, error: null });
       this.logger.log(
         `[book_source.job] [end] jobId=${job.id} userId=${job.userId} durationMs=${Date.now() - startedAt} resultBookId=${result.bookId} - background acquisition completed`,

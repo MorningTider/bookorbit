@@ -168,3 +168,11 @@ TXT 转换并发修复实机完成：a316516b 经 10024 验收后交付自用正
 ## 2026-11-15 中文字段与作者后台通知
 
 110a41ca 和 f1acfb2e 覆盖回写摘要、语言输入和详情、评分数量、阅读页脚及新阅读正文 landmark。作者头像事件类型维护在共享包，gateway 保持管理权限验证，后台发出编号和缓存版本，列表按现有分页或原位更新。后续合并须保留语言提交代码、已有阅读位置优先级，以及静默元数据流程的头像通知。正式部署为 3.8.0-10055。
+
+## 2026-11-16 GitHub 来源合并回归
+
+BO-C04 与 BO-C05 扩展 GitHub 多仓库配置、目录索引及原文件任务。关键实现为 github-source.client、github-source.repository、github-source.service、github-source.controller，以及 GithubSourceManager、useGithubSourceConfig 和 useFanqieAcquisition。共享契约位于 packages/types/src/github-book-source.ts，迁移 0134 至 0136 由 Drizzle 生成，包含 source_file 快照、分代索引及标题 trigram 索引。
+
+上游合并逐项核对独立来源开关、管理员配置权限、乐观保存冲突、索引租约与原子发布、CSV 待核验条目分页、固定提交及 blob、流式大小/内容校验、持续字节推进、取消、重试、导入审核和实际格式限制。已有名为 github 的公开章节规则通过长度受限的旧标识继续路由，新 GitHub 文件任务使用 18 位十六进制后缀。索引和瞬时进度使用既有任务语义，字节级 Range 续传保留待办。
+
+四个公开仓库已完成本机索引与真实下载入库验收，配置示例和数据范围见[功能矩阵](CUSTOM_FEATURE_MATRIX.md)。此轮群晖升级仍待原生包及隔离验收，当前生产保持已有 10055 基线。

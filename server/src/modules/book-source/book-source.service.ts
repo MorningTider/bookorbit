@@ -1,8 +1,11 @@
+import { createReadStream } from 'node:fs';
+import { GithubSourceService, githubJobIdentity } from './github-source.service';
+import type { GithubSourceFile } from '@bookorbit/types';
 import { DownloadSourcePolicy } from './download-source-policy.service';
 import { ChapterRuleRegistry } from './chapter-rule-registry.service';
 import { RuleChapterSource } from './rule-chapter-source';
 import type { BookSourceStatus, BookSourceJobProgress, ImportResolution } from '@bookorbit/types';
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { Readable } from 'node:stream';
 import { bookSourceConfig } from '../../config/config';
@@ -29,10 +32,12 @@ export class BookSourceService {
     private readonly chapters: ChapterDownloadService,
     private readonly qidian: QidianChapterSource,
     private readonly rules: ChapterRuleRegistry,
+    @Optional() private readonly github?: GithubSourceService,
   ) {}
 
   async status(): Promise<BookSourceStatus> {
     return {
+      ...(this.github ? { github: await this.github.status() } : {}),
       fanqie: { enabled: await this.downloadPolicy.enabled('fanqie'), configured: this.config.tomatoBinaryPath.length > 0, format: 'epub' as const },
       qidian: {
         enabled: await this.downloadPolicy.enabled('qidian'),
@@ -41,6 +46,36 @@ export class BookSourceService {
         scope: 'public-free-volumes' as const,
       },
     };
+  }
+
+  async acquireGithub(
+    libraryId: number,
+    folderId: number | undefined,
+    identity: string,
+    user: RequestUser,
+    signal: AbortSignal,
+    beforeImport?: (title: string) => Promise<void>,
+    onProgress?: (progress: BookSourceJobProgress) => void,
+    importResolution?: ImportResolution,
+    sourceFile?: GithubSourceFile,
+  ) {
+    if (!this.github || !sourceFile || githubJobIdentity(sourceFile) !== identity)
+      throw new BadRequestException('GitHub task snapshot is missing or invalid');
+    const file = sourceFile;
+    await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
+    const library = await this.libraries.findOne(libraryId);
+    this.validator.validateFormat(file.filename, library.allowedFormats);
+    return this.github.withDownload(file, signal, onProgress, async (path) => {
+      signal.throwIfAborted();
+      await this.libraries.verifyAccessLevel(user, libraryId, 'editor');
+      const destination = await this.libraries.findOne(libraryId);
+      this.validator.validateFormat(file.filename, destination.allowedFormats);
+      await beforeImport?.(file.title);
+      return this.upload.upload(libraryId, folderId, this.validator.sanitizeFilename(file.filename), createReadStream(path), user, {
+        ...(importResolution ? { resolution: importResolution } : {}),
+        origin: { provider: 'github', id: identity.slice(7) },
+      });
+    });
   }
 
   async chapterSources() {

@@ -1,4 +1,4 @@
-import type { ImportResolution } from '@bookorbit/types';
+import type { GithubSourceFile, ImportResolution } from '@bookorbit/types';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, inArray, lt, ne, or, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -10,7 +10,14 @@ import { bookSourceJobs as jobs } from '../../db/schema';
 export class BookSourceJobRepository {
   constructor(@Inject(DB) private readonly db: NodePgDatabase<typeof schema>) {}
 
-  async enqueue(userId: number, libraryId: number, folderId: number | undefined, sourceBookId: string, importResolution?: ImportResolution) {
+  async enqueue(
+    userId: number,
+    libraryId: number,
+    folderId: number | undefined,
+    sourceBookId: string,
+    importResolution?: ImportResolution,
+    sourceFile?: GithubSourceFile,
+  ) {
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(192834, ${userId})`);
       const [existing] = await tx
@@ -33,7 +40,14 @@ export class BookSourceJobRepository {
       if (count >= 20) throw new ConflictException('最多同时保留 20 个未完成下载任务');
       const [created] = await tx
         .insert(jobs)
-        .values({ userId, libraryId, folderId, sourceBookId, ...(importResolution ? { importResolution } : {}) })
+        .values({
+          userId,
+          libraryId,
+          folderId,
+          sourceBookId,
+          ...(importResolution ? { importResolution } : {}),
+          ...(sourceFile ? { sourceFile, title: sourceFile.title.slice(0, 200) } : {}),
+        })
         .returning();
       return created;
     });

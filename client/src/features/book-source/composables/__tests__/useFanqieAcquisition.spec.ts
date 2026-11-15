@@ -2,7 +2,7 @@ import { defineComponent, h, watchEffect, nextTick } from 'vue'
 import { setI18nLocale } from '@/i18n'
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { BookSourceJob, MetadataCandidate } from '@bookorbit/types'
+import type { BookSourceJob, MetadataCandidate, GithubSourceCandidate } from '@bookorbit/types'
 
 vi.mock('@/features/book-requests/composables/useRequestDestinationDefault', () => ({
   useRequestDestinationDefault: () => ({ load: vi.fn<() => Promise<void>>(), defaultFor: () => ({ libraryId: null }) }),
@@ -134,6 +134,60 @@ describe('Fanqie background acquisition', () => {
     wrapper.unmount()
   })
 
+  it('searches GitHub by itself, pages without accumulating results, and submits a nullable catalog hash', async () => {
+    const file: GithubSourceCandidate = {
+      id: 1,
+      repositoryId: 1,
+      repository: 'owner/books',
+      repositoryLabel: '测试仓库',
+      branch: '',
+      rootPath: '',
+      path: '历史.epub',
+      commitSha: 'a'.repeat(40),
+      blobSha: null,
+      sizeBytes: null,
+      format: 'epub',
+      title: '历史',
+      filename: '历史.epub',
+    }
+    mocks.api.mockImplementation(
+      async (url) =>
+        new Response(
+          JSON.stringify(
+            String(url).endsWith('/status')
+              ? { fanqie: { enabled: false }, qidian: { enabled: false }, github: { enabled: true, configured: true, repositoryCount: 1 } }
+              : String(url).includes('/github/search')
+                ? {
+                    items: [{ ...file, id: String(url).includes('cursor=') ? 2 : 1 }],
+                    nextCursor: String(url).includes('cursor=') ? null : 'pending:1',
+                  }
+                : String(url).endsWith('/chapter-sources')
+                  ? []
+                  : String(url).includes('/jobs')
+                    ? { items: [job], nextCursor: null }
+                    : job,
+          ),
+        ),
+    )
+    const { model, wrapper } = harness()
+    await model.load()
+    model.title.value = '历史'
+    await model.search()
+    expect(mocks.search).not.toHaveBeenCalled()
+    expect(model.githubResults.value.map((item) => item.id)).toEqual([1])
+    await model.moreGithub()
+    expect(model.githubResults.value.map((item) => item.id)).toEqual([2])
+    expect(model.githubPaged.value).toBe(true)
+    await model.firstGithub()
+    expect(model.githubResults.value[0]?.id).toBe(1)
+    expect(model.canDownloadGithub({ ...file, format: 'pdf' })).toBe(false)
+    await model.acquireGithub(file)
+    const request = mocks.api.mock.calls.find(([url]) => String(url).endsWith('/sources/github'))![1]!
+    expect(request.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(JSON.parse(String(request.body))).toEqual({ entryId: 1, blobSha: null })
+    expect(model.pendingId.value).toBeNull()
+    wrapper.unmount()
+  })
   it('does not redownload an uncertain import before the explicit review confirmation', async () => {
     const { model, wrapper } = harness()
     await model.load()
@@ -356,4 +410,14 @@ it('uses real chapter counts and never estimates unknown or invalid progress', (
   expect(sourceJobPercent({ ...job, progress: { phase: 'preparing' } })).toBeUndefined()
   expect(sourceJobPercent({ ...job, progress: { phase: 'downloading', completedChapters: 101, totalChapters: 100 } })).toBeUndefined()
   expect(sourceJobPercent({ ...job, status: 'completed' })).toBe(100)
+})
+
+describe('GitHub byte progress', () => {
+  it('reports only real byte progress and keeps unknown totals indeterminate', () => {
+    expect(sourceJobPercent({ ...job, status: 'downloading', progress: { phase: 'downloading', downloadedBytes: 25, totalBytes: 100 } })).toBe(25)
+    expect(sourceJobPercent({ ...job, status: 'downloading', progress: { phase: 'downloading', downloadedBytes: 25 } })).toBeUndefined()
+    expect(
+      sourceJobPercent({ ...job, status: 'downloading', progress: { phase: 'downloading', downloadedBytes: 101, totalBytes: 100 } }),
+    ).toBeUndefined()
+  })
 })
