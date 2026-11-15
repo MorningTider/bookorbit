@@ -1,11 +1,10 @@
-import {
-  BOOK_FILE_WRITE_FIELD_LABELS,
-  getPrimaryBookFile,
-  isAudioFormat,
-  type BookDetail,
-  type BookFileWriteField,
-  type CoverMedium,
-} from '@bookorbit/types'
+import { getPrimaryBookFile, isAudioFormat, type BookDetail, type BookFileWriteField, type CoverMedium } from '@bookorbit/types'
+
+import { i18n } from '@/i18n'
+
+export function writeBackFieldLabel(field: BookFileWriteField): string {
+  return i18n.global.t(`book.detail.files.writeFieldLabels.${field}`)
+}
 
 export type WriteBackField = {
   field: BookFileWriteField
@@ -43,7 +42,7 @@ function plainText(html: string | null): string | null {
 export function resolveWriteBackFields(book: BookDetail, fields: readonly BookFileWriteField[], format?: string | null): WriteBackField[] {
   return fields.map((field) => ({
     field,
-    label: BOOK_FILE_WRITE_FIELD_LABELS[field] ?? field,
+    label: writeBackFieldLabel(field),
     value: resolveValue(book, field, format),
   }))
 }

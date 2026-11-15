@@ -109,6 +109,11 @@ export type AuthorEnrichmentStatus = {
   total: number;
 };
 
+export interface AuthorPhotoUpdatedEvent {
+  authorId: number;
+  version: number;
+}
+
 export type AuthorEnrichmentStatusEvent = AuthorEnrichmentStatus & {
   paused: boolean;
   sessionTotal: number;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatNumber } from '@/i18n/formatters'
 import { useRoute, useRouter } from 'vue-router'
@@ -29,6 +29,7 @@ import AuthorTile from '../components/AuthorTile.vue'
 import { useAuthorJumpRail } from '../composables/useAuthorJumpRail'
 import { useAuthorSelection } from '../composables/useAuthorSelection'
 import { useAuthorsList } from '../composables/useAuthorsList'
+import { useAuthorEnrichmentStatus } from '@/features/settings/composables/useAuthorEnrichmentStatus'
 import { useRefreshingAuthors } from '../composables/useRefreshingAuthors'
 import { authorLetterKey, isLetterSort } from '../lib/author-identity'
 import { RECENTLY_ADDED_DAYS, type AuthorListSort, type AuthorQuickFilter, type AuthorSummary, type SortDirection } from '../types/author'
@@ -47,13 +48,15 @@ useScrollRestoreOnActivate(mainRef)
 const { gridGap, viewMode, authorCoverSize, authorCoverShape, authorRowDensity, authorCoverFallback, showJumpRails } = useDisplaySettings()
 const { libraries, fetchLibraries } = useLibraries()
 const { hasPermissionInAnyLibrary } = useLibraryPermissions()
-const { isDemoRestrictedAccount, isSuperuser } = usePermissions()
+const { hasPermission, isDemoRestrictedAccount, isSuperuser } = usePermissions()
 const list = useAuthorsList()
 const { items, total, loading, error, hasMore, q, sort, order, libraryId, hasPhoto, hasSortName, addedWithinDays, minBookCount, load } = list
 const { markRefreshing, clearRefreshing, isRefreshing } = useRefreshingAuthors()
 const { selectionMode, selectedIds, selectedCount, enterSelectionMode, exitSelectionMode, toggleAuthor, rangeSelectTo, selectAll, isSelected } =
   useAuthorSelection()
 
+const { photoUpdate: authorPhotoUpdate, subscribe: subscribeAuthorUpdates } = useAuthorEnrichmentStatus()
+const active = ref(true)
 const hydrating = ref(true)
 const suppressAutoReload = ref(false)
 const initialLoadComplete = ref(false)
@@ -479,7 +482,21 @@ function handleScroll() {
   rail.syncActiveKey()
 }
 
+watch(authorPhotoUpdate, (event) => {
+  if (!event || !active.value || hydrating.value) return
+  if (hasPhoto.value !== null || sort.value === 'lastEnrichedAt' || loading.value) {
+    void load(true)
+  } else {
+    list.applyPhotoUpdate(event)
+  }
+})
+
+onDeactivated(() => {
+  active.value = false
+})
+
 onMounted(async () => {
+  if (hasPermission('manage_metadata_config') || hasPermission('manage_app_settings')) subscribeAuthorUpdates()
   q.value = typeof route.query.q === 'string' ? route.query.q : ''
   sort.value = parseSort(route.query.sort)
   order.value = parseOrder(route.query.order)
@@ -505,6 +522,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  active.value = true
   if (!initialLoadComplete.value) return
   if (selectionMode.value) exitSelectionMode()
   await load(true)

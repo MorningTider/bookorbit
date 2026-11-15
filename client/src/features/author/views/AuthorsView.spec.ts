@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
   fetchLibraries: vi.fn<() => Promise<void>>(),
   load: vi.fn<(reset?: boolean) => Promise<void>>(),
   loadThrough: vi.fn<(index: number) => Promise<boolean>>(),
+  photoUpdate: null as unknown as { value: { authorId: number; version: number } | null },
+  applyPhotoUpdate: vi.fn<(event: { authorId: number; version: number }) => void>(),
+  subscribePhotos: vi.fn<() => void>(),
   items: null as unknown as { value: AuthorSummary[] },
   q: null as unknown as { value: string },
   sort: null as unknown as { value: AuthorListSort },
@@ -94,8 +97,13 @@ vi.mock('../composables/useAuthorJumpRail', () => ({
   }),
 }))
 
+vi.mock('@/features/settings/composables/useAuthorEnrichmentStatus', () => ({
+  useAuthorEnrichmentStatus: () => ({ photoUpdate: mocks.photoUpdate, subscribe: mocks.subscribePhotos }),
+}))
+
 vi.mock('../composables/useAuthorsList', () => ({
   useAuthorsList: () => ({
+    applyPhotoUpdate: mocks.applyPhotoUpdate,
     items: mocks.items,
     total: ref(0),
     loading: ref(false),
@@ -166,6 +174,7 @@ describe('AuthorsView', () => {
     mocks.fetchLibraries.mockResolvedValue()
     mocks.load.mockResolvedValue()
     mocks.loadThrough.mockResolvedValue(true)
+    mocks.photoUpdate = ref(null)
     mocks.items = ref([])
     mocks.q = ref('')
     mocks.sort = ref('name')
@@ -207,6 +216,25 @@ describe('AuthorsView', () => {
     wrapper.unmount()
   })
 
+  it('updates portrait cards on background completion while keeping the current list', async () => {
+    const wrapper = await mountView()
+    mocks.load.mockClear()
+    mocks.photoUpdate.value = { authorId: 7, version: 12345 }
+    await flushPromises()
+    expect(mocks.applyPhotoUpdate).toHaveBeenCalledWith({ authorId: 7, version: 12345 })
+    expect(mocks.load).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+  it('requeries portrait filters after background enrichment changes membership', async () => {
+    const wrapper = await mountView()
+    mocks.hasPhoto.value = false
+    await flushPromises()
+    mocks.load.mockClear()
+    mocks.photoUpdate.value = { authorId: 7, version: 12345 }
+    await flushPromises()
+    expect(mocks.load).toHaveBeenCalledWith(true)
+    wrapper.unmount()
+  })
   it('keeps the quick filters outside the scrolling <main> so they stay anchored', async () => {
     const wrapper = await mountView()
 

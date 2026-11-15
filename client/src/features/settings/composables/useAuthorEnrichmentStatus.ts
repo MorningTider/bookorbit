@@ -1,6 +1,6 @@
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 import { Socket } from 'socket.io-client'
-import type { AuthorEnrichmentStatusEvent } from '@bookorbit/types'
+import type { AuthorEnrichmentStatusEvent, AuthorPhotoUpdatedEvent } from '@bookorbit/types'
 import { createAuthenticatedSocket } from '@/lib/socket'
 
 const status = ref<AuthorEnrichmentStatusEvent>({
@@ -17,6 +17,7 @@ const status = ref<AuthorEnrichmentStatusEvent>({
   sessionFailed: 0,
   currentItemName: null,
 })
+const photoUpdate = shallowRef<AuthorPhotoUpdatedEvent | null>(null)
 const socketConnected = ref(true)
 let socket: Socket | null = null
 
@@ -30,6 +31,10 @@ function getSocket(): Socket {
 
     socket.on('author-enrichment:status', (data: AuthorEnrichmentStatusEvent) => {
       status.value = data
+    })
+
+    socket.on('author-enrichment:photo-updated', (event: AuthorPhotoUpdatedEvent) => {
+      photoUpdate.value = event
     })
 
     socket.on('connect', () => {
@@ -48,7 +53,7 @@ export function useAuthorEnrichmentStatus() {
     getSocket()
   }
 
-  return { status, socketConnected, subscribe }
+  return { status, photoUpdate, socketConnected, subscribe }
 }
 
 export function disconnectAuthorEnrichmentSocket() {
@@ -70,5 +75,6 @@ export function disconnectAuthorEnrichmentSocket() {
     sessionFailed: 0,
     currentItemName: null,
   }
+  photoUpdate.value = null
   socketConnected.value = true
 }

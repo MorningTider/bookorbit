@@ -38,3 +38,15 @@ DSM套件中心从10002直接升级10004成功。最终备份/audit目录为/vol
 备份/audit目录/volume1/database/pg/backups/bookorbit-spk-upgrade-10005-20261028T192111Z，PG备份/volume1/database/pg/backups/logical-20261028T192114Z-ffb968d2。最终配置SHA256 e7a939f13b786ea0819172f7ea77f0687f6574549de307604e05738768303a32保持不变，迁移指纹65c90067bd91e7effb16b228d4d995604106d5a1d1bc2eb06e69fce9894eddc6未变。
 
 3文件20项提供商设置测试、25套语言资源校验、vue-tsc及映射ESLint通过。verify-provider-branding-browser.cjs对最终公网前端检查19条中文说明、5个图标解码及页面异常0，通过；其接口数据完全合成，不使用生产账号。另行NAS生产12项只读API检查全部通过，11本图书可查询，收据production-api-10006.json位于私有audit目录。公网index及5个图标SHA256与构建/官网原件一致。浏览器报告local/synology-native/reports/browser-provider-branding-10006-public.json，截图/private/tmp/bookorbit-provider-branding-10006-public.png。
+
+## 2026-11-15 元数据语言、回写字段与正文起点
+
+用户反馈回写摘要包含英文属性名、元数据语言显示原始代码、阅读页脚漏译，以及四本公版书的简繁版本与英文来源页问题。
+
+回写摘要按字段键获取本地化名称，社区评分数量和阅读页脚使用语言资源。语言编辑框和详情按当前界面语言显示名称，选择项保留标准语言标签，兼容已有自定义值。`zh` 表示中文，`zh-Hans` 表示简体中文，`zh-Hant` 表示繁体中文。
+
+新阅读会优先使用 EPUB 明确的正文 landmark。已有 CFI、阅读比例和同步朗读位置继续按既有优先级恢复。四本 EPUB 已添加正文与版权页导航，保留来源说明及全部 376 个章节链接。导入前曾遗漏简繁版本核对，服务器文件此前已通过 OpenCC 转为简体，本轮将数据库语言同步为 `zh-Hans`。
+
+作者自动补全的生产配置此前关闭。已启用导入触发及缺失头像补齐，字段采用既有仅填缺失策略。后台成功保存头像后广播作者编号和缓存版本，作者列表更新已加载卡片，肖像筛选和补全时间排序按现有分页接口重载。提供商无可靠人物匹配时保留占位。
+
+针对性客户端 199 项、服务端作者 45 项测试通过，完整 verify:fast 通过。部署和真实浏览器验证结果追加到群晖部署记录。

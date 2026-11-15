@@ -3,14 +3,14 @@ import { defineComponent, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import InputWithSuggestions from '../InputWithSuggestions.vue'
 
-function mountHost(initialValue: string | null, searchFn: (query: string) => Promise<string[]>) {
+function mountHost(initialValue: string | null, searchFn: (query: string) => Promise<string[]>, formatValue?: (value: string) => string) {
   const Host = defineComponent({
     components: { InputWithSuggestions },
     setup() {
       const model = ref<string | null>(initialValue)
-      return { model, searchFn }
+      return { model, searchFn, formatValue }
     },
-    template: '<InputWithSuggestions v-model="model" :search-fn="searchFn" />',
+    template: '<InputWithSuggestions v-model="model" :search-fn="searchFn" :format-value="formatValue" />',
   })
 
   return mount(Host, {
@@ -70,5 +70,26 @@ describe('InputWithSuggestions', () => {
 
     expect(searchFn).not.toHaveBeenCalled()
     expect(wrapper.findAll('button')).toHaveLength(0)
+  })
+  it('shows a localized value while preserving the code through focus and blur', async () => {
+    const wrapper = mountHost('zh-Hans', vi.fn().mockResolvedValue([]), (value) => (value === 'zh-Hans' ? '简体中文' : value))
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('简体中文')
+    await input.trigger('focus')
+    expect(input.element.value).toBe('zh-Hans')
+    await input.trigger('blur')
+    expect(input.element.value).toBe('简体中文')
+    expect((wrapper.vm as { model: string }).model).toBe('zh-Hans')
+  })
+  it('shows localized suggestion labels and selects their original values', async () => {
+    const wrapper = mountHost(null, vi.fn().mockResolvedValue(['zh-Hans']), (value) => (value === 'zh-Hans' ? '简体中文' : value))
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await input.setValue('简体')
+    await vi.advanceTimersByTimeAsync(250)
+    await nextTick()
+    expect(wrapper.get('button').text()).toBe('简体中文')
+    await wrapper.get('button').trigger('mousedown')
+    expect((wrapper.vm as { model: string }).model).toBe('zh-Hans')
   })
 })

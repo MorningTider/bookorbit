@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   modelValue: string | null
@@ -8,6 +8,7 @@ const props = defineProps<{
   disabled?: boolean
   class?: string
   maxlength?: number
+  formatValue?: (value: string) => string
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
@@ -18,6 +19,10 @@ const showDropdown = ref(false)
 const activeIndex = ref(-1)
 const dropdownStyle = ref<Record<string, string>>({})
 const isFocused = ref(false)
+const displayedValue = computed(() => {
+  const value = props.modelValue ?? ''
+  return !isFocused.value && props.formatValue && value ? props.formatValue(value) : value
+})
 const shouldSearchFromInput = ref(false)
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let latestRequestId = 0
@@ -129,7 +134,7 @@ function onFocus() {
 <template>
   <input
     ref="inputRef"
-    :value="modelValue ?? ''"
+    :value="displayedValue"
     :placeholder="placeholder"
     :disabled="disabled"
     :maxlength="maxlength"
@@ -150,7 +155,7 @@ function onFocus() {
         :class="{ 'bg-accent': i === activeIndex }"
         @mousedown.prevent="select(s)"
       >
-        {{ s }}
+        {{ formatValue ? formatValue(s) : s }}
       </button>
     </div>
   </Teleport>

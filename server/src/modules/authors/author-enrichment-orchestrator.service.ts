@@ -254,6 +254,7 @@ export class AuthorEnrichmentOrchestratorService implements OnApplicationBootstr
         `[author.enrichment.process] [end] authorId=${authorId} ignoreCache=${ignoreCache} outcome=done provider=${result.provider ?? 'none'} descriptionUpdated=${result.descriptionUpdated} imageUpdated=${result.imageUpdated} outboundRequests=${outboundRequests} - author enrichment processed`,
       );
       await this.queueRepo.markDone(authorId, result.imageUpdated);
+      if (result.imageUpdated) this.gateway?.emitPhotoUpdated({ authorId, version: Date.now() });
       if (trackSession) {
         this.session.incrementDone();
         this.session.setCurrentItemName(null);

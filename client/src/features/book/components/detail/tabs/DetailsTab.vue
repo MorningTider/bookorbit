@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatDate as formatLocaleDate } from '@/i18n/formatters'
+import { formatLanguageName, formatDate as formatLocaleDate } from '@/i18n/formatters'
 import { formatBytes as formatFileSize } from '@/lib/formatting'
 import { useRouter } from 'vue-router'
 import {
@@ -2241,7 +2241,7 @@ watch(
           </div>
           <div class="flex items-baseline justify-between gap-3 border-b border-border py-[6px] last:border-b-0">
             <dt class="shrink-0 text-[11px] font-medium text-muted-foreground">{{ t('book.detail.details.language') }}</dt>
-            <dd class="truncate text-[13px] font-medium capitalize">{{ book.language || '-' }}</dd>
+            <dd class="truncate text-[13px] font-medium capitalize">{{ book.language ? formatLanguageName(book.language) : '-' }}</dd>
           </div>
           <div class="flex items-baseline justify-between gap-3 border-b border-border py-[6px] last:border-b-0">
             <dt class="shrink-0 text-[11px] font-medium text-muted-foreground">{{ t('book.detail.details.pages') }}</dt>

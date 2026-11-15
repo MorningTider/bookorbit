@@ -1,7 +1,7 @@
 import { ForbiddenException, Inject, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import { Permission, type AuthorEnrichmentStatusEvent } from '@bookorbit/types';
+import { Permission, type AuthorPhotoUpdatedEvent, type AuthorEnrichmentStatusEvent } from '@bookorbit/types';
 import { Server, Socket } from 'socket.io';
 
 import type { RequestUser } from '../../common/types/request-user';
@@ -14,6 +14,7 @@ import { appConfig } from '../../config/config';
 import { AuthenticatorService } from '../auth/authenticator.service';
 
 export const AUTHOR_ENRICHMENT_STATUS_EVENT = 'author-enrichment:status';
+export const AUTHOR_PHOTO_UPDATED_EVENT = 'author-enrichment:photo-updated';
 
 @WebSocketGateway({ namespace: '/authors-enrichment', cors: { credentials: true } })
 export class AuthorEnrichmentGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -63,6 +64,10 @@ export class AuthorEnrichmentGateway implements OnGatewayInit, OnGatewayConnecti
 
   emitStatus(status: AuthorEnrichmentStatusEvent): void {
     this.server?.emit(AUTHOR_ENRICHMENT_STATUS_EVENT, status);
+  }
+
+  emitPhotoUpdated(event: AuthorPhotoUpdatedEvent): void {
+    this.server?.emit(AUTHOR_PHOTO_UPDATED_EVENT, event);
   }
 
   private assertCanViewStatus(user: RequestUser): void {

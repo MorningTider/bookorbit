@@ -175,7 +175,7 @@ export function useFoliate(
         open: (file: File) => Promise<void>
         goTo: (target: string | number) => Promise<unknown>
         goToFraction?: (f: number) => void | Promise<void>
-        book?: { toc?: unknown[]; media?: { activeClass?: string } }
+        book?: { toc?: unknown[]; media?: { activeClass?: string }; landmarks?: { type: string[]; href: string }[] }
         getSectionFractions?: () => number[]
         prev?: () => void
         next?: () => void
@@ -343,6 +343,18 @@ export function useFoliate(
           }
         }
       }
+      const textStart = view.book?.landmarks?.find((item) => item.type.includes('bodymatter') || item.type.includes('text'))?.href
+      if (
+        !didNavigate &&
+        format === 'epub' &&
+        !options.cfi &&
+        !options.fallbackFraction &&
+        textStart &&
+        !options.mediaOverlayFragment &&
+        options.mediaOverlaySectionIndex == null
+      ) {
+        didNavigate = await navigateTo(textStart)
+      }
       if (!didNavigate && options.fallbackFraction === 0) {
         didNavigate = await navigateTo(0)
       }
@@ -375,7 +387,7 @@ export function useFoliate(
           getSectionFractions?: () => number[]
           resolveNavigation?: (target: string | number) => { index?: number } | Promise<{ index?: number }>
           getTOCItemOf?: (target: string | number) => Promise<{ label?: string } | null>
-          book?: { toc?: unknown[]; media?: { activeClass?: string } }
+          book?: { toc?: unknown[]; media?: { activeClass?: string }; landmarks?: { type: string[]; href: string }[] }
           renderer?: FoliateRenderer
           destroy?: () => void
           mediaOverlay?: FoliateMediaOverlay | null

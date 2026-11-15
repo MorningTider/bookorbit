@@ -18,7 +18,6 @@ import {
 import { toast } from 'vue-sonner'
 import type { BookCommunityRating, BookDetail, BookMetadataLockField, CoverMedium, MetadataProviderInfo, WriteResult } from '@bookorbit/types'
 import {
-  BOOK_FILE_WRITE_FIELD_LABELS,
   IDENTIFIER_INPUT_KIND_BY_FIELD,
   getPrimaryBookFile,
   isKnownMetadataProviderKey,
@@ -50,6 +49,7 @@ import { useNarratorSearch } from '../../../composables/useNarratorSearch'
 import { useGenreSearch, useTagSearch } from '../../../composables/useTagSearch'
 import { usePublisherSearch, useSeriesNameSearch, useLanguageSearch } from '../../../composables/useMetadataFieldSearch'
 import InputWithSuggestions from '@/components/ui/InputWithSuggestions.vue'
+import { writeBackFieldLabel } from '@/features/book/lib/write-back-fields'
 import { RATING_STARS, getRatingStarClass } from '@/features/book/lib/rating-stars'
 import { buildFileMetadataPatch } from '@/features/book/lib/file-metadata-patch'
 import { metadataProviderLabel, metadataRefreshAppliedMessage, metadataRefreshEmptyMessage } from '@/features/book/lib/metadata-refresh-feedback'
@@ -58,7 +58,7 @@ import { diagnosticsFallbackProviders } from '@/features/metadata-cache/lib/meta
 import { filterProviderIdFields, isProviderIdFieldAvailable, isProviderIdFormField } from '@/features/book/lib/provider-id-fields'
 import { formatCommunityRatingLine } from '@/features/book/lib/community-rating'
 import { coverFieldMedium, coverLockField } from '@/features/book/lib/cover-slots'
-import { formatList, formatNumber } from '@/i18n/formatters'
+import { formatLanguageName, formatList, formatNumber } from '@/i18n/formatters'
 import { useMetadataReminders } from '@/features/metadata-reminders/composables/useMetadataReminders'
 import { missingMetadataFields } from '@/features/metadata-reminders/lib/missing-metadata'
 import MetadataReminderSheet from '@/features/metadata-reminders/components/MetadataReminderSheet.vue'
@@ -124,7 +124,7 @@ const primaryFile = computed(() => getPrimaryBookFile(props.book.files))
 const isPrimaryComic = computed(() => primaryFile.value?.format != null && isComicFormat(primaryFile.value.format))
 const fileWriteStatus = computed(() => props.book.fileWriteStatus ?? null)
 const fileWriteWritableFormats = computed(() => fileWriteStatus.value?.writableFormats ?? [])
-const fileWriteFieldLabels = computed(() => (fileWriteStatus.value?.writableFields ?? []).map((field) => BOOK_FILE_WRITE_FIELD_LABELS[field]))
+const fileWriteFieldLabels = computed(() => (fileWriteStatus.value?.writableFields ?? []).map(writeBackFieldLabel))
 const fileWriteFieldCountLabel = computed(() => t('book.detail.editMetadata.fieldCount', { count: fileWriteFieldLabels.value.length }))
 const fileWriteTargetSummary = computed(() => {
   const formats = fileWriteWritableFormats.value
@@ -1264,8 +1264,9 @@ function handleCoverChanged(medium: CoverMedium | null) {
                   <InputWithSuggestions
                     v-model="form.language"
                     :search-fn="searchLanguage"
+                    :format-value="formatLanguageName"
                     :disabled="isLocked('language')"
-                    :maxlength="10"
+                    :maxlength="100"
                     :class="controlClass(!form.language)"
                   />
                 </MetadataFieldLabel>

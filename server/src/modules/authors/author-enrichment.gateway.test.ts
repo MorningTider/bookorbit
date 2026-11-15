@@ -184,3 +184,11 @@ describe('AuthorEnrichmentGateway', () => {
     expect(client.disconnect).toHaveBeenCalledTimes(1);
   });
 });
+
+it('broadcasts only the changed portrait identifier and version', () => {
+  const { gateway } = makeGateway();
+  const emit = vi.fn();
+  gateway.server = { emit } as any;
+  gateway.emitPhotoUpdated({ authorId: 7, version: 12345 });
+  expect(emit).toHaveBeenCalledWith('author-enrichment:photo-updated', { authorId: 7, version: 12345 });
+});

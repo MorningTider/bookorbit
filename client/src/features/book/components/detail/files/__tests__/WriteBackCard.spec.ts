@@ -1,3 +1,5 @@
+import { nextTick } from 'vue'
+import { setI18nLocale } from '@/i18n'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import type { BookDetail, BookFileWriteStatus } from '@bookorbit/types'
@@ -56,4 +58,16 @@ describe('WriteBackCard', () => {
     const rows = wrapper.findAll('li').map((row) => row.text())
     expect(rows).toEqual(['epub1 / 2 set', 'm4b2 / 2 set'])
   })
+})
+
+it('updates dynamic field names with the interface locale', async () => {
+  await setI18nLocale('en')
+  const wrapper = mount(WriteBackCard, { props: { book: book(EPUB_ONLY), canEdit: false } })
+  expect(wrapper.text()).toContain('Title')
+  await setI18nLocale('zh')
+  await nextTick()
+  expect(wrapper.text()).toContain('书名')
+  expect(wrapper.text()).not.toContain('Title')
+  wrapper.unmount()
+  await setI18nLocale('en')
 })

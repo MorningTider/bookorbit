@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest'
-import type { BookCoverSlot, BookDetail } from '@bookorbit/types'
+import { afterEach, describe, expect, it } from 'vitest'
+import { BOOK_FILE_WRITE_FIELDS, type BookCoverSlot, type BookDetail } from '@bookorbit/types'
 
-import { resolveWriteBackFields } from '../write-back-fields'
+import { setI18nLocale } from '@/i18n'
+import { resolveWriteBackFields, writeBackFieldLabel } from '../write-back-fields'
 
 function slot(source: BookCoverSlot['source']): BookCoverSlot {
   return { source, updatedAt: '2026-01-01T00:00:00.000Z', width: 400, height: 600 }
@@ -60,5 +61,20 @@ describe('write-back cover preview', () => {
 
   it('falls back to the single legacy cover of a book the upgrade has not reached', () => {
     expect(coverValue(book({ coverSource: 'custom', files: [{ format: 'epub', role: 'primary' }] as BookDetail['files'] }))).toBe('custom')
+  })
+})
+
+describe('write-back field internationalization', () => {
+  afterEach(async () => {
+    await setI18nLocale('en')
+  })
+  it('localizes every writable field label and preserves identifier brands', async () => {
+    await setI18nLocale('zh')
+    for (const field of BOOK_FILE_WRITE_FIELDS) expect(writeBackFieldLabel(field)).not.toContain('book.detail.files.writeFieldLabels')
+    expect(writeBackFieldLabel('publishedYear')).toBe('出版年份')
+    expect(writeBackFieldLabel('coverBytes')).toBe('封面')
+    expect(writeBackFieldLabel('isbn13')).toBe('ISBN-13')
+    await setI18nLocale('en')
+    expect(writeBackFieldLabel('publishedYear')).toBe('Published year')
   })
 })

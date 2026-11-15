@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref } from 'vue'
+import { setI18nLocale } from '@/i18n'
 
 vi.mock('@/lib/api', () => ({ api: vi.fn<(...args: unknown[]) => unknown>() }))
 
@@ -1070,5 +1071,34 @@ describe('useReaderProgress', () => {
       cycleFooterMode()
       expect(footerMode.value).toBe(0)
     })
+  })
+})
+
+describe('reader footer internationalization', () => {
+  afterEach(async () => {
+    await setI18nLocale('en')
+  })
+  it('renders page, chapter and reading-time footer modes in Chinese', async () => {
+    await setI18nLocale('zh')
+    const progress = useReaderProgress(1, 42, ref(5), 0, { trackingEnabled: false })
+    progress.onRelocate({
+      fraction: 0.25,
+      location: { current: 3, next: 4, total: 100 },
+      section: { current: 1, total: 10 },
+      time: { section: 3, total: 90 },
+    })
+    const head = document.createElement('div')
+    const foot = document.createElement('div')
+    const renderer = { heads: [head], feet: [foot] } as never
+    progress.updateHeadsFeet(renderer, { fg: 'black', bg: 'white' })
+    expect(foot.textContent).toContain('第 4 / 100 页')
+    progress.cycleFooterMode()
+    progress.updateHeadsFeet(renderer, { fg: 'black', bg: 'white' })
+    expect(foot.textContent).toContain('已阅读 5 分钟')
+    expect(foot.textContent).toContain('预计剩余 1 小时 30 分钟')
+    progress.cycleFooterMode()
+    progress.updateHeadsFeet(renderer, { fg: 'black', bg: 'white' })
+    expect(foot.textContent).toContain('第 2 / 10 章')
+    expect(foot.textContent).toContain('本章预计剩余 3 分钟')
   })
 })

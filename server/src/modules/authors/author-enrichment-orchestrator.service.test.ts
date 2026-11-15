@@ -43,6 +43,7 @@ describe('AuthorEnrichmentOrchestratorService', () => {
   };
 
   const gateway = {
+    emitPhotoUpdated: vi.fn(),
     emitStatus: vi.fn(),
   };
 
@@ -597,5 +598,24 @@ describe('AuthorEnrichmentOrchestratorService', () => {
     await (service as any).processOne(55, 0);
 
     expect(queueRepo.markFailed).toHaveBeenCalledWith(expect.objectContaining({ authorId: 55, nextAttemptAt: expect.any(Date) }));
+  });
+  it('publishes saved photo updates even for silent import enrichment', async () => {
+    executor.execute.mockResolvedValue({
+      kind: 'done',
+      provider: 'baiduBaike',
+      imageUpdated: true,
+      descriptionUpdated: false,
+      fieldsUpdated: ['photo'],
+      outboundRequests: 1,
+      cacheServed: [],
+    });
+    await (service as any).processOne(7, 0, 'Author', AUTHOR_ENRICHMENT_REASONS.METADATA_REPLACE);
+    expect(queueRepo.markDone).toHaveBeenCalledWith(7, true);
+    expect(gateway.emitPhotoUpdated).toHaveBeenCalledWith({ authorId: 7, version: expect.any(Number) });
+    expect(gateway.emitStatus).not.toHaveBeenCalled();
+  });
+  it('leaves existing portrait cards alone when enrichment did not change a photo', async () => {
+    await (service as any).processOne(7, 0, 'Author', AUTHOR_ENRICHMENT_REASONS.METADATA_REPLACE);
+    expect(gateway.emitPhotoUpdated).not.toHaveBeenCalled();
   });
 });

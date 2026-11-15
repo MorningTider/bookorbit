@@ -1,7 +1,7 @@
 import { i18n } from '@/i18n'
 import { computed, ref } from 'vue'
 
-import type { AuthorSummary } from '@bookorbit/types'
+import type { AuthorSummary, AuthorPhotoUpdatedEvent } from '@bookorbit/types'
 import { fetchAuthors } from '../api/author'
 import type { AuthorListSort, SortDirection } from '../types/author'
 
@@ -22,6 +22,7 @@ export function useAuthorsList() {
   const addedWithinDays = ref<number | null>(null)
   const minBookCount = ref<number | null>(null)
 
+  let reloadPending = false
   const page = ref(0)
   const hasMore = computed(() => items.value.length < total.value)
 
@@ -37,7 +38,10 @@ export function useAuthorsList() {
   }
 
   async function load(reset = false): Promise<void> {
-    if (loading.value) return
+    if (loading.value) {
+      reloadPending ||= reset
+      return
+    }
     if (!reset && !hasMore.value) return
 
     loading.value = true
@@ -64,6 +68,10 @@ export function useAuthorsList() {
       error.value = err instanceof Error ? err.message : i18n.global.t('customUi.fallbackErrors.failedToLoadAuthors')
     } finally {
       loading.value = false
+      if (reloadPending) {
+        reloadPending = false
+        void load(true)
+      }
     }
   }
 
@@ -83,7 +91,14 @@ export function useAuthorsList() {
     return items.value.length > index
   }
 
+  function applyPhotoUpdate(event: AuthorPhotoUpdatedEvent) {
+    const index = items.value.findIndex((author) => author.id === event.authorId)
+    if (index < 0) return
+    items.value[index] = { ...items.value[index]!, imageUrl: `/api/v1/authors/${event.authorId}/thumbnail?t=${event.version}` }
+  }
+
   return {
+    applyPhotoUpdate,
     items,
     total,
     loading,

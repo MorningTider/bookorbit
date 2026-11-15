@@ -62,7 +62,7 @@ import { useCoverVersions } from '@/features/book/composables/useCoverVersions'
 
 const PdfV4ReaderView = defineAsyncComponent(() => import('./pdf-v4/PdfV4ReaderView.vue'))
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { coverUrl } = useCoverVersions()
@@ -1119,6 +1119,11 @@ watch(
     }
   },
 )
+
+watch(locale, () => {
+  const renderer = getRenderer()
+  if (renderer) updateHeadsFeet(renderer, activeMode.value)
+})
 
 function setSettingsOpen(open: boolean) {
   showSettings.value = open

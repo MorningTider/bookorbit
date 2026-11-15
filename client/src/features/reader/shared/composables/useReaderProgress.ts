@@ -1,4 +1,5 @@
 import { computed, onUnmounted, ref, unref, type MaybeRef, type Ref } from 'vue'
+import { i18n } from '@/i18n'
 import { fetchFileProgress, saveReadingProgress } from '@/lib/reading-progress'
 import type { FoliateRenderer, RelocateDetail } from '../../epub/composables/useFoliate'
 
@@ -69,12 +70,12 @@ function positionStamp(data: Record<string, unknown>): number {
 
 export function formatTimeRemaining(minutes: number): string {
   if (!Number.isFinite(minutes) || minutes < 0) return ''
-  if (minutes < 1) return '< 1 min'
-  if (minutes < 60) return `${Math.round(minutes)} min`
+  if (minutes < 1) return i18n.global.t('reader.footer.lessMinute')
+  if (minutes < 60) return i18n.global.t('reader.footer.minutes', { count: Math.round(minutes) })
   const hours = Math.floor(minutes / 60)
   const remainder = Math.round(minutes % 60)
-  if (remainder === 0) return `${hours} hr`
-  return `${hours} hr ${remainder} min`
+  if (remainder === 0) return i18n.global.t('reader.footer.hours', { count: hours })
+  return i18n.global.t('reader.footer.hoursMinutes', { hours, minutes: remainder })
 }
 
 export function useReaderProgress(
@@ -356,18 +357,21 @@ export function useReaderProgress(
 
     switch (mode) {
       case 0: {
-        const left = locationTotal.value > 0 ? `Page ${locationCurrent.value + 1} of ${locationTotal.value}` : ''
+        const left =
+          locationTotal.value > 0 ? i18n.global.t('reader.footer.page', { current: locationCurrent.value + 1, total: locationTotal.value }) : ''
         return { left, right: `${pct}%` }
       }
       case 1: {
         const elapsed = elapsedMinutes.value
-        const left = elapsed > 0 ? `Reading: ${elapsed}m` : 'Reading: < 1m'
-        const right = timeTotal.value > 0 ? `${formatTimeRemaining(timeTotal.value)} left` : `${pct}%`
+        const left = elapsed > 0 ? i18n.global.t('reader.footer.reading', { minutes: elapsed }) : i18n.global.t('reader.footer.readingLessMinute')
+        const right = timeTotal.value > 0 ? i18n.global.t('reader.footer.remaining', { time: formatTimeRemaining(timeTotal.value) }) : `${pct}%`
         return { left, right }
       }
       case 2: {
-        const left = sectionTotal.value > 0 ? `Ch. ${sectionCurrent.value + 1} of ${sectionTotal.value}` : ''
-        const right = timeSection.value > 0 ? `${formatTimeRemaining(timeSection.value)} left in ch.` : `${pct}%`
+        const left =
+          sectionTotal.value > 0 ? i18n.global.t('reader.footer.chapter', { current: sectionCurrent.value + 1, total: sectionTotal.value }) : ''
+        const right =
+          timeSection.value > 0 ? i18n.global.t('reader.footer.chapterRemaining', { time: formatTimeRemaining(timeSection.value) }) : `${pct}%`
         return { left, right }
       }
     }

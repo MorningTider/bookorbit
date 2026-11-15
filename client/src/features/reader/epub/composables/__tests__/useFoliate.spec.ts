@@ -306,6 +306,22 @@ describe('useFoliate.open', () => {
     expect(mockGoToFraction).not.toHaveBeenCalled()
   })
 
+  it('starts a new EPUB at its bodymatter landmark', async () => {
+    mockOpen.mockImplementation(async () => {
+      Object.assign(viewEl!, { book: { landmarks: [{ type: ['bodymatter'], href: 'OPS/body.xhtml#chapter1' }] } })
+    })
+    const foliate = useFoliate(() => container)
+    await foliate.open(1, 1, 'epub', null, 0)
+    expect(mockGoTo).toHaveBeenCalledExactlyOnceWith('OPS/body.xhtml#chapter1')
+  })
+  it('restores a saved location before considering the book bodymatter landmark', async () => {
+    mockOpen.mockImplementation(async () => {
+      Object.assign(viewEl!, { book: { landmarks: [{ type: ['bodymatter'], href: 'OPS/body.xhtml#chapter1' }] } })
+    })
+    const foliate = useFoliate(() => container)
+    await foliate.open(1, 1, 'epub', 'epubcfi(/6/4!)', 0.5)
+    expect(mockGoTo).toHaveBeenCalledExactlyOnceWith('epubcfi(/6/4!)')
+  })
   it('gracefully handles goTo rejection without propagating', async () => {
     mockGoTo.mockRejectedValue(new Error('invalid CFI'))
     const foliate = useFoliate(() => container)
