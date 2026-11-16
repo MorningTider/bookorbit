@@ -684,3 +684,13 @@ Android对应0.7.1-custom.7，版本码708，提交3a099b2已推送用户fork的
 现有 22 位作者中 16 位有头像，四本导入书的作者均已补齐。国学网、小桃红、辰、蟠桃儿／王汤姆／忘幽的后台请求仍返回网络失败。当年明月、枝雀静在当前配置来源未补得可用图片。相关条目保留占位，未使用歧义人物图片。失败项已重试，结果记录在私有验收材料。
 
 收据目录为 `local/synology-native/i18n-reading-20261115`。临时普通账号验收任务及报告文件已删除，原有 clear 任务保留。历史 SPK 清理后保留最新 10055 正式包，中间载荷已清理。
+
+### 2026-11-16 群晖重启后数据库与依赖套件恢复
+
+DSM 实际状态为 PostgreSQL 18.6-10020 的 start_failed，pgvector 0.8.7-10007 与 BookOrbit 3.8.0-10055 为 stopped_by_dep_limit。通过用户指定域名登录 DSM，服务器连接使用 100.86.77.124，SSH 服务位于 1022 端口。LAN 地址在本轮网络中不可达。
+
+通过 File Station 只读取得 PostgreSQL 日志。11:39 数据库完成正常关闭。12:20 的开机启动阶段，127.0.0.1 与 Unix socket 已监听，172.19.0.1 和 172.30.77.1 当时尚未就绪，12:21 收到 smart shutdown 请求，未记录进入 ready 状态。现有证据确认启动阶段被中断，停止请求的系统级来源尚未确认，不能仅由网桥警告推定全部原因。DSM 管理员任务诊断接口未获执行权限，未创建诊断计划。
+
+通过正常 DSM Package.Control 启动 PostgreSQL 一次，随后 pgvector 和 BookOrbit 随依赖自动恢复，三个套件均为 running、状态码 0。15:05 的 PostgreSQL 日志显示三处 IPv4 地址与 Unix socket 全部监听，并进入 ready to accept connections。BookOrbit 域名健康接口返回 HTTP 200、status=ok、database=up。此前一次客户端等待超时后继续查询实际状态，没有重复发送启动请求。
+
+本轮执行服务恢复与只读验证，未执行数据库迁移或数据重建。后续复发排查应取得系统套件控制日志，进一步确认冷启动中断的触发方。初始 DSM 返回码 103 曾被误判为会话失效，后核实为接口版本不匹配，list 使用版本 1 已纠正。脱敏收据保存在忽略的 local/synology-native/startup-recovery-20261116。
