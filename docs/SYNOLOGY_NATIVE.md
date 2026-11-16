@@ -694,3 +694,5 @@ DSM 实际状态为 PostgreSQL 18.6-10020 的 start_failed，pgvector 0.8.7-1000
 通过正常 DSM Package.Control 启动 PostgreSQL 一次，随后 pgvector 和 BookOrbit 随依赖自动恢复，三个套件均为 running、状态码 0。15:05 的 PostgreSQL 日志显示三处 IPv4 地址与 Unix socket 全部监听，并进入 ready to accept connections。BookOrbit 域名健康接口返回 HTTP 200、status=ok、database=up。此前一次客户端等待超时后继续查询实际状态，没有重复发送启动请求。
 
 本轮执行服务恢复与只读验证，未执行数据库迁移或数据重建。后续复发排查应取得系统套件控制日志，进一步确认冷启动中断的触发方。初始 DSM 返回码 103 曾被误判为会话失效，后核实为接口版本不匹配，list 使用版本 1 已纠正。脱敏收据保存在忽略的 local/synology-native/startup-recovery-20261116。
+
+后续通过 DSM 支持中心取得套件启动日志，已确认直接失败原因。启动脚本于 12:19:04 执行，12:21:11 记录 `pg_ctl: server did not start in time` 并返回 1，源码对应 `pg_ctl -w -t 120 start`。12:21:24 systemd 将 PostgreSQL 标记失败、执行回滚，两个依赖套件随后因 dependency 失败。数据库收到 smart shutdown 是失败后的清理阶段。15:05 手动启动在约 3 秒内成功。启动等待上限未覆盖本次冷启动，具体资源等待原因仍待验证，代码修复尚待实施。
