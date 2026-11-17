@@ -29,7 +29,7 @@ export function applyGenreFetchOptions(
 
   const resolved: string[] = [];
   const seen = new Set<string>();
-  for (const raw of genres) {
+  for (const raw of genres.flatMap((value) => value.split(/[|｜;；\r\n]+/u))) {
     const genre = raw.trim();
     const token = genre.toLowerCase();
     if (!genre || blockedTokens.has(token) || seen.has(token)) continue;

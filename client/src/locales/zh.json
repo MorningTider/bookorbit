@@ -16901,5 +16901,9 @@
     "httpError": "GitHub 请求失败（HTTP {status}），请检查仓库和网络。",
     "formatError": "下载内容与 {format} 格式不符，请检查来源文件。",
     "unknownSize": "下载前核验大小"
+  },
+  "sourceTags": {
+    "label": "将来源分类同步为标签",
+    "description": "将已配置元数据提供商或导入文件提供的分类、主题词追加为标签，保留已有标签并遵守字段锁定，不推断正文内容。"
   }
 }

@@ -14,8 +14,8 @@ type LockMutationExecutor = Pick<Db, 'insert'>;
 export class BookMetadataLockRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
-  async findLockedFields(bookId: number): Promise<string[]> {
-    const [row] = await this.db
+  async findLockedFields(bookId: number, executor: Pick<Db, 'select'> = this.db): Promise<string[]> {
+    const [row] = await executor
       .select({ lockedFields: bookMetadata.lockedFields })
       .from(bookMetadata)
       .where(eq(bookMetadata.bookId, bookId))

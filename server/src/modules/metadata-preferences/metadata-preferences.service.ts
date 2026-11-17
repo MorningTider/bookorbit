@@ -91,11 +91,17 @@ export class MetadataPreferencesService implements OnApplicationBootstrap {
     }
   }
 
-  async getGlobal(): Promise<MetadataFetchPreferences> {
+  async getGlobal(executor?: Pick<Db, 'select'>): Promise<MetadataFetchPreferences> {
     const startedAt = Date.now();
-    const row = await this.db.query.appSettings.findFirst({
-      where: eq(schema.appSettings.key, GLOBAL_PREFERENCES_KEY),
-    });
+    const row = executor
+      ? (
+          await executor
+            .select({ value: schema.appSettings.value })
+            .from(schema.appSettings)
+            .where(eq(schema.appSettings.key, GLOBAL_PREFERENCES_KEY))
+            .limit(1)
+        )[0]
+      : await this.db.query.appSettings.findFirst({ where: eq(schema.appSettings.key, GLOBAL_PREFERENCES_KEY) });
     if (!row) return this.resolver.getDefaultPreferences();
     try {
       const parsed = JSON.parse(row.value) as MetadataFetchPreferences;

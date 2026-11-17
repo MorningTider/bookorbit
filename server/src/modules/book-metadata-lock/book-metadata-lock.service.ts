@@ -60,8 +60,8 @@ export class BookMetadataLockService {
     );
   }
 
-  async getLockedFields(bookId: number): Promise<BookMetadataLockField[]> {
-    return this.normalizeLockedFields(await this.lockRepo.findLockedFields(bookId));
+  async getLockedFields(bookId: number, executor?: Parameters<BookMetadataLockRepository['findLockedFields']>[1]): Promise<BookMetadataLockField[]> {
+    return this.normalizeLockedFields(await (executor ? this.lockRepo.findLockedFields(bookId, executor) : this.lockRepo.findLockedFields(bookId)));
   }
 
   async isFieldLocked(bookId: number, field: BookMetadataLockField): Promise<boolean> {
@@ -121,8 +121,9 @@ export class BookMetadataLockService {
   async filterAutomatedBookUpdate(
     bookId: number,
     dto: UpdateBookMetadataDto,
+    executor?: Parameters<BookMetadataLockRepository['findLockedFields']>[1],
   ): Promise<{ dto: UpdateBookMetadataDto; skippedFields: BookMetadataLockField[] }> {
-    const lockedSet = new Set(await this.getLockedFields(bookId));
+    const lockedSet = new Set(await this.getLockedFields(bookId, executor));
     return this.filterAutomatedBookUpdateWithLockedSet(dto, lockedSet);
   }
 

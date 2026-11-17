@@ -16901,5 +16901,9 @@
     "httpError": "GitHub request failed (HTTP {status})",
     "formatError": "Downloaded content does not match the {format} format. Check the source file.",
     "unknownSize": "Size checked before download"
+  },
+  "sourceTags": {
+    "label": "Copy source categories to tags",
+    "description": "Append categories and subject terms supplied by configured metadata providers or imported files. Existing tags and locked fields are preserved. No text inference is used."
   }
 }

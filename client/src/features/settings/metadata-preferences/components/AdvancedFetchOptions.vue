@@ -24,6 +24,10 @@ function setGenreMode(merge: boolean) {
   emit('change', { ...props.options, genres: { ...props.options.genres, mode: merge ? 'merge' : 'firstProvider' } })
 }
 
+function setSourceTagsFromGenres(value: boolean) {
+  emit('change', { ...props.options, sourceTagsFromGenres: value })
+}
+
 function setSaveProviderIds(value: boolean) {
   emit('change', { ...props.options, saveProviderIds: value })
 }
@@ -45,6 +49,18 @@ function setMaxCount(event: Event) {
       <h3 class="settings-group-label mb-0!">{{ t('settings.metadata.fieldRules.advanced.title') }}</h3>
     </div>
 
+    <div class="mb-3 rounded-lg border border-border bg-background/60 p-4">
+      <div class="flex items-center justify-between gap-4">
+        <label id="source-tags-label" class="text-sm font-medium">{{ t('sourceTags.label') }}</label>
+        <ToggleSwitch
+          :model-value="options.sourceTagsFromGenres ?? false"
+          :disabled="disabled"
+          aria-labelledby="source-tags-label"
+          @update:model-value="setSourceTagsFromGenres"
+        />
+      </div>
+      <p class="mt-2 text-sm text-muted-foreground">{{ t('sourceTags.description') }}</p>
+    </div>
     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
       <div class="h-full rounded-lg border border-border bg-background/60 p-4 shadow-xs">
         <div class="flex items-start justify-between gap-4">

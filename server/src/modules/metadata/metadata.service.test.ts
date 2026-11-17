@@ -216,6 +216,7 @@ describe('MetadataService', () => {
       };
       embedder?: { embedBook: ReturnType<typeof vi.fn> } | null;
       seriesExpectedCount?: { record: ReturnType<typeof vi.fn> };
+      metadataPreferences?: { getGlobal: ReturnType<typeof vi.fn> };
       coverStore?: {
         mediaFor?: ReturnType<typeof vi.fn>;
         chooseWriteMedium?: ReturnType<typeof vi.fn>;
@@ -243,6 +244,7 @@ describe('MetadataService', () => {
       undefined,
       undefined,
       overrides?.seriesExpectedCount as never,
+      overrides?.metadataPreferences as never,
     );
   }
 
@@ -1568,6 +1570,46 @@ describe('MetadataService', () => {
       { bookId: 12, genreId: 77 },
       { bookId: 12, genreId: 79 },
     ]);
+  });
+
+  it.each([false, true])('source category sync is opt-in and preserves existing tag links (enabled=%s)', async (enabled) => {
+    const { db } = makeDb();
+    const inserted = new Map<unknown, unknown[]>();
+    db.insert.mockImplementation((table: unknown) => ({
+      values: (rows: Array<{ name?: string }>) => {
+        inserted.set(table, rows);
+        return {
+          onConflictDoNothing: () =>
+            Object.assign(Promise.resolve(), {
+              returning: () => Promise.resolve(rows.map((r, i) => ({ ...r, id: i + 1 }))),
+            }),
+        };
+      },
+    }));
+    const service = makeService(db, undefined, {
+      metadataPreferences: { getGlobal: vi.fn().mockResolvedValue({ options: { sourceTagsFromGenres: enabled } }) },
+    });
+    await service.replaceGenres(12, ['悬疑|推理', '推理']);
+    expect(inserted.get(genres)).toEqual([{ name: '悬疑' }, { name: '推理' }]);
+    expect(inserted.has(bookTags)).toBe(enabled);
+    expect(db.delete).not.toHaveBeenCalledWith(bookTags);
+    if (enabled) expect(inserted.get(tags)).toEqual([{ name: '悬疑' }, { name: '推理' }]);
+  });
+
+  it('source category sync respects locked tags', async () => {
+    const { db } = makeDb();
+    db.insert.mockImplementation(() => ({
+      values: (rows: Array<{ name?: string }>) => ({
+        onConflictDoNothing: () => Object.assign(Promise.resolve(), { returning: () => Promise.resolve(rows.map((r, i) => ({ ...r, id: i + 1 }))) }),
+      }),
+    }));
+    const service = makeService(db, undefined, {
+      metadataPreferences: { getGlobal: vi.fn().mockResolvedValue({ options: { sourceTagsFromGenres: true } }) },
+      bookMetadataLockService: { isFieldLocked: vi.fn(), filterAutomatedBookUpdate: vi.fn().mockResolvedValue({ dto: {}, skippedFields: ['tags'] }) },
+    });
+    await service.replaceGenres(12, ['历史']);
+    expect(db.insert).not.toHaveBeenCalledWith(bookTags);
+    expect(db.delete).not.toHaveBeenCalledWith(bookTags);
   });
 
   it('replaceTags runs in transaction and normalizes unique names', async () => {

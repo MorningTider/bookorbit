@@ -238,6 +238,7 @@ export class MetadataPreferenceResolver {
         genres: { ...fallback.genres, blocklist: [...fallback.genres.blocklist] },
         saveProviderIds: fallback.saveProviderIds,
         providerIdMode: fallback.providerIdMode,
+        ...(fallback.sourceTagsFromGenres !== undefined ? { sourceTagsFromGenres: fallback.sourceTagsFromGenres } : {}),
       };
     }
 
@@ -257,6 +258,11 @@ export class MetadataPreferenceResolver {
 
     return {
       genres: { mode, blocklist, maxCount },
+      ...(typeof candidate.sourceTagsFromGenres === 'boolean'
+        ? { sourceTagsFromGenres: candidate.sourceTagsFromGenres }
+        : fallback.sourceTagsFromGenres !== undefined
+          ? { sourceTagsFromGenres: fallback.sourceTagsFromGenres }
+          : {}),
       saveProviderIds,
       providerIdMode,
     };

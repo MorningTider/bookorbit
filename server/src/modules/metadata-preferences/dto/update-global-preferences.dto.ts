@@ -57,6 +57,10 @@ export class GenreOptionsDto {
 }
 
 export class MetadataFetchOptionsDto {
+  @IsOptional()
+  @IsBoolean()
+  sourceTagsFromGenres?: boolean;
+
   @ValidateNested()
   @Type(() => GenreOptionsDto)
   genres!: GenreOptionsDto;

@@ -60,6 +60,7 @@ export interface FieldPreference {
 export type FieldPreferenceOverrides = Partial<Record<MetadataField, FieldPreference>>;
 
 export interface MetadataFetchOptions {
+  sourceTagsFromGenres?: boolean;
   genres: {
     mode: GenreMergeMode;
     blocklist: string[];
@@ -213,6 +214,7 @@ export const METADATA_PROVIDER_SUPPORTED_FIELDS: Record<BuiltInMetadataProviderK
     "language",
     "pageCount",
     "seriesName",
+    "genres",
   ],
   [MetadataProviderKey.GOOGLE]: [
     "title",

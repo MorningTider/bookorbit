@@ -9,6 +9,12 @@ describe('MetadataPreferenceResolver', () => {
     resolver = new MetadataPreferenceResolver();
   });
 
+  it.each([true, false])('preserves the source tag synchronization option=%s', (enabled) => {
+    const preferences = resolver.getDefaultPreferences();
+    const normalized = resolver.resolve({ ...preferences, options: { ...preferences.options!, sourceTagsFromGenres: enabled } }, null);
+    expect(normalized.options?.sourceTagsFromGenres).toBe(enabled);
+  });
+
   it('defaults the audiobook-only fields to the sources that carry them, keeping a measured duration', () => {
     const { fields } = resolver.getDefaultPreferences();
     const audiobookSources = [MetadataProviderKey.AUDIBLE, MetadataProviderKey.LIBROFM];

@@ -1,3 +1,4 @@
+import { MetadataPreferencesModule } from '../metadata-preferences/metadata-preferences.module';
 import { RegexMetadataService } from './regex/regex-metadata.service';
 import { Module } from '@nestjs/common';
 import { DjvuDocumentModule } from '../djvu/djvu-document.module';
@@ -16,6 +17,7 @@ import { MetadataService } from './metadata.service';
 
 @Module({
   imports: [
+    MetadataPreferencesModule,
     AudiobookChaptersModule,
     BookMetadataLockModule,
     BookCoverStoreModule,

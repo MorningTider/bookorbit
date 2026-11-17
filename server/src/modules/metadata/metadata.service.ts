@@ -1,3 +1,5 @@
+import { normalizeSourceSubjects } from '../../common/utils/source-subjects.utils';
+import { MetadataPreferencesService } from '../metadata-preferences/metadata-preferences.service';
 import type { RegexMetadataFields } from '@bookorbit/types';
 import { decideRegexFields, mergeRegexMetadata } from './regex/merge-regex-metadata';
 import { stat } from 'fs/promises';
@@ -114,6 +116,7 @@ export class MetadataService {
     @Optional() private readonly seriesIdentity?: SeriesIdentityService,
     @Optional() private readonly seriesMemberships?: SeriesMembershipService,
     @Optional() private readonly seriesExpectedCount?: SeriesExpectedCountService,
+    @Optional() private readonly metadataPreferences?: MetadataPreferencesService,
   ) {}
 
   // ── Public API ───────────────────────────────────────────────────────────────
@@ -805,16 +808,42 @@ export class MetadataService {
   }
 
   async replaceGenres(bookId: number, parsedGenres: string[], options: RelationMutationOptions = {}) {
-    const uniqueGenres = this.normalizeUniqueRelationNames(parsedGenres);
+    const uniqueGenres = this.normalizeUniqueRelationNames(parsedGenres.flatMap((value) => value.split(/[|｜;；\r\n]+/u)));
+    const sourceTags = await this.sourceTagsForBook(bookId, uniqueGenres, options.executor);
 
-    if (options.executor) {
-      await this.replaceGenresInExecutor(options.executor, bookId, uniqueGenres);
-      return;
+    const startedAt = Date.now();
+    if (sourceTags.length)
+      this.logger.log(`[metadata.source_tags] [start] bookId=${bookId} sourceTagCount=${sourceTags.length} - source tag synchronization started`);
+    try {
+      if (options.executor) {
+        await this.replaceGenresInExecutor(options.executor, bookId, uniqueGenres);
+        await this.addTagsInExecutor(options.executor, bookId, sourceTags);
+      } else {
+        await this.db.transaction(async (tx) => {
+          await this.replaceGenresInExecutor(tx, bookId, uniqueGenres);
+          await this.addTagsInExecutor(tx, bookId, sourceTags);
+        });
+      }
+      if (sourceTags.length)
+        this.logger.log(
+          `[metadata.source_tags] [end] bookId=${bookId} sourceTagCount=${sourceTags.length} durationMs=${Date.now() - startedAt} - source tags synchronized`,
+        );
+    } catch (error) {
+      if (sourceTags.length) {
+        const errorClass = error instanceof Error ? error.name : 'UnknownError';
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        this.logger.warn(
+          `[metadata.source_tags] [fail] bookId=${bookId} durationMs=${Date.now() - startedAt} errorClass=${errorClass} error="${sanitizeLogValue(message)}" - source tag synchronization failed`,
+        );
+      }
+      throw error;
     }
+  }
 
-    await this.db.transaction(async (tx) => {
-      await this.replaceGenresInExecutor(tx, bookId, uniqueGenres);
-    });
+  private async sourceTagsForBook(bookId: number, subjects: string[], executor?: RelationMutationExecutor): Promise<string[]> {
+    if (!subjects.length || !(await this.metadataPreferences?.getGlobal(executor))?.options?.sourceTagsFromGenres) return [];
+    const { dto } = await this.bookMetadataLockService.filterAutomatedBookUpdate(bookId, { tags: normalizeSourceSubjects(subjects) }, executor);
+    return dto.tags ?? [];
   }
 
   // ── Tags ─────────────────────────────────────────────────────────────────────
@@ -977,6 +1006,10 @@ export class MetadataService {
 
   private async replaceTagsInExecutor(executor: RelationMutationExecutor, bookId: number, uniqueTags: string[]): Promise<void> {
     await executor.delete(bookTags).where(eq(bookTags.bookId, bookId));
+    await this.addTagsInExecutor(executor, bookId, uniqueTags);
+  }
+
+  private async addTagsInExecutor(executor: RelationMutationExecutor, bookId: number, uniqueTags: string[]): Promise<void> {
     if (uniqueTags.length === 0) return;
 
     const tagByName = new Map<string, { id: number }>();
@@ -1188,7 +1221,11 @@ export class MetadataService {
       await this.replaceGenres(bookId, filtered.genres);
     }
     if (filtered.tags !== undefined) {
-      await this.replaceTags(bookId, filtered.tags);
+      if ((await this.metadataPreferences?.getGlobal())?.options?.sourceTagsFromGenres) {
+        await this.db.transaction(async (tx) => this.addTagsInExecutor(tx, bookId, normalizeSourceSubjects(filtered.tags!)));
+      } else {
+        await this.replaceTags(bookId, filtered.tags);
+      }
     }
 
     if (filtered.comicMetadata) {

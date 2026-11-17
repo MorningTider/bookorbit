@@ -16,6 +16,15 @@ function identityModeSwitch(wrapper: ReturnType<typeof mount>) {
 }
 
 describe('AdvancedFetchOptions', () => {
+  it('appends source categories only after the option is enabled', async () => {
+    const initial = options()
+    const wrapper = mount(AdvancedFetchOptions, { props: { options: initial } })
+    const toggle = wrapper.get('button[aria-labelledby="source-tags-label"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    await toggle.trigger('click')
+    expect(wrapper.emitted('change')?.[0]?.[0]).toEqual({ ...initial, sourceTagsFromGenres: true })
+  })
+
   it('renders the existing-provider-id restriction with an accessible explanation', () => {
     const wrapper = mount(AdvancedFetchOptions, { props: { options: options() } })
 

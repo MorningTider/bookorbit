@@ -1,3 +1,4 @@
+import { normalizeSourceSubjects } from '../../../../common/utils/source-subjects.utils';
 import { BadGatewayException } from '@nestjs/common';
 import { MetadataProviderKey, type MetadataCandidate } from '@bookorbit/types';
 import { load } from 'cheerio';
@@ -84,6 +85,12 @@ export function parseDoubanPage(html: string, providerId: string): MetadataCandi
     const parsed = new Date(date);
     if (Number.isFinite(parsed.getTime()) && parsed.toISOString().startsWith(date)) publishedDate = date;
   }
+  const subjects = normalizeSourceSubjects(
+    $('#db-tags-section .tags-body a[href*="/tag/"], .subject-tags a[href*="/tag/"]')
+      .slice(0, 100)
+      .toArray()
+      .map((element) => $(element).text()),
+  );
   const coverUrl = doubanCoverUrl($('#mainpic img').first().attr('src'));
   return {
     provider: MetadataProviderKey.DOUBAN,
@@ -93,6 +100,7 @@ export function parseDoubanPage(html: string, providerId: string): MetadataCandi
     sourceUrl: `https://book.douban.com/subject/${providerId}/`,
     ...(authors.length ? { authors: [...new Set(authors.filter(Boolean))].slice(0, 10) } : {}),
     ...(description ? { description } : {}),
+    ...(subjects.length ? { genres: subjects } : {}),
     ...(fields.get('出版社') ? { publisher: fields.get('出版社') } : {}),
     ...(year && year > 0 ? { publishedYear: year } : {}),
     ...(publishedDate ? { publishedDate } : {}),
@@ -133,6 +141,12 @@ export function parseDoubanSearchPage(html: string): MetadataCandidate[] {
         .split(' / ')
         .map((value) => value.trim());
       const year = Number(fields.at(-1));
+      const subjects = normalizeSourceSubjects(
+        $('#db-tags-section .tags-body a[href*="/tag/"], .subject-tags a[href*="/tag/"]')
+          .slice(0, 100)
+          .toArray()
+          .map((element) => $(element).text()),
+      );
       const coverUrl = doubanCoverUrl(row.find('.pic img').attr('src'));
       const description = row.find('.content > p').text().trim().slice(0, 20000);
       results.push({
@@ -146,6 +160,7 @@ export function parseDoubanSearchPage(html: string): MetadataCandidate[] {
         ...(Number.isInteger(year) && year > 0 ? { publishedYear: year } : {}),
         ...(coverUrl ? { coverUrl } : {}),
         ...(description ? { description } : {}),
+        ...(subjects.length ? { genres: subjects } : {}),
       });
     });
   return results;

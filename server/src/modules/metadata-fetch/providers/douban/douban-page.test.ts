@@ -9,6 +9,12 @@ const page = `<html><head><link rel="canonical" href="https://book.douban.com/su
 <div id="link-report"><div class="intro"><p>简略介绍</p></div><div class="intro"><p>这是完整介绍第一段。</p><p>这是第二段。</p><a class="a_show_full">展开全部</a></div></div></body></html>`;
 
 describe('Douban detail parser', () => {
+  it('reads book subject tags without collecting recommendations or page navigation', () => {
+    const tags = `<div id="db-tags-section"><div class="tags-body"><a href="/tag/悬疑">悬疑</a><a href="/tag/推理">推理</a><a href="/tag/推理">推理</a><a href="/subject/123">其他图书</a></div></div><a href="/tag/广告">广告</a>`;
+    expect(parseDoubanPage(page.replace('</body>', tags + '</body>'), '42').genres).toEqual(['悬疑', '推理']);
+    expect(parseDoubanPage(page, '42').genres).toBeUndefined();
+  });
+
   it('extracts edition metadata and the full introduction, with paragraph boundaries', () => {
     expect(parseDoubanPage(page, '42')).toMatchObject({
       title: '测试图书',

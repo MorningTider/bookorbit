@@ -12,6 +12,33 @@ async function validateInput(input: Record<string, unknown>) {
 }
 
 describe('UpdateGlobalPreferencesDto', () => {
+  it.each([true, false])('accepts source category tag sync=%s', async (sourceTagsFromGenres) => {
+    const { errors, dto } = await validateInput({
+      fields: {},
+      options: {
+        genres: { mode: 'merge', blocklist: [], maxCount: null },
+        saveProviderIds: true,
+        providerIdMode: 'preferExisting',
+        sourceTagsFromGenres,
+      },
+    });
+    expect(errors).toHaveLength(0);
+    expect(dto.options?.sourceTagsFromGenres).toBe(sourceTagsFromGenres);
+  });
+
+  it('rejects a non-boolean source category tag sync option', async () => {
+    const { errors } = await validateInput({
+      fields: {},
+      options: {
+        genres: { mode: 'merge', blocklist: [], maxCount: null },
+        saveProviderIds: true,
+        providerIdMode: 'preferExisting',
+        sourceTagsFromGenres: 'true',
+      },
+    });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
   it('accepts a valid field preferences map', async () => {
     const { errors } = await validateInput({
       fields: {
