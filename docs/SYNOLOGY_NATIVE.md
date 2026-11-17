@@ -700,3 +700,9 @@ DSM 实际状态为 PostgreSQL 18.6-10020 的 start_failed，pgvector 0.8.7-1000
 2026-11-16 已完成修复包部署。PostgreSQL 源码提交 `b3e2d60` 将启动等待改为 600 秒，增加已有进程就绪检查及启动阶段耗时日志。72 项单元测试、17 项原生进程升级检查及 5 项冷启动回归检查通过。模拟延迟 130 秒后启动成功，数据、集群标识与配置校验通过。首次冷启动测试的延迟注入误覆盖配置查询，修正测试范围后通过。
 
 通过 DSM 套件中心安装 `18.6-10021`，安装包 SHA256 为 `a439758ce037d6602ab0401c9c4115ed4d2d7b701df96b02fc5d4d78233b2983`。安装后 PostgreSQL、pgvector `0.8.7-10007`、BookOrbit `3.8.0-10055` 均为 running，状态码 0。应用健康接口返回 HTTP 200、status=ok、database=up。按用户安排，整机重启验证留待下次实际重启进行。
+
+## 2026-11-17 GitHub 多仓库书源候选部署
+
+源码 26f3db90d8e9579067162b1a4d42cc73d2ba0468 的 Linux 生产构建与原生载荷完成，22 套原生测试通过。群晖普通 UID1026 在一次性原生 PG18 数据库通过 10 项应用检查，10055 结构初始化后升级通过 11 项检查，临时数据库与应用目录已清理。当前控制器 9 项生命周期检查通过，旧 SQL 文件逐一比对一致。
+
+通过 DSM 安装 3.8.0-10056 候选包，SPK SHA256 为 776c74b5ea82034f630c177931667bc9829eee4f7f6c95e3a361f461ea698667。三个套件 running。升级前后 books 29、book_files 6488、authors 23、reading_progress 11、book_comments 2，以及 libraries、library_folders、book_authors 与服务配置摘要一致。认证 GitHub config 返回 200，初始 enabled=false、repositories=[]。真实提供商页面可见 GitHub 与管理仓库入口。候选包仍为 beta，stable 打包收尾待完成。
