@@ -703,6 +703,10 @@ DSM 实际状态为 PostgreSQL 18.6-10020 的 start_failed，pgvector 0.8.7-1000
 
 ## 2026-11-17 GitHub 多仓库书源候选部署
 
+后续文案更新于 2026-11-18 通过 DSM 手动安装流程部署 3.8.0-10058 候选版，源码 a8fdb78fc93d2a64f9d4b0621b577ec04d3110f3，SPK SHA256 为 f6ea33fb6bfb40ddfec161c0e38ca23911a8d01e32f0d667e7bad8282e8eba58。Linux 构建、lint、类型检查与语言目录校验通过，中文资源线上哈希与构建产物一致。BookOrbit、PostgreSQL 18.6-10021、pgvector 0.8.7-10007 均 running，健康接口数据库 up。当前继续使用 beta 通道。
+
+发布前后 49 本书的体裁、标签、作者、系列、封面版本、阅读进度和全局偏好一致，sourceTagsFromGenres=false。三个 EPUB 大小存在差异，猎罪神探 379488→379438、第十一根手指 443411→443386、聊斋志异 1274411→1274339 字节，对应 lastWrittenAt 分别为 2026-11-18T02:39:15.539Z、02:39:21.987Z、02:39:28.510Z。三本均启用元数据回写，文件编号一致，未据此宣称完整文件字节一致。快照和验收记录位于 local/synology-native/genre-label-release-20261118。
+
 源码 26f3db90d8e9579067162b1a4d42cc73d2ba0468 的 Linux 生产构建与原生载荷完成，22 套原生测试通过。群晖普通 UID1026 在一次性原生 PG18 数据库通过 10 项应用检查，10055 结构初始化后升级通过 11 项检查，临时数据库与应用目录已清理。当前控制器 9 项生命周期检查通过，旧 SQL 文件逐一比对一致。
 
 通过 DSM 安装 3.8.0-10056 候选包，SPK SHA256 为 776c74b5ea82034f630c177931667bc9829eee4f7f6c95e3a361f461ea698667。三个套件 running。升级前后 books 29、book_files 6488、authors 23、reading_progress 11、book_comments 2，以及 libraries、library_folders、book_authors 与服务配置摘要一致。认证 GitHub config 返回 200，初始 enabled=false、repositories=[]。真实提供商页面可见 GitHub 与管理仓库入口。候选包仍为 beta，stable 打包收尾待完成。
