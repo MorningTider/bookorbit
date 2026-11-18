@@ -703,6 +703,8 @@ DSM 实际状态为 PostgreSQL 18.6-10020 的 start_failed，pgvector 0.8.7-1000
 
 ## 2026-11-17 GitHub 多仓库书源候选部署
 
+2026-11-18 已将候选升级为自用正式 3.8.0-10059，SPK SHA256 为 106afcb683304ad6945c3905962edae530a4065adc707b56f056ed02d91d7ca8。正式入口绑定实际安装 10058 的同源载荷及 12 项只读生产验收证据，复用已通过的专用用户生命周期报告。通过 DSM 手动安装后，实际 acceptance-build.json 为 stable/private，/var/packages/bookorbit-native/INFO 无 beta 字段，套件 running/status_code=0。正式安装后 12 项生产检查通过，49 本书的体裁、标签、主要书目字段和文件信息与 10058 完成后的快照一致，自动复制仍关闭。临时验收任务 5 已删除。自用正式包位于 local/synology-native/packages/genre-label-private-stable-10059，最终报告为 local/synology-native/genre-label-release-20261118/formal-verification-10059.json。本次沿用既有载荷，仅发布通道及套件元信息变化，未新增代码或重复运行完整测试套件。
+
 后续文案更新于 2026-11-18 通过 DSM 手动安装流程部署 3.8.0-10058 候选版，源码 a8fdb78fc93d2a64f9d4b0621b577ec04d3110f3，SPK SHA256 为 f6ea33fb6bfb40ddfec161c0e38ca23911a8d01e32f0d667e7bad8282e8eba58。Linux 构建、lint、类型检查与语言目录校验通过，中文资源线上哈希与构建产物一致。BookOrbit、PostgreSQL 18.6-10021、pgvector 0.8.7-10007 均 running，健康接口数据库 up。当前继续使用 beta 通道。
 
 发布前后 49 本书的体裁、标签、作者、系列、封面版本、阅读进度和全局偏好一致，sourceTagsFromGenres=false。三个 EPUB 大小存在差异，猎罪神探 379488→379438、第十一根手指 443411→443386、聊斋志异 1274411→1274339 字节，对应 lastWrittenAt 分别为 2026-11-18T02:39:15.539Z、02:39:21.987Z、02:39:28.510Z。三本均启用元数据回写，文件编号一致，未据此宣称完整文件字节一致。快照和验收记录位于 local/synology-native/genre-label-release-20261118。
